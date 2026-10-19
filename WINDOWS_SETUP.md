@@ -4,11 +4,13 @@ Local Python desktop application for LSL EEG, EDA/GSR and PPG monitoring.
 
 ## Windows 10/11 quick start
 
-1. Install 64-bit Python 3.11 or 3.12 from [python.org](https://www.python.org/), including the `py` launcher.
-2. Clone or download this branch into a writable folder.
+1. Have 64-bit Python 3.11 or 3.12 available. The installer accepts either the `python` command on PATH **or** the optional Windows `py` launcher. It does not require `py.exe` if `python` already works.
+2. Clone or download the `feature/windows-lsl-mvp` branch into a writable folder.
 3. Double-click `setup_windows.cmd` to create `.venv` and install dependencies.
 4. Double-click `simulate_windows.cmd` to start demonstration EEG/EDA/PPG streams, or start your hardware LSL outlets.
 5. Double-click `start_windows.cmd`, press **Refresh LSL**, and connect each modality.
+
+If the installer cannot locate Python, open Command Prompt and run `python --version`, `where python`, and `py --list`. The command may be unavailable even though Python is installed, if its directory is missing from PATH. Python 3.13+ or 32-bit-only installations are not selected by this MVP installer. If an old/incomplete `.venv` exists, delete that folder and rerun setup.
 
 Internet access is needed for the dependency installation, but not for ordinary local operation. LSL may trigger a Windows Defender Firewall prompt; allow only on trusted/private networks.
 
