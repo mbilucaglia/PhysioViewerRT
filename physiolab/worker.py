@@ -4,7 +4,7 @@ from .processing import Processor
 
 
 class Receiver(QThread):
-    updated = Signal(str, object, object, object)
+    updated = Signal(str, object, object, object, object, float)
     failure = Signal(str)
 
     def __init__(self, info, kind):
@@ -30,7 +30,13 @@ class Receiver(QThread):
                 if not samples:
                     continue
                 metric = proc.push(samples)
-                self.updated.emit(self.kind, proc.filtered[-int(fs * 5):].copy(), names, metric)
+                count_plot = max(1, int(fs * 5))
+                self.updated.emit(
+                    self.kind,
+                    proc.raw[-count_plot:].copy(),
+                    proc.filtered[-count_plot:].copy(),
+                    names, metric, float(fs)
+                )
         except Exception as exc:
             self.failure.emit(f'{self.kind}: {exc}')
 
