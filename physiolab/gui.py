@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
         metrics_page = QWidget()
         metrics_grid = QGridLayout(metrics_page)
         for row, (kind, keys) in enumerate((
-            ('EEG', ('FAA', 'alpha_left', 'alpha_right')),
+            ('EEG', ('IAF', 'FAA', 'alpha_left', 'alpha_right')),
             ('EDA', ('SCL',)),
             ('PPG', ('HR',)),
         )):
