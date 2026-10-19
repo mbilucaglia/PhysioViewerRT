@@ -27,6 +27,13 @@ python main.py      # terminal 2
 
 If `pylsl` cannot find the compatible `liblsl` shared library, install the appropriate OS binary and follow pylsl's library-loading instructions.
 
+## Application tabs
+
+- **Raw Data**: EEG, EDA/GSR, and PPG waveforms with independently switchable raw (solid) and filtered/processed (dashed) traces. Acquisition and metrics continue while the Metrics tab is open.
+- **Metrics**: EEG FAA and alpha powers, EDA SCL, and PPG HR, with per-modality status. Metrics use 1-second windows and 50% overlap; HR uses an extended pulse history.
+
+The current non-calibrated EEG default is **IAF 10 Hz**, with alpha power integrated over **8–12 Hz** (IAF ± 2 Hz). Subject-specific IAF calibration, z-score/z-MAD, ASR, PPG wavelets, and EDA artifact correction are not yet implemented in this branch.
+
 ## Expected streams
 
 LSL stream types must be `EEG`, `EDA` or `GSR`, and `PPG`. EEG alpha asymmetry uses F3 and F4 labels (falls back to Fp1 and Fp2).
@@ -35,7 +42,7 @@ LSL stream types must be `EEG`, `EDA` or `GSR`, and `PPG`. EEG alpha asymmetry u
 
 - Continuous causal EEG band-pass (1–40 Hz) and PPG band-pass (0.5–8 Hz), limited by Nyquist.
 - Nominal 1-second analysis windows with 50% overlap: metrics are evaluated approximately every 500 ms.
-- FAA = ln(alpha power F4) − ln(alpha power F3) from Welch PSD over 8–13 Hz.
+- FAA = ln(alpha power F4) − ln(alpha power F3) from Welch PSD over 8–12 Hz (default IAF 10 Hz ± 2 Hz).
 - EDA: one-second median skin-conductance level, in source units.
 - PPG: heart rate from valid pulse intervals over up to 10 seconds of signal history; **not** a one-second-only HR estimate.
 - Graph refresh approximately 25 FPS; displayed channels are normalized independently.

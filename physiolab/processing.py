@@ -2,6 +2,10 @@ import numpy as np
 from scipy.signal import butter, sosfilt, welch, find_peaks
 
 
+DEFAULT_IAF_HZ = 10.0
+ALPHA_HALF_WIDTH_HZ = 2.0
+
+
 class Processor:
     def __init__(self, kind, fs, channels, names):
         self.kind, self.fs, self.channels, self.names = kind, float(fs), channels, names
@@ -45,11 +49,12 @@ class Processor:
             if left is None or right is None:
                 return {'FAA': None, 'status': 'Need F3/F4 or Fp1/Fp2 channel labels'}
             f, p = welch(w[:, [left, right]], fs=self.fs, nperseg=len(w), axis=0)
-            mask = (f >= 8) & (f <= 13)
+            mask = (f >= DEFAULT_IAF_HZ - ALPHA_HALF_WIDTH_HZ) & (f <= DEFAULT_IAF_HZ + ALPHA_HALF_WIDTH_HZ)
             if not mask.any():
                 return {'FAA': None, 'status': 'Sampling rate too low'}
             powers = np.maximum(np.sum(p[mask], axis=0) * (f[1] - f[0]), 1e-20)
             return {'FAA': float(np.log(powers[1]) - np.log(powers[0])),
+                    'IAF': DEFAULT_IAF_HZ,
                     'alpha_left': float(powers[0]), 'alpha_right': float(powers[1])}
         if self.kind == 'EDA':
             return {'SCL': float(np.median(w[:, 0])), 'unit': 'source units'}
