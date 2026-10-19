@@ -1,7 +1,7 @@
 """Local two-tab biosignal monitor: waveforms and metrics."""
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox
@@ -154,7 +154,7 @@ class MainWindow(QMainWindow):
                     ))
                     curves.append(plot.plot(
                         name=f'{names[i]} processed',
-                        pen=pg.mkPen(color, width=2, style=__import__('PySide6').QtCore.Qt.DashLine)
+                        pen=pg.mkPen(color, width=2, style=Qt.PenStyle.DashLine)
                     ))
                 self.curves[kind] = curves
             count = min(len(raw), len(processed))
