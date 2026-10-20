@@ -364,7 +364,7 @@ class MainWindow(QMainWindow):
         plot.clear()
         self.curves[kind] = []
         if kind in ('EDA', 'PPG'):
-            self.ei_estimator = RollingEmotionalIndex(seconds=60)
+            self.ei_estimator.latest.clear()
             self.metric_history[('EI', 'EI')].clear()
             self.latest_metrics.pop('EI', None)
         self.refresh_metrics()
