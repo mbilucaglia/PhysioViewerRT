@@ -52,77 +52,84 @@ def analyze_eyc(eeg):
     }
 
 
+def summarize_metric(values):
+    """Compute reusable reference factors from valid metric observations."""
+    v = np.asarray(values, dtype=float)
+    v = v[np.isfinite(v)]
+    if len(v) < 5:
+        return None
+    q1, q3 = np.percentile(v, [25, 75])
+    med = float(np.median(v))
+    return {'mu': float(np.mean(v)),
+            'sigma': float(np.std(v, ddof=1)),
+            'median': med, 'iqr': float(q3-q1),
+            'mad': float(np.median(np.abs(v-med))),
+            'q1': float(q1), 'q3': float(q3),
+            'minimum': float(np.min(v)), 'maximum': float(np.max(v)),
+            'valid_windows': len(v)}
+
+
 def analyze_bsl(streams, iaf_hz=10.0):
-    """Compute baseline summaries of metrics evaluated every 0.5 s."""
+    """Summarize EEG, EDA, PPG and EI from time-aligned 0.5-second windows.
+
+    HR and SCL are standardized within the complete BSL signals (not
+    relative to an earlier BSL reference). Missing values remain missing.
+    """
     from .processing import Processor
-    summaries = {}
-    all_series = {}
+    from .emotion import baseline_ei
+    summaries, series = {}, {}
     for kind, item in streams.items():
-        if kind not in ('EEG', 'EDA', 'PPG'):
+        if kind not in ('EEG','EDA','PPG'):
             continue
         fs = float(item['fs'])
         data = np.asarray(item['data'], dtype=float)
+        stamps = np.asarray(item.get('timestamps', []), dtype=float)
         if data.ndim != 2 or len(data) < fs or not np.isfinite(data).all():
             continue
+        if len(stamps) != len(data) or not np.isfinite(stamps).all():
+            # Do not fabricate timestamps for multimodal EI alignment.
+            continue
         proc = Processor(kind, fs, data.shape[1], item['channels'], iaf_hz=iaf_hz)
-        hop = max(1, int(round(fs / 2)))
-        series = {}
+        hop = max(1, round(fs*.5))
+        sequence = {}
         for start in range(0, len(data), hop):
-            metric = proc.push(data[start:start + hop])
-            if not metric:
+            metric = proc.push(data[start:start+hop])
+            if metric is None:
                 continue
-            for name, value in metric.items():
-                if name in ('IAF', 'status', 'unit') or not isinstance(value, (int, float)):
+            index = min(start+hop, len(stamps)) - 1
+            t = float(stamps[index])
+            for key, val in metric.items():
+                if key == 'IAF' or not isinstance(val, (float,int)):
                     continue
-                if np.isfinite(value):
-                    series.setdefault(name, []).append(float(value))
-        all_series[kind] = series
-        for name, measurements in series.items():
-            vals = np.asarray(measurements)
-            if len(vals) < 5:
-                continue
-            median = float(np.median(vals))
-            q1, q3 = np.percentile(vals, [25, 75])
-            summaries.setdefault(kind, {})[name] = {
-                'mu': float(np.mean(vals)), 'sigma': float(np.std(vals, ddof=1)),
-                'median': median, 'iqr': float(q3-q1),
-                'mad': float(np.median(np.abs(vals-median))),
-                'q1': float(q1), 'q3': float(q3),
-                'minimum': float(np.min(vals)), 'maximum': float(np.max(vals)),
-                'valid_windows': int(len(vals)),
-            }
-    # EI reference: standardized HR and SCL from THIS BSL, before any
-    # user-selected display normalization. Alignment is by common 0.5-s
-    # analysis slots; a production release should use corrected LSL time.
-    hr_ref = summaries.get('PPG', {}).get('HR')
-    scl_ref = summaries.get('EDA', {}).get('SCL')
-    if hr_ref is not None and scl_ref is not None:
-        hr_series = all_series.get('PPG', {}).get('HR', [])
-        scl_series = all_series.get('EDA', {}).get('SCL', [])
-        # Take common chronological updates; missing beats may shift this
-        # approximation. A time-aligned implementation is required for trials.
-        ei_values = [
-            emotional_index(hr, scl, hr_ref, scl_ref)
-            for hr, scl in zip(hr_series, scl_series)
-        ]
-        arr = np.asarray([v for v in ei_values if v is not None], dtype=float)
-        if len(arr) >= 5:
-            q1, q3 = np.percentile(arr, [25, 75])
-            median = float(np.median(arr))
-            summaries.setdefault('EI', {})['EI'] = {
-                'mu': float(np.mean(arr)),
-                'sigma': float(np.std(arr, ddof=1)),
-                'median': median,
-                'iqr': float(q3 - q1),
-                'mad': float(np.median(np.abs(arr - median))),
-                'q1': float(q1), 'q3': float(q3),
-                'minimum': float(np.min(arr)),
-                'maximum': float(np.max(arr)),
-                'valid_windows': int(len(arr)),
-            }
-    return {'iaf_hz_used': float(iaf_hz), 'metrics': summaries,
-            'method': '1-second windows, 50% overlap; sample standard deviation (ddof=1)'}
+                sequence.setdefault(key, []).append((t, float(val) if np.isfinite(val) else np.nan))
+        series[kind] = sequence
+        for key, observations in sequence.items():
+            summary = summarize_metric([v for _,v in observations])
+            if summary is not None:
+                summaries.setdefault(kind, {})[key] = summary
 
+    hr = series.get('PPG', {}).get('HR', [])
+    scl = series.get('EDA', {}).get('SCL', [])
+    if hr and scl:
+        # Align to half-second bins using original LSL timestamps and preserve
+        # invalid slots; no zip of valid-only lists that shifts missing HR.
+        start = max(hr[0][0], scl[0][0])
+        stop = min(hr[-1][0], scl[-1][0])
+        if stop-start >= 50:
+            grid = np.arange(start, stop, .5)
+            def grid_values(samples):
+                buckets = np.full(len(grid), np.nan)
+                for t, val in samples:
+                    i = int(round((t-start)/.5))
+                    if 0 <= i < len(grid) and abs(t-grid[i]) <= .25:
+                        buckets[i] = val
+                return buckets
+            ei = baseline_ei(grid_values(hr), grid_values(scl))
+            summary = summarize_metric(ei)
+            if summary is not None:
+                summaries['EI'] = {'EI': summary}
+    return {'iaf_hz_used': float(iaf_hz), 'metrics': summaries,
+            'method': '1 s windows / 50% overlap, EI from within-BSL z-scored HR and SCL'}
 
 def normalize(value, reference=None, mode='identity'):
     """Reference-frozen transform. No baseline => identity (uncalibrated)."""
