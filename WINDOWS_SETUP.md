@@ -8,7 +8,7 @@ Local Python desktop application for LSL EEG, EDA/GSR and PPG monitoring.
 2. Clone or download the `feature/windows-lsl-mvp` branch into a writable folder.
 3. Double-click `setup_windows.cmd` to create `.venv` and install dependencies.
 4. Double-click `simulate_windows.cmd` to start demonstration EEG/EDA/PPG streams, or start your hardware LSL outlets.
-5. Double-click `start_windows.cmd`. Press **Refresh LSL**, select a stream and its channels for each modality, then press **Connect**.
+5. Double-click `start_windows.cmd`. Press **Refresh LSL**, select a stream and its channels for each modality, then press **▶ Play**.
 
 If the installer cannot locate Python, open Command Prompt and run `python --version`, `where python`, and `py --list`. The command may be unavailable even though Python is installed, if its directory is missing from PATH. Python 3.13+ or 32-bit-only installations are not selected by this MVP installer. If an old/incomplete `.venv` exists, delete that folder and rerun setup.
 
@@ -52,7 +52,7 @@ The current non-calibrated EEG default is **IAF 10 Hz**, with alpha power integr
 
 Each modality has two controls: **LSL stream** (every available stream is listed regardless of its LSL type) and **Channels** (checkbox dropdown). **EEG** supports one or more selected channels, with all channels checked initially. **EDA/GSR** and **PPG** each require exactly one checked channel. A single multichannel LSL stream may be independently connected for more than one modality; each receiver processes only its chosen columns. The source channel labels and selected order are retained for live plots, metrics, EYC and BSL recordings. Channel labels are read from **expanded metadata returned by the LSL inlet**, not just the abbreviated results of stream discovery. If the publisher supplies no channel labels or names, the picker shows `Ch1 (unlabeled)` and similar placeholders; configure electrode names in the source application. The collapsed selector shows abbreviated selected labels, and hovering reveals the full list. Check that channel labels match the actual EEG montage: AWI requires F3/F4 or Fp1/Fp2, and EYC needs posterior channel labels.
 
-Changing a stream or its checked channels does not change a running connection until **Connect** is pressed again. Refreshing LSL repopulates the channel choices. The same source must have a positive nominal sample rate.
+Each modality has its own **▶ Play / ■ Stop** button. Play starts local acquisition, waveform plotting and metric updates for that stream; Stop terminates only the app's receiver and closes its inlet, **not** the external LSL outlet/simulator. Stop clears the selected modality's live curves and metric history; stopping EDA or PPG also resets the EI rolling history. To change an active stream or channel selection, press **Stop**, choose the new source/channels, then press **Play**. Recording an EYC/BSL calibration prevents stream stopping or changing until calibration finishes or is cancelled. Refreshing LSL repopulates the channel choices. The same source must have a positive nominal sample rate.
 
 ## Expected streams
 
