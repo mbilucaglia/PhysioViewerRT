@@ -10,7 +10,8 @@ from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
-    QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu
+    QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu,
+    QScrollArea, QSizePolicy
 )
 from .worker import Receiver, discover
 from .channel_selection import channel_labels, full_channel_labels, validated_indices
@@ -238,10 +239,18 @@ class MainWindow(QMainWindow):
                 lambda *args, k=kind: self.raw_view_changed_manually(k)
             )
             plot.setXRange(-5, 0, padding=0)
+            plot.setMinimumHeight(350 if kind == 'EEG' else 300)
+            plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             signals_layout.addWidget(plot)
             self.plots[kind] = plot
             self.curves[kind] = []
-        self.tabs.addTab(signals_page, 'Raw Data')
+        signals_scroll = QScrollArea()
+        signals_scroll.setWidgetResizable(True)
+        signals_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        signals_scroll.setWidget(signals_page)
+        self.tabs.addTab(signals_scroll, 'Raw Data')
 
         metrics_page = QWidget()
         metrics_layout = QVBoxLayout(metrics_page)
@@ -367,7 +376,11 @@ class MainWindow(QMainWindow):
                 pen=None, symbol='o', symbolSize=5,
                 symbolBrush=pg.mkBrush(color), symbolPen=None,
             )
-        metrics_layout.addWidget(self.metric_plot, stretch=4)
+        self.metric_plot.setMinimumHeight(520)
+        self.metric_plot.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        metrics_layout.addWidget(self.metric_plot)
         metrics_layout.addWidget(QLabel(
             'Original mode uses mixed units on one axis. Normalized modes '
             'use stored BSL references; missing data appear as gaps.'
@@ -395,7 +408,13 @@ class MainWindow(QMainWindow):
             group.addStretch()
             metrics_grid.addLayout(group, row, 0)
         metrics_grid.setRowStretch(3, 1)
-        self.tabs.addTab(metrics_page, 'Metrics')
+        metrics_scroll = QScrollArea()
+        metrics_scroll.setWidgetResizable(True)
+        metrics_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        metrics_scroll.setWidget(metrics_page)
+        self.tabs.addTab(metrics_scroll, 'Metrics')
 
         self.statusBar().showMessage('Start an LSL source, then press Refresh LSL.')
         self.timer = QTimer(self)
