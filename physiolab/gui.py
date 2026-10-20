@@ -30,7 +30,8 @@ class CheckChannelDropdown(QToolButton):
         self.names = []
         self.actions = []
         self.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.setMinimumWidth(125)
+        self.setFixedWidth(210)
+        self.setToolTip('Choose channels; source labels are shown in the checklist')
         self.menu = QMenu(self)
         self.setMenu(self.menu)
         self.set_channels([])
@@ -62,10 +63,16 @@ class CheckChannelDropdown(QToolButton):
         chosen = self.selected_indices()
         if not chosen:
             self.setText('Select channels')
-        elif len(chosen) == 1:
-            self.setText(f'{self.names[chosen[0]]}')
-        else:
-            self.setText(f'{len(chosen)} channels')
+            self.setToolTip('No channels selected. Open the dropdown to choose.')
+            return
+        selected = [f'{i + 1}: {self.names[i]}' for i in chosen]
+        # Show the actual labels instead of just "N channels". Width is
+        # bounded; the tooltip gives the unabridged list on hover.
+        full = ', '.join(selected)
+        self.setText(self.fontMetrics().elidedText(
+            full, Qt.TextElideMode.ElideRight, self.width() - 30
+        ))
+        self.setToolTip('Selected source channels:\\n' + '\\n'.join(selected))
 
 
 class CalibrationScreen(QDialog):
