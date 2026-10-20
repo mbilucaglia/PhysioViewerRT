@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import butter, sosfilt, welch, find_peaks
+from scipy.signal import butter, sosfilt, welch, find_peaks, iirnotch, tf2sos
 
 
 DEFAULT_IAF_HZ = 10.0
@@ -10,12 +10,23 @@ class Processor:
     def __init__(self, kind, fs, channels, names, iaf_hz=DEFAULT_IAF_HZ):
         self.kind, self.fs, self.channels, self.names = kind, float(fs), channels, names
         self.iaf_hz = float(iaf_hz)
+        # Reject 50/100 Hz mains noise causally, only below Nyquist.
+        sections = []
+        self.notch_frequencies = []
+        for frequency in (50.0, 100.0):
+            if frequency < self.fs / 2:
+                b, a = iirnotch(frequency, Q=30.0, fs=self.fs)
+                sections.append(tf2sos(b, a))
+                self.notch_frequencies.append(frequency)
         self.sos = None
         if kind in ('EEG', 'PPG'):
             low, high = (1., 40.) if kind == 'EEG' else (0.5, 8.)
             high = min(high, self.fs * 0.45)
             if low < high:
-                self.sos = butter(3, [low, high], btype='bandpass', fs=self.fs, output='sos')
+                sections.append(butter(3, [low, high], btype='bandpass',
+                                       fs=self.fs, output='sos'))
+        if sections:
+            self.sos = np.vstack(sections)
         self.zi = np.zeros((self.sos.shape[0], 2, channels)) if self.sos is not None else None
         self.raw = np.empty((0, channels))
         self.filtered = np.empty((0, channels))
