@@ -1,3 +1,4 @@
+import time
 from PySide6.QtCore import QThread, Signal
 from pylsl import StreamInlet, resolve_streams
 from .processing import Processor
@@ -40,10 +41,10 @@ class Receiver(QThread):
                 selected = select_chunk(samples, self.selected_indices)
                 self.samples_received.emit(self.kind, selected, timestamps, names, float(fs))
                 metric = proc.push(selected)
-                count_plot = max(1, int(fs * 5))
+                count_plot = len(selected)
                 self.updated.emit(
                     self.kind,
-                    proc.raw[-count_plot:].copy(),
+                    selected.copy(),
                     proc.filtered[-count_plot:].copy(),
                     names, metric, float(fs)
                 )
