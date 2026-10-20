@@ -10,14 +10,62 @@ from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
-    QMessageBox, QFileDialog, QDialog, QPlainTextEdit
+    QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu
 )
 from .worker import Receiver, discover
+from .channel_selection import channel_labels, validated_indices
 from .emotion import RollingEmotionalIndex
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
 )
+
+
+class CheckChannelDropdown(QToolButton):
+    """Checkbox popup: EEG multiple, EDA/PPG exactly one."""
+
+    def __init__(self, kind, parent=None):
+        super().__init__(parent)
+        self.kind = kind
+        self.names = []
+        self.actions = []
+        self.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.setMinimumWidth(125)
+        self.menu = QMenu(self)
+        self.setMenu(self.menu)
+        self.set_channels([])
+
+    def set_channels(self, names):
+        self.names = list(names)
+        self.actions = []
+        self.menu.clear()
+        for index, name in enumerate(self.names):
+            action = self.menu.addAction(f'{index + 1}: {name}')
+            action.setCheckable(True)
+            action.setChecked(self.kind == 'EEG' or index == 0)
+            action.triggered.connect(lambda checked, i=index: self.select(i, checked))
+            self.actions.append(action)
+        self.update_label()
+
+    def select(self, index, checked):
+        if self.kind in ('EDA', 'PPG'):
+            for i, action in enumerate(self.actions):
+                action.setChecked(i == index)
+        else:
+            self.actions[index].setChecked(checked)
+        self.update_label()
+
+    def selected_indices(self):
+        return [i for i, action in enumerate(self.actions) if action.isChecked()]
+
+    def update_label(self):
+        chosen = self.selected_indices()
+        if not chosen:
+            self.setText('Select channels')
+        elif len(chosen) == 1:
+            self.setText(f'{self.names[chosen[0]]}')
+        else:
+            self.setText(f'{len(chosen)} channels')
 
 
 class CalibrationScreen(QDialog):
@@ -80,7 +128,7 @@ class MainWindow(QMainWindow):
 
         controls = QHBoxLayout()
         layout.addLayout(controls)
-        self.selectors, self.workers = {}, {}
+        self.selectors, self.channel_selectors, self.workers = {}, {}, {}
         self.plots, self.curves = {}, {}
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
@@ -101,6 +149,10 @@ class MainWindow(QMainWindow):
             combo.setMinimumWidth(160)
             self.selectors[kind] = combo
             controls.addWidget(combo)
+            picker = CheckChannelDropdown(kind)
+            self.channel_selectors[kind] = picker
+            controls.addWidget(picker)
+            combo.currentIndexChanged.connect(lambda _, k=kind: self.stream_selection_changed(k))
             button = QPushButton('Connect')
             button.clicked.connect(lambda _, k=kind: self.connect_stream(k))
             controls.addWidget(button)
