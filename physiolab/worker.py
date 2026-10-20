@@ -14,9 +14,9 @@ class Receiver(QThread):
         super().__init__()
         self.info, self.kind = info, kind
         self.selected_indices = validated_indices(selected_indices, info.channel_count(), kind)
-        self.selected_names = [str(label) for label in selected_names]
-        if len(self.selected_names) != len(self.selected_indices):
-            raise ValueError('Selected channel labels and indices differ')
+        if len(selected_names) != info.channel_count():
+            raise ValueError('Channel label count differs from the source count')
+        self.selected_names = [str(selected_names[i]) for i in self.selected_indices]
         self.active = True
         self.iaf_hz = 10.0
 
