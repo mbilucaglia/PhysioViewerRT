@@ -8,6 +8,23 @@ Local Python desktop application for LSL EEG, EDA/GSR and PPG monitoring.
 2. Clone or download the `feature/windows-lsl-mvp` branch into a writable folder.
 3. Double-click `setup_windows.cmd` to create `.venv` and install dependencies.
 4. Double-click `simulate_windows.cmd` to start demonstration EEG/EDA/PPG streams, or start your hardware LSL outlets.
+
+### Synthetic LSL sources
+
+The simulator now publishes **32 labeled EEG channels at 256 Hz** (Fp1/Fp2, F3/F4, O1/O2 and other standard montage electrodes), **EDA/skin conductance at 32 Hz** and **PPG at 128 Hz**. Signals vary over time: alpha/beta/slow EEG rhythms and frontal alpha asymmetry, tonic/phasic SCR events, and beat-to-beat heart-rate/pulse-amplitude variability. The EEG is expressed in approximate microvolts, EDA in microsiemens, and PPG in arbitrary units.
+
+It also adds intermittent **common recording artifacts**, with default *moderate* severity: frontal blinks, temporal EMG bursts, electrode pops and slow drift (EEG); skin-electrode contact shifts and scratch-like motion (EDA); and transient optical-contact loss and wrist-motion oscillations (PPG). These are stylized simulations, not measured artifacts or physiological ground truth.
+
+To select intensity from CMD instead of using `simulate_windows.cmd` defaults:
+
+```cmd
+.venv\\Scripts\\python.exe simulate.py --artifacts mild
+.venv\\Scripts\\python.exe simulate.py --artifacts strong --seed 42
+.venv\\Scripts\\python.exe simulate.py --artifacts none
+```
+
+Supported levels: `none`, `mild`, `moderate` (default), `strong`. The `--seed` argument makes results reproducible. Stop the old simulator before restarting with a different intensity. At least 60 s of simulator data is needed to capture a full baseline, and artifact-heavy simulated baselines can destabilize estimated references.
+
 5. Double-click `start_windows.cmd`. Press **Refresh LSL**, select a stream and its channels for each modality, then press **▶ Play**.
 
 If the installer cannot locate Python, open Command Prompt and run `python --version`, `where python`, and `py --list`. The command may be unavailable even though Python is installed, if its directory is missing from PATH. Python 3.13+ or 32-bit-only installations are not selected by this MVP installer. If an old/incomplete `.venv` exists, delete that folder and rerun setup.
