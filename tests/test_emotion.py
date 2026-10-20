@@ -1,5 +1,6 @@
 """Regression checks for stage-1 within-signal HR/GSR z-scores and EI."""
 import unittest
+import math
 import numpy as np
 
 from physiolab.emotion import (
@@ -10,6 +11,32 @@ from physiolab.calibration import normalize, summarize_metric
 
 
 class EmotionalIndexRegressionTests(unittest.TestCase):
+    def test_matlab_ei_matrix_quadrants(self):
+        """Direct MATLAB EI_matrix reference: atan2(GSR, HR), then beta."""
+        samples = [
+            (1., 1.), (1., -1.), (-1., -1.), (-1., 1.),
+            (1., 0.), (-1., 0.), (0., 1.), (0., -1.),
+        ]
+        for hr_z, gsr_z in samples:
+            with self.subTest(hr_z=hr_z, gsr_z=gsr_z):
+                theta = math.atan2(gsr_z, hr_z)
+                beta = math.pi / 2 - theta
+                if gsr_z >= 0 and hr_z <= 0:
+                    beta = 2.5 * math.pi - theta
+                matlab_ei = 1 - beta / math.pi
+                self.assertAlmostEqual(
+                    emotional_index_z(hr_z, gsr_z), matlab_ei, places=12
+                )
+        self.assertIsNone(emotional_index_z(0., 0.))
+
+    def test_matlab_ei_axis_order_and_quadrant_sign(self):
+        self.assertAlmostEqual(emotional_index_z(1., 1.), .75)
+        self.assertAlmostEqual(emotional_index_z(1., -1.), .25)
+        self.assertAlmostEqual(emotional_index_z(-1., -1.), -.25)
+        self.assertAlmostEqual(emotional_index_z(-1., 1.), -.75)
+        self.assertAlmostEqual(emotional_index_z(0., 1.), -1.)
+        self.assertAlmostEqual(emotional_index_z(0., -1.), 0.)
+
     def test_signal_standardization_not_reference(self):
         t = np.linspace(0, 3*np.pi, 120)
         hr = 70 + 9*np.sin(t)
