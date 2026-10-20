@@ -738,7 +738,6 @@ class MainWindow(QMainWindow):
             self.raw_last_received_at = time.monotonic()
             self.raw_clock.observe(self.raw_latest_time, self.raw_last_received_at)
         self.raw_dirty = True
-        self.raw_dirty_kinds.add(kind)
         cutoff = self.raw_latest_time - 300.0
         chunks = self.raw_history[kind]
         while chunks and chunks[0][0][-1] < cutoff:
@@ -809,7 +808,7 @@ class MainWindow(QMainWindow):
         # Animation is independent of data acquisition and analysis cadence.
         if self.tabs.currentIndex() == 0:
             self.update_raw_xranges()
-            if self.raw_dirty and time.monotonic() - self.raw_last_render_time >= 0.032:
+            if self.raw_dirty and time.monotonic() - self.raw_last_render_time >= 0.10:
                 self.draw()
         elif self.tabs.currentIndex() == 1:
             self.update_metric_xrange()
