@@ -226,9 +226,10 @@ class MainWindow(QMainWindow):
         raw_zoom_out = QPushButton('Zoom −')
         raw_zoom_out.clicked.connect(lambda: self.zoom_raw_plots(2.0))
         visibility.addWidget(raw_zoom_out)
-        self.raw_live_button = QPushButton('Live view')
+        self.raw_live_button = QPushButton('● LIVE — following')
         self.raw_live_button.clicked.connect(self.resume_raw_live)
         self.raw_live_button.setEnabled(False)
+        self.raw_live_button.setToolTip('Live samples stay at the right edge; dragging the plot pauses following')
         visibility.addWidget(self.raw_live_button)
         signals_layout.addWidget(QLabel(
             'Solid = raw; dashed = processed. Both use the same per-channel display scaling.'
@@ -313,7 +314,7 @@ class MainWindow(QMainWindow):
         zoom_out = QPushButton('Zoom −')
         zoom_out.clicked.connect(lambda: self.zoom_metric_plot(2.0))
         zoom_row.addWidget(zoom_out)
-        self.metric_live_button = QPushButton('Live view')
+        self.metric_live_button = QPushButton('● LIVE — following')
         self.metric_live_button.clicked.connect(self.resume_metric_live)
         zoom_row.addWidget(self.metric_live_button)
         zoom_row.addStretch()
@@ -632,15 +633,22 @@ class MainWindow(QMainWindow):
 
     def resume_metric_live(self):
         self.metric_follow_live = True
+        self.metric_live_button.setText('● LIVE — following')
         self.metric_live_button.setEnabled(False)
         self.update_metric_xrange()
 
     def metric_view_changed_manually(self, *_):
-        # Mouse-wheel zoom or drag pauses the moving viewport, not acquisition.
-        self.metric_follow_live = False
-        self.metric_live_button.setEnabled(True)
         xlow, xhigh = self.metric_plot.viewRange()[0]
-        self.metric_view_seconds = float(max(0.01, xhigh - xlow))
+        span = float(max(.01, xhigh - xlow))
+        is_zoom = abs(span - self.metric_view_seconds) > max(.001, .001*self.metric_view_seconds)
+        was_following = self.metric_follow_live
+        self.metric_view_seconds = span
+        if was_following and is_zoom:
+            self.update_metric_xrange()
+        else:
+            self.metric_follow_live = False
+            self.metric_live_button.setText('▶ Resume live (paused)')
+            self.metric_live_button.setEnabled(True)
 
     def update_metric_xrange(self):
         if self.metric_follow_live:
@@ -733,18 +741,29 @@ class MainWindow(QMainWindow):
 
     def resume_raw_live(self):
         self.raw_follow_live = True
+        self.raw_live_button.setText('● LIVE — following')
         self.raw_live_button.setEnabled(False)
         self.update_raw_xranges()
         self.draw()
 
-    def raw_view_changed_manually(self, kind):
-        self.raw_follow_live = False
-        self.raw_live_button.setEnabled(True)
+    def raw_view_changed_manually(self, kind, *_):
         low, high = self.plots[kind].viewRange()[0]
-        self.raw_view_seconds = float(max(.01, high - low))
-        for other, plot in self.plots.items():
-            if other != kind:
-                plot.setXRange(low, high, padding=0)
+        span = float(max(.01, high - low))
+        was_following = self.raw_follow_live
+        # A wheel zoom changes the width of the time axis; it should
+        # NOT freeze live acquisition. Horizontal dragging translates the
+        # viewport without changing its width and deliberately pauses it.
+        is_zoom = abs(span - self.raw_view_seconds) > max(.001, .001*self.raw_view_seconds)
+        self.raw_view_seconds = span
+        if was_following and is_zoom:
+            self.update_raw_xranges()
+        else:
+            self.raw_follow_live = False
+            self.raw_live_button.setText('▶ Resume live (paused)')
+            self.raw_live_button.setEnabled(True)
+            for other, plot in self.plots.items():
+                if other != kind:
+                    plot.setXRange(low, high, padding=0)
         self.draw()
 
     def update_raw_xranges(self):
