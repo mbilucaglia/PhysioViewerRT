@@ -19,10 +19,12 @@ class Receiver(QThread):
         self.selected_names = [str(selected_names[i]) for i in self.selected_indices]
         self.active = True
         self.iaf_hz = 10.0
+        self.inlet = None
 
     def run(self):
         try:
             inlet = StreamInlet(self.info, max_buflen=30)
+            self.inlet = inlet
             fs = self.info.nominal_srate()
             if fs <= 0:
                 raise ValueError('Irregular-rate streams are not supported in MVP')
@@ -47,10 +49,17 @@ class Receiver(QThread):
                 )
         except Exception as exc:
             self.failure.emit(f'{self.kind}: {exc}')
+        finally:
+            if self.inlet is not None:
+                try:
+                    self.inlet.close_stream()
+                except Exception:
+                    pass
+                self.inlet = None
 
     def stop(self):
         self.active = False
-        self.wait(1500)
+        return self.wait(1500)
 
 
 def discover():

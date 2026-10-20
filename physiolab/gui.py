@@ -84,21 +84,35 @@ class CalibrationScreen(QDialog):
         self.started_at = None
         self.setWindowTitle(f'{kind} calibration')
         self.setStyleSheet('background: black; color: white;')
-        self.setWindowState(Qt.WindowState.WindowFullScreen)
+        # Native movable and maximizable window, initially over app plots.
+        self.setWindowFlags(
+            Qt.WindowType.Window |
+            Qt.WindowType.WindowMinMaxButtonsHint |
+            Qt.WindowType.WindowCloseButtonHint
+        )
+        self.resize(900, 580)
+        if parent is not None:
+            rect = parent.frameGeometry()
+            self.move(rect.center() - self.rect().center())
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.instruction = QLabel('Close your eyes' if kind == 'EYC' else '•')
+        self.instruction = QLabel('Close your eyes' if kind == 'EYC' else 'Look at the dot')
         self.instruction.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.instruction.setStyleSheet(
-            'font-size: 52px; color: white;' if kind == 'EYC'
-            else 'font-size: 80px; color: white;'
-        )
+        self.instruction.setStyleSheet('font-size: 52px; color: white;')
         layout.addWidget(self.instruction)
+        if kind == 'BSL':
+            self.fixation = QLabel('•')
+            self.fixation.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.fixation.setStyleSheet('font-size: 80px; color: white;')
+            layout.addWidget(self.fixation)
         self.clock = QLabel('')
         self.clock.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.clock.setStyleSheet('font-size: 22px; color: #aaa;')
-        if kind == 'EYC':
-            layout.addWidget(self.clock)
+        layout.addWidget(self.clock)
+        cancel = QPushButton('Cancel (Esc)')
+        cancel.setFixedWidth(160)
+        cancel.clicked.connect(self.reject)
+        layout.addWidget(cancel, alignment=Qt.AlignmentFlag.AlignCenter)
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.tick)
@@ -110,8 +124,7 @@ class CalibrationScreen(QDialog):
 
     def tick(self):
         remaining = max(0, DURATION_SECONDS - (time.monotonic() - self.started_at))
-        if self.kind == 'EYC':
-            self.clock.setText(f'{remaining:.0f} s')
+        self.clock.setText(f'{remaining:.0f} s remaining')
         if remaining <= 0:
             self.timer.stop()
             self.accept()
@@ -136,6 +149,7 @@ class MainWindow(QMainWindow):
         controls = QHBoxLayout()
         layout.addLayout(controls)
         self.selectors, self.channel_selectors, self.workers = {}, {}, {}
+        self.stream_buttons = {}
         self.channel_metadata_cache = {}
         self.plots, self.curves = {}, {}
         self.metric_labels, self.metric_status = {}, {}
@@ -143,6 +157,7 @@ class MainWindow(QMainWindow):
         self.capture = None
         self.loaded_eyc = None
         self.loaded_bsl = None
+        self.calibration_paths = {'EYC': None, 'BSL': None}
         self.latest_metrics = {}
         self.ei_estimator = RollingEmotionalIndex(seconds=60)
         self.metric_keys = [('EEG', 'AWI'), ('EEG', 'BAR'), ('EDA', 'SCL'),
@@ -161,8 +176,10 @@ class MainWindow(QMainWindow):
             self.channel_selectors[kind] = picker
             controls.addWidget(picker)
             combo.currentIndexChanged.connect(lambda _, k=kind: self.stream_selection_changed(k))
-            button = QPushButton('Connect')
-            button.clicked.connect(lambda _, k=kind: self.connect_stream(k))
+            button = QPushButton('▶ Play')
+            button.setToolTip(f'Start/stop local {kind} LSL reception (not the publisher)')
+            button.clicked.connect(lambda _, k=kind: self.toggle_stream(k))
+            self.stream_buttons[kind] = button
             controls.addWidget(button)
         refresh = QPushButton('Refresh LSL')
         refresh.clicked.connect(self.refresh)
@@ -209,8 +226,34 @@ class MainWindow(QMainWindow):
         normalize_row.addWidget(self.normalization)
         normalize_row.addStretch()
         metrics_layout.addLayout(normalize_row)
+        calibration_row = QHBoxLayout()
+        calibration_row.addWidget(QLabel('Calibration files:'))
+        self.calibration_file_labels = {}
+        for calibration_kind in ('EYC', 'BSL'):
+            select_file = QPushButton(f'Load {calibration_kind}…')
+            select_file.clicked.connect(
+                lambda _, k=calibration_kind: self.load_existing(k)
+            )
+            calibration_row.addWidget(select_file)
+            file_label = QLabel('None selected')
+            file_label.setToolTip(f'No {calibration_kind} file loaded')
+            calibration_row.addWidget(file_label)
+            self.calibration_file_labels[calibration_kind] = file_label
+        calibration_row.addStretch()
+        metrics_layout.addLayout(calibration_row)
         self.calibration_state = QLabel('EYC: none (default IAF 10 Hz) | BSL: none')
         metrics_layout.addWidget(self.calibration_state)
+        metric_visibility = QHBoxLayout()
+        metric_visibility.addWidget(QLabel('Plot metrics:'))
+        self.metric_checks = {}
+        for key in self.metric_keys:
+            checkbox = QCheckBox(key[1])
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(self.refresh_metric_plot)
+            self.metric_checks[key] = checkbox
+            metric_visibility.addWidget(checkbox)
+        metric_visibility.addStretch()
+        metrics_layout.addLayout(metric_visibility)
         self.metric_plot = pg.PlotWidget(title='Combined live metrics — last 5 minutes')
         self.metric_plot.setLabel('bottom', 'Time relative to now', units='s')
         self.metric_plot.showGrid(x=True, y=True, alpha=.2)
@@ -304,7 +347,68 @@ class MainWindow(QMainWindow):
         if warning:
             self.statusBar().showMessage(warning)
 
+    def toggle_stream(self, kind):
+        worker = self.workers.get(kind)
+        if worker is not None and worker.isRunning():
+            self.stop_stream(kind)
+        else:
+            self.connect_stream(kind)
+
+    def reset_stream_display(self, kind):
+        self.pending.pop(kind, None)
+        self.latest_metrics.pop(kind, None)
+        for key in self.metric_keys:
+            if key[0] == kind:
+                self.metric_history[key].clear()
+        plot = self.plots[kind]
+        plot.clear()
+        self.curves[kind] = []
+        if kind in ('EDA', 'PPG'):
+            self.ei_estimator = RollingEmotionalIndex(seconds=60)
+            self.metric_history[('EI', 'EI')].clear()
+            self.latest_metrics.pop('EI', None)
+        self.refresh_metrics()
+
+    def stop_stream(self, kind):
+        if self.capture is not None:
+            QMessageBox.warning(self, 'Calibration in progress',
+                                'Finish or cancel the calibration before stopping a stream.')
+            return
+        worker = self.workers.get(kind)
+        if worker is None:
+            self.stream_buttons[kind].setText('▶ Play')
+            return
+        self.stream_buttons[kind].setEnabled(False)
+        self.stream_buttons[kind].setText('Stopping…')
+        stopped = worker.stop()
+        if stopped:
+            self.workers.pop(kind, None)
+            self.stream_buttons[kind].setEnabled(True)
+            self.stream_buttons[kind].setText('▶ Play')
+            self.reset_stream_display(kind)
+            self.statusBar().showMessage(
+                f'{kind} reception stopped (LSL source is still transmitting)'
+            )
+        else:
+            self.statusBar().showMessage(f'{kind}: waiting for receiver to stop')
+
+    def receiver_finished(self, kind, worker):
+        if self.workers.get(kind) is not worker:
+            return
+        self.workers.pop(kind, None)
+        self.stream_buttons[kind].setEnabled(True)
+        self.stream_buttons[kind].setText('▶ Play')
+        self.reset_stream_display(kind)
+        if worker.active:
+            self.statusBar().showMessage(f'{kind} receiver ended unexpectedly')
+        else:
+            self.statusBar().showMessage(f'{kind} reception stopped')
+
     def connect_stream(self, kind):
+        if self.capture is not None:
+            QMessageBox.warning(self, 'Calibration in progress',
+                                'Finish or cancel calibration before changing a stream.')
+            return
         info = self.selectors[kind].currentData()
         if info is None:
             self.statusBar().showMessage(f'No {kind} stream selected')
@@ -314,28 +418,26 @@ class MainWindow(QMainWindow):
                 self.channel_selectors[kind].selected_indices(),
                 info.channel_count(), kind,
             )
-        except ValueError as exc:
+            previous = self.workers.get(kind)
+            if previous is not None and previous.isRunning():
+                QMessageBox.warning(self, 'Receiver active',
+                                    f'Stop {kind} before starting another stream.')
+                return
+            worker = Receiver(info, kind, indices, self.channel_selectors[kind].names)
+        except (ValueError, RuntimeError) as exc:
             QMessageBox.warning(self, f'{kind} channel selection', str(exc))
             return
-        if kind in self.workers:
-            self.workers[kind].stop()
-        self.pending.pop(kind, None)
-        for key in self.metric_keys:
-            if key[0] == kind:
-                self.metric_history[key].clear()
-        if kind in ('PPG', 'EDA'):
-            self.ei_estimator = RollingEmotionalIndex(seconds=60)
-            self.metric_history[('EI', 'EI')].clear()
-            self.latest_metrics.pop('EI', None)
-        self.latest_metrics.pop(kind, None)
-        worker = Receiver(info, kind, indices, self.channel_selectors[kind].names)
+        self.reset_stream_display(kind)
         worker.updated.connect(self.receive)
         worker.samples_received.connect(self.capture_samples)
         worker.stream_ready.connect(self.ready_stream)
         worker.iaf_hz = self.iaf_hz
         worker.failure.connect(self.statusBar().showMessage)
+        worker.finished.connect(lambda k=kind, w=worker: self.receiver_finished(k, w))
         self.workers[kind] = worker
+        self.stream_buttons[kind].setText('■ Stop')
         worker.start()
+        self.statusBar().showMessage(f'{kind}: starting selected LSL stream reception')
 
     def receive(self, kind, raw, processed, names, metric, fs):
         self.pending[kind] = (raw, processed, names, fs)
@@ -390,6 +492,10 @@ class MainWindow(QMainWindow):
     def refresh_metric_plot(self):
         now = time.monotonic()
         for (kind, name), curve in self.metric_curves.items():
+            visible = self.metric_checks[(kind, name)].isChecked()
+            curve.setVisible(visible)
+            if not visible:
+                continue
             points = [(t, val) for t, val in self.metric_history[(kind, name)]
                       if now - t <= 300]
             if not points:
@@ -548,7 +654,7 @@ class MainWindow(QMainWindow):
             filename += '.npz'
         try:
             save_calibration(filename, kind, streams, analysis)
-            self.apply_calibration(kind, {'analysis': analysis})
+            self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
             self.statusBar().showMessage(f'Saved {kind}: {filename}')
         except Exception as exc:
             QMessageBox.critical(self, 'Save failed', str(exc))
@@ -596,7 +702,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(close)
         dlg.exec()
 
-    def apply_calibration(self, kind, meta):
+    def apply_calibration(self, kind, meta, filename=None):
         if kind == 'EYC':
             self.loaded_eyc = meta
             self.iaf_hz = float(meta['analysis']['iaf_hz'])
@@ -605,6 +711,10 @@ class MainWindow(QMainWindow):
                     worker.iaf_hz = self.iaf_hz
         else:
             self.loaded_bsl = meta
+        self.calibration_paths[kind] = filename
+        file_label = self.calibration_file_labels[kind]
+        file_label.setText(Path(filename).name if filename else 'Loaded (unsaved)')
+        file_label.setToolTip(filename or 'Calibration active but not saved to a file')
         self.calibration_state.setText(
             f"EYC: {self.iaf_hz:.2f} Hz"
             f" | BSL: {'loaded' if self.loaded_bsl else 'none'}"
@@ -622,7 +732,7 @@ class MainWindow(QMainWindow):
             # Inspect the saved result, also recompute if an older file lacks it.
             analysis = meta.get('analysis') or self.analyze_calibration(kind, streams)
             self.inspect_calibration(kind, analysis)
-            self.apply_calibration(kind, {'analysis': analysis})
+            self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
             self.statusBar().showMessage(f'Loaded {kind}: {filename}')
         except Exception as exc:
             QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
