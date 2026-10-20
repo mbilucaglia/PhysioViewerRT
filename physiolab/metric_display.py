@@ -7,6 +7,29 @@ import numpy as np
 from scipy.interpolate import PchipInterpolator, CubicSpline
 
 
+
+def monotonic_display_samples(times, values):
+    """Keep time order and the latest value for a repeated timestamp.
+
+    GUI event scheduling can generate repeated metric timestamps. Ignore
+    backwards/non-finite times rather than crashing PCHIP/cubic rendering.
+    Original metric storage and calibration data remain untouched.
+    """
+    t = np.asarray(times, dtype=float)
+    v = np.asarray(values, dtype=float)
+    if t.ndim != 1 or v.ndim != 1 or t.shape != v.shape:
+        raise ValueError('Display timestamps and values must be matching vectors')
+    indices = []
+    for index, stamp in enumerate(t):
+        if not np.isfinite(stamp):
+            continue
+        if not indices or stamp > t[indices[-1]]:
+            indices.append(index)
+        elif stamp == t[indices[-1]]:
+            indices[-1] = index
+    return t[indices], v[indices]
+
+
 def prepare_metric_curve(times, values, smoothing='none', seconds=2.0,
                          interpolation='pchip', display_hz=20.0,
                          max_gap=1.1):
@@ -27,11 +50,10 @@ def prepare_metric_curve(times, values, smoothing='none', seconds=2.0,
         raise ValueError('Unknown interpolation method')
     if seconds <= 0 or display_hz <= 0 or max_gap <= 0:
         raise ValueError('Durations and interpolation rate must be positive')
+    x, y = monotonic_display_samples(x, y)
     if not len(x):
         empty = np.empty(0, dtype=float)
         return empty, empty, empty, empty
-    if not np.all(np.isfinite(x)) or np.any(np.diff(x) <= 0):
-        raise ValueError('Metric timestamps must be finite and strictly increasing')
 
     valid = np.isfinite(y)
     breaks = np.where(

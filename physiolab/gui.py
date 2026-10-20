@@ -941,10 +941,22 @@ class MainWindow(QMainWindow):
             filename += '.npz'
         try:
             save_calibration(filename, kind, streams, analysis)
-            self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
-            self.statusBar().showMessage(f'Saved {kind}: {filename}')
         except Exception as exc:
             QMessageBox.critical(self, 'Save failed', str(exc))
+            return
+        # Once the file is written, a display/UI exception is not a
+        # calibration save failure. Keep the saved file and report separately.
+        try:
+            self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
+        except Exception as exc:
+            self.statusBar().showMessage(f'Saved {kind}: {filename}')
+            QMessageBox.warning(
+                self, 'Calibration saved; display update failed',
+                f'{kind} was saved successfully to:\n{filename}\n\n'
+                f'The interface could not refresh: {exc}'
+            )
+            return
+        self.statusBar().showMessage(f'Saved {kind}: {filename}')
 
     def analyze_calibration(self, kind, streams):
         if kind == 'EYC':
