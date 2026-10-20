@@ -40,6 +40,55 @@ def emotional_index_z(hr_z, gsr_z):
     return float(1. - beta / math.pi)
 
 
+
+def ei_matrix(scl_z, hr_z):
+    """MATLAB EI_matrix equivalent for an epoch of already-z-scored data.
+
+    HR is the horizontal axis, SCL the vertical axis. The MATLAB guard
+    applies to the ENTIRE HR epoch, not to each individual HR sample.
+    Missing sample pairs remain NaN in the result.
+    """
+    scl = np.asarray(scl_z, dtype=float)
+    hr = np.asarray(hr_z, dtype=float)
+    if scl.shape != hr.shape:
+        raise ValueError('HR and SCL epochs must have identical shapes')
+    if not np.any(hr != 0):
+        return np.full(hr.shape, np.nan, dtype=float)
+    theta = np.arctan2(scl, hr)
+    beta = np.pi / 2 - theta
+    beta = np.where((scl >= 0) & (hr <= 0), 2.5 * np.pi - theta, beta)
+    ei = 1 - beta / np.pi
+    return np.where(np.isfinite(hr) & np.isfinite(scl), ei, np.nan)
+
+
+def ei_epochs(scl_epochs, hr_epochs, scl_reference, hr_reference):
+    """MATLAB normalize_struct(zscore) -> EI_matrix for each epoch.
+
+    The normalization factors are fixed BSL statistics. HR/SCL epochs
+    have identical shapes/timing within each pair. No live rolling
+    normalization or separate z-scoring within epochs occurs.
+    """
+    if len(scl_epochs) != len(hr_epochs):
+        raise ValueError('HR and SCL must have matching epoch counts')
+    if not scl_reference or not hr_reference:
+        raise ValueError('Valid BSL HR and SCL references are required')
+    try:
+        mean_h, sigma_h = float(hr_reference['mu']), float(hr_reference['sigma'])
+        mean_g, sigma_g = float(scl_reference['mu']), float(scl_reference['sigma'])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError('Invalid BSL reference statistics') from exc
+    if (not all(np.isfinite(x) for x in (mean_h, sigma_h, mean_g, sigma_g))
+            or sigma_h <= 1e-12 or sigma_g <= 1e-12):
+        raise ValueError('BSL standard deviations must be positive and finite')
+    output = []
+    for scl, hr in zip(scl_epochs, hr_epochs):
+        scl = np.asarray(scl, dtype=float)
+        hr = np.asarray(hr, dtype=float)
+        output.append(ei_matrix((scl - mean_g) / sigma_g,
+                                (hr - mean_h) / sigma_h))
+    return output
+
+
 def standardize_pair(hr, scl):
     """Full-recording z-score for BSL; preserve missing/invalid slots.
 
@@ -67,11 +116,7 @@ def standardize_pair(hr, scl):
 def baseline_ei(hr_series, scl_series):
     """EI computed from z-scored BSL signals, using aligned 0.5-s slots."""
     h, g = standardize_pair(hr_series, scl_series)
-    return np.array(
-        [emotional_index_z(hi, gi) if np.isfinite(hi) and np.isfinite(gi)
-         else np.nan for hi, gi in zip(h, g)],
-        dtype=float
-    )
+    return ei_matrix(g, h)
 
 
 def emotional_index_from_bsl(hr, scl, hr_reference, scl_reference):
