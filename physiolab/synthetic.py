@@ -28,7 +28,11 @@ class SyntheticPhysiology:
     size does not change the generated sample sequence.
     """
 
-    def __init__(self, seed=2026):
+    def __init__(self, seed=2026, artifact_level='moderate'):
+        if artifact_level not in ('none', 'mild', 'moderate', 'strong'):
+            raise ValueError('artifact_level must be none, mild, moderate or strong')
+        self.artifact_level = artifact_level
+        self.artifact_scale = {'none': 0., 'mild': .45, 'moderate': 1., 'strong': 1.8}[artifact_level]
         streams = np.random.SeedSequence(seed).spawn(3)
         self.rng = {kind: np.random.default_rng(state)
                     for kind, state in zip(SPECS, streams)}
@@ -94,7 +98,7 @@ class SyntheticPhysiology:
             [1.], [1., -.91], innovation, axis=0, zi=self.eeg_noise_state
         )
         noise = 1.1*colored[:, :n] + .6*colored[:, -1, None]
-        # Rare smooth blink artifacts, stronger at frontopolar electrodes.
+        # Smooth blink artifacts, strongest at frontopolar electrodes.
         blink_phase = np.mod(t - 8., 19.)
         blink = 35.*np.exp(-.5*((blink_phase - .25)/.17)**2)
         frontal_weights = np.array(
@@ -102,8 +106,27 @@ class SyntheticPhysiology:
              .55 if name.startswith(('AF', 'F')) else .08
              for name in EEG_LABELS]
         )
+        # Broad-band jaw/forehead EMG: intermittent 30–90 Hz muscle bursts.
+        # EEG channel offsets are smooth due to motion/electrode impedance.
+        burst_times = np.mod(t - 12., 37.)
+        emg_window = np.exp(-.5*((burst_times - .65)/.55)**2)
+        emg_carrier = (8*np.sin(2*np.pi*36.7*t[:, None] + 2.1*p)
+                       + 5*np.sin(2*np.pi*73.2*t[:, None] + .8*p))
+        emg_weights = np.asarray([
+            1.0 if label in ('F7', 'F8', 'T7', 'T8') else
+            .7 if label.startswith(('Fp', 'AF', 'F')) else .18
+            for label in EEG_LABELS
+        ])
+        # Electrode pops followed by decay, and slow contact drift on Fp1.
+        pop_age = np.mod(t - 21., 83.)
+        pop = np.where(pop_age < 4., 65*np.exp(-pop_age/1.2), 0.)
+        drift = 14*np.sin(2*np.pi*t/48.) + .07*t/(1.+t/180.)
+        artifacts = (blink[:, None]*frontal_weights[None, :]
+                     + emg_window[:, None]*emg_carrier*emg_weights[None, :])
+        artifacts[:, EEG_LABELS.index('Fp1')] += pop + drift
+        artifacts[:, EEG_LABELS.index('T8')] += .65*pop
         return alpha + beta + theta + slow + mains + noise + (
-            blink[:, None]*frontal_weights[None, :]
+            self.artifact_scale*artifacts
         )
 
     def _eda(self, t):
@@ -123,7 +146,19 @@ class SyntheticPhysiology:
                             - np.exp(-positive/.65))
             phasic += np.where(delta >= 0, response, 0.)
         noise = self.rng['EDA'].normal(0, .006, len(t))
-        return np.maximum(.1, baseline + breathing + phasic + noise)
+        # Contact changes produce abrupt downward steps and a slow recovery.
+        # Short movement scratches add faster oscillations to the electrodes.
+        contact_age = np.mod(t - 34., 78.)
+        contact_dip = np.where(
+            contact_age < 5., -.42*np.exp(-contact_age/2.5), 0.
+        )
+        scratch_age = np.mod(t - 27., 53.)
+        scratch_window = np.exp(-.5*((scratch_age - .4)/.22)**2)
+        scratch = .14*scratch_window*np.sin(2*np.pi*7.3*t)
+        return np.maximum(
+            .1, baseline + breathing + phasic + noise
+            + self.artifact_scale*(contact_dip + scratch)
+        )
 
     def _ppg(self, t):
         # Analytic integral of the time-varying heart rate, in cycles,
@@ -150,4 +185,18 @@ class SyntheticPhysiology:
         motion = .08*np.sin(2*np.pi*1.7*t)*np.maximum(
             0., np.sin(2*np.pi*t/57.)
         )**8
-        return baseline + respiratory_amp*slow_amp*wave + noise + motion
+        # Sudden temporary poor optical contact attenuates pulses.
+        # Hand/wrist movement induces large oscillatory baseline excursions.
+        loss_age = np.mod(t - 39., 91.)
+        loss_envelope = np.where(
+            loss_age < 3.5, .22, 1.
+        )
+        movement_age = np.mod(t - 18., 43.)
+        movement_window = np.exp(-.5*((movement_age - .65)/.9)**2)
+        movement = movement_window * (
+            .65*np.sin(2*np.pi*1.75*t) + .25*np.sin(2*np.pi*3.4*t)
+        )
+        loss_mix = 1. - self.artifact_scale*(1. - loss_envelope)
+        loss_mix = np.clip(loss_mix, .03, 1.)
+        return (baseline + respiratory_amp*slow_amp*wave*loss_mix
+                + noise + self.artifact_scale*(motion + movement))
