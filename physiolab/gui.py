@@ -11,13 +11,14 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
     QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu,
-    QScrollArea, QSizePolicy
+    QScrollArea, QSizePolicy, QApplication
 )
 from .worker import Receiver, discover
 from .channel_selection import channel_labels, full_channel_labels, validated_indices
 from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
-from .raw_timing import clean_lsl_chunk, visible_chunk, SmoothViewportClock
+from .raw_timing import clean_lsl_chunk, SmoothViewportClock
+from .raw_render_worker import RawRenderWorker
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
@@ -167,6 +168,7 @@ class MainWindow(QMainWindow):
         self.raw_dirty = True
         self.metric_dirty = True
         self.raw_last_render_time = 0.0
+        self.raw_frame_epoch = 0
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -426,6 +428,11 @@ class MainWindow(QMainWindow):
         metrics_scroll.setWidget(metrics_page)
         self.tabs.addTab(metrics_scroll, 'Metrics')
 
+        # Raw data reduction runs off the GUI thread; painting remains here.
+        self.raw_render_worker = RawRenderWorker(self)
+        self.raw_render_worker.frame_ready.connect(self.apply_raw_frame)
+        self.raw_render_worker.start()
+
         self.statusBar().showMessage('Start an LSL source, then press Refresh LSL.')
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.render_frame)
@@ -488,6 +495,7 @@ class MainWindow(QMainWindow):
     def reset_stream_display(self, kind):
         self.pending.pop(kind, None)
         self.raw_history[kind].clear()
+        self.raw_frame_epoch += 1  # Ignore in-flight results from disconnected streams.
         self.raw_last_sample.pop(kind, None)
         if not self.raw_last_sample:
             self.raw_clock.reset()
@@ -764,9 +772,12 @@ class MainWindow(QMainWindow):
         self.raw_live_button.setText('● LIVE — following')
         self.raw_live_button.setEnabled(False)
         self.update_raw_xranges()
-        self.draw()
+        self.raw_dirty = True
 
     def raw_view_changed_manually(self, kind, *_):
+        if QApplication.activePopupWidget() is not None:
+            self.raw_dirty = True
+            return
         low, high = self.plots[kind].viewRange()[0]
         span = float(max(.01, high - low))
         was_following = self.raw_follow_live
@@ -799,12 +810,14 @@ class MainWindow(QMainWindow):
     def tab_changed(self, index):
         if index == 0:
             self.raw_dirty = True
-            self.draw()
         elif index == 1:
             self.metric_dirty = True
             self.refresh_metric_plot()
 
     def render_frame(self):
+        # Keep native axis menus responsive in their nested Qt event loops.
+        if QApplication.activePopupWidget() is not None:
+            return
         # Animation is independent of data acquisition and analysis cadence.
         if self.tabs.currentIndex() == 0:
             self.update_raw_xranges()
@@ -816,92 +829,75 @@ class MainWindow(QMainWindow):
                 self.refresh_metric_plot()
 
     def draw(self):
-        if self.tabs.currentIndex() != 0:
+        """Submit a lightweight snapshot; never reduce data on the GUI thread."""
+        if self.tabs.currentIndex() != 0 or self.raw_plot_origin is None:
+            return
+        if QApplication.activePopupWidget() is not None:
             return
         self.raw_dirty = False
         self.raw_last_render_time = time.monotonic()
+        sources = {}
         for kind, chunks in self.raw_history.items():
             if not chunks:
                 continue
-            plot = self.plots[kind]
-            low, high = plot.viewRange()[0]
-            times, raw_parts, filtered_parts = [], [], []
-            names = chunks[-1][3]
-            # Iterate backwards from the newest chunk, stopping once
-            # history is older than the viewport. Never scan all five
-            # retained minutes for a five-second view.
-            t_min = self.raw_plot_origin + low
-            t_max = self.raw_plot_origin + high
-            selected = []
+            low, high = self.plots[kind].viewRange()[0]
+            minimum = self.raw_plot_origin + low
+            maximum = self.raw_plot_origin + high
+            # Snapshot references to existing immutable chunks; don't copy the
+            # sample arrays or retain all five minutes in each request.
+            recent = []
             for item in reversed(chunks):
-                stamps = item[0]
-                if stamps[-1] < t_min:
+                if item[0][-1] < minimum:
                     break
-                if stamps[0] <= t_max:
-                    selected.append(item)
-            for stamps, raw, filtered, _, fs in reversed(selected):
-                visible_t, visible_raw, visible_filtered = visible_chunk(
-                    stamps, raw, filtered, t_min, t_max
-                )
-                if not len(visible_t):
-                    continue
-                times.append(visible_t - self.raw_plot_origin)
-                raw_parts.append(visible_raw)
-                filtered_parts.append(visible_filtered)
-            if not times:
-                for curve in self.curves[kind]:
-                    curve.clear()
+                if item[0][0] <= maximum:
+                    recent.append(item)
+            if recent:
+                sources[kind] = (tuple(reversed(recent)), low, high,
+                                 self.raw_plot_origin, self.raw_scale.get(kind))
+        if sources:
+            self.raw_render_worker.submit({
+                'version': self.raw_frame_epoch,
+                'sources': sources,
+            })
+
+    def apply_raw_frame(self, response):
+        """Paint ready-to-display arrays on Qt's GUI thread only."""
+        if response['version'] != self.raw_frame_epoch:
+            return
+        if self.tabs.currentIndex() != 0 or QApplication.activePopupWidget() is not None:
+            self.raw_dirty = True
+            return
+        for kind, frame in response['frames'].items():
+            if frame is None:
                 continue
-            t = np.concatenate(times)
-            raw = np.concatenate(raw_parts)
-            filtered = np.concatenate(filtered_parts)
-            stride = max(1, int(np.ceil(len(t) / 5000)))
-            t, raw, filtered = t[::stride], raw[::stride], filtered[::stride]
-            n = min(raw.shape[1], 8 if kind == 'EEG' else 1)
-            if len(self.curves[kind]) != 2*n:
+            timestamps, raw, filtered, centers, spreads, names = frame
+            plot = self.plots[kind]
+            n = raw.shape[1]
+            if kind not in self.raw_scale:
+                self.raw_scale[kind] = (centers, spreads)
+            if len(self.curves[kind]) != 2 * n:
                 plot.clear()
                 self.curves[kind] = []
                 plot.enableAutoRange(axis='y', enable=False)
-                plot.setYRange(-3., n*6., padding=0)
-                for i in range(n):
+                plot.setYRange(-3., n * 6., padding=0)
+                for i, name in enumerate(names):
                     color = pg.intColor(i, hues=max(n, 3))
                     self.curves[kind].append(plot.plot(
-                        name=f'{names[i]} raw', pen=pg.mkPen(color, width=1)
+                        name=f'{name} raw', pen=pg.mkPen(color, width=1)
                     ))
                     self.curves[kind].append(plot.plot(
-                        name=f'{names[i]} processed',
+                        name=f'{name} processed',
                         pen=pg.mkPen(color, width=2, style=Qt.PenStyle.DashLine)
                     ))
-            # Anchor both raw and processed curves to the same robust
-            # scaling reference, established once for the stream. Avoid
-            # artificial movement from recomputing median/std each frame.
-            if kind not in self.raw_scale:
-                # Wait for a meaningful fraction of a second before
-                # freezing scaling; first LSL chunks may have 1-5 samples.
-                fs = chunks[-1][4]
-                if len(raw) < max(8, round(fs * .75)):
-                    continue
-                centers = np.median(raw[:, :n], axis=0)
-                spreads = np.std(raw[:, :n], axis=0)
-                spreads = np.where(np.isfinite(spreads) & (spreads > 1e-12),
-                                   spreads, 1.)
-                self.raw_scale[kind] = (centers, spreads)
-            centers, spreads = self.raw_scale[kind]
             for i in range(n):
-                r, p = raw[:, i], filtered[:, i]
                 if self.show_raw.isChecked():
-                    self.curves[kind][2*i].setData(
-                        t, (r-centers[i])/spreads[i] + i*6
-                    )
+                    self.curves[kind][2*i].setData(timestamps, raw[:, i])
                 else:
                     self.curves[kind][2*i].clear()
                 if self.show_processed.isChecked():
-                    self.curves[kind][2*i+1].setData(
-                        t, (p-centers[i])/spreads[i] + i*6
-                    )
+                    self.curves[kind][2*i+1].setData(timestamps, filtered[:, i])
                 else:
                     self.curves[kind][2*i+1].clear()
-
 
     def _configure_calibration_menu(self):
         menu = self.menuBar().addMenu('Calibration')
@@ -1116,6 +1112,8 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
 
     def closeEvent(self, event):
+        self.timer.stop()
+        self.raw_render_worker.stop()
         for worker in self.workers.values():
             worker.stop()
         super().closeEvent(event)
