@@ -1,7 +1,7 @@
 """Regression tests for monotonic raw waveform time axes."""
 import unittest
 import numpy as np
-from physiolab.raw_timing import clean_lsl_chunk, visible_chunk
+from physiolab.raw_timing import clean_lsl_chunk, visible_chunk, SmoothViewportClock
 
 
 class RawTimingTests(unittest.TestCase):
@@ -43,6 +43,29 @@ class RawTimingTests(unittest.TestCase):
         np.testing.assert_array_equal(x, [1.011, 1.022])
         np.testing.assert_array_equal(y[:, 0], [2., 3.])
         np.testing.assert_array_equal(z[:, 0], [4., 6.])
+
+    def test_presentation_clock_is_continuous_and_monotonic(self):
+        clock = SmoothViewportClock()
+        self.assertIsNone(clock.advance(0.))
+        clock.observe(100., 10.)
+        values = [clock.advance(10. + i/30.) for i in range(30)]
+        self.assertTrue(np.all(np.diff(values) >= 0.))
+        self.assertLess(values[-1] - values[0], .2)
+        # A delayed chunk should not teleport the viewport forward.
+        before = clock.advance(11.)
+        clock.observe(101., 11.01)
+        after = clock.advance(11.04)
+        self.assertGreaterEqual(after, before)
+        self.assertLessEqual(after - before, .06)
+        clock.reset()
+        self.assertIsNone(clock.advance(12.))
+
+    def test_clock_stays_bounded_during_lsl_stall(self):
+        clock = SmoothViewportClock()
+        clock.observe(50., 1.)
+        heads = [clock.advance(1. + i/30.) for i in range(250)]
+        self.assertTrue(np.all(np.diff(heads) >= 0.))
+        self.assertLessEqual(heads[-1], 50.08 + 1e-10)
 
     def test_misaligned_sample_count_is_rejected(self):
         with self.assertRaises(ValueError):
