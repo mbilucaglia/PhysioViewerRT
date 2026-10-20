@@ -84,21 +84,35 @@ class CalibrationScreen(QDialog):
         self.started_at = None
         self.setWindowTitle(f'{kind} calibration')
         self.setStyleSheet('background: black; color: white;')
-        self.setWindowState(Qt.WindowState.WindowFullScreen)
+        # Native movable and maximizable window, initially over app plots.
+        self.setWindowFlags(
+            Qt.WindowType.Window |
+            Qt.WindowType.WindowMinMaxButtonsHint |
+            Qt.WindowType.WindowCloseButtonHint
+        )
+        self.resize(900, 580)
+        if parent is not None:
+            rect = parent.frameGeometry()
+            self.move(rect.center() - self.rect().center())
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.instruction = QLabel('Close your eyes' if kind == 'EYC' else '•')
+        self.instruction = QLabel('Close your eyes' if kind == 'EYC' else 'Look at the dot')
         self.instruction.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.instruction.setStyleSheet(
-            'font-size: 52px; color: white;' if kind == 'EYC'
-            else 'font-size: 80px; color: white;'
-        )
+        self.instruction.setStyleSheet('font-size: 52px; color: white;')
         layout.addWidget(self.instruction)
+        if kind == 'BSL':
+            self.fixation = QLabel('•')
+            self.fixation.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.fixation.setStyleSheet('font-size: 80px; color: white;')
+            layout.addWidget(self.fixation)
         self.clock = QLabel('')
         self.clock.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.clock.setStyleSheet('font-size: 22px; color: #aaa;')
-        if kind == 'EYC':
-            layout.addWidget(self.clock)
+        layout.addWidget(self.clock)
+        cancel = QPushButton('Cancel (Esc)')
+        cancel.setFixedWidth(160)
+        cancel.clicked.connect(self.reject)
+        layout.addWidget(cancel, alignment=Qt.AlignmentFlag.AlignCenter)
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.tick)
@@ -110,8 +124,7 @@ class CalibrationScreen(QDialog):
 
     def tick(self):
         remaining = max(0, DURATION_SECONDS - (time.monotonic() - self.started_at))
-        if self.kind == 'EYC':
-            self.clock.setText(f'{remaining:.0f} s')
+        self.clock.setText(f'{remaining:.0f} s remaining')
         if remaining <= 0:
             self.timer.stop()
             self.accept()
