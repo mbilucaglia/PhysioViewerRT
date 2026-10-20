@@ -161,6 +161,10 @@ class MainWindow(QMainWindow):
         self.raw_plot_origin = None
         self.raw_latest_time = None
         self.raw_last_sample = {}
+        self.raw_last_received_at = None
+        self.raw_dirty = True
+        self.metric_dirty = True
+        self.raw_last_render_time = 0.0
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -198,6 +202,7 @@ class MainWindow(QMainWindow):
         controls.addWidget(refresh)
 
         self.tabs = QTabWidget()
+        self.tabs.currentChanged.connect(self.tab_changed)
         layout.addWidget(self.tabs)
 
         signals_page = QWidget()
@@ -421,8 +426,9 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage('Start an LSL source, then press Refresh LSL.')
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.draw)
-        self.timer.start(40)
+        self.timer.timeout.connect(self.render_frame)
+        self.timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self.timer.start(33)
         self.refresh()
 
     def refresh(self):
@@ -481,6 +487,7 @@ class MainWindow(QMainWindow):
         self.pending.pop(kind, None)
         self.raw_history[kind].clear()
         self.raw_last_sample.pop(kind, None)
+        self.raw_dirty = True
         self.latest_metrics.pop(kind, None)
         for key in self.metric_keys:
             if key[0] == kind:
@@ -589,7 +596,8 @@ class MainWindow(QMainWindow):
             self.metric_history[('EI', 'EI')].append(
                 (now, float(value) if value is not None else float('nan'))
             )
-        self.refresh_metrics()
+        self.refresh_metric_labels()
+        self.metric_dirty = True
 
     def displayed_value(self, kind, name, value):
         if value is None or not isinstance(value, (int, float)) or not np.isfinite(value):
@@ -606,13 +614,16 @@ class MainWindow(QMainWindow):
         return normalize(value, reference, mode)
 
     def refresh_metrics(self, *_):
+        self.refresh_metric_labels()
+        self.metric_dirty = True
+
+    def refresh_metric_labels(self):
         for (kind, name), label in self.metric_labels.items():
             raw = self.latest_metrics.get(kind, {}).get(name)
             value = self.displayed_value(kind, name, raw)
             label.setText(f'{name}: {value:.3f}' if value is not None else f'{name}: —')
         for kind, label in self.metric_status.items():
             label.setText(self.latest_metrics.get(kind, {}).get('status', 'Waiting for data'))
-        self.refresh_metric_plot()
 
     def set_metric_time_window(self, *_):
         seconds = self.metric_time_window.currentData()
@@ -697,7 +708,7 @@ class MainWindow(QMainWindow):
                 curve.setData(x, y, connect='finite')
             if show_markers or interpolation == 'none':
                 markers.setData(measured_x, measured_y)
-        self.update_metric_xrange()
+        self.metric_dirty = False
 
     def append_raw_chunk(self, kind, raw, processed, names, fs, timestamps):
         # The worker passes the actual LSL timestamps along with exactly
@@ -714,10 +725,10 @@ class MainWindow(QMainWindow):
         self.raw_history[kind].append(
             (t, raw.copy(), processed.copy(), list(names), float(fs))
         )
-        self.raw_latest_time = (
-            float(t[-1]) if self.raw_latest_time is None
-            else max(self.raw_latest_time, float(t[-1]))
-        )
+        if self.raw_latest_time is None or float(t[-1]) > self.raw_latest_time:
+            self.raw_latest_time = float(t[-1])
+            self.raw_last_received_at = time.monotonic()
+        self.raw_dirty = True
         cutoff = self.raw_latest_time - 300.0
         chunks = self.raw_history[kind]
         while chunks and chunks[0][0][-1] < cutoff:
@@ -767,15 +778,40 @@ class MainWindow(QMainWindow):
         self.draw()
 
     def update_raw_xranges(self):
-        if self.raw_follow_live and self.raw_latest_time is not None:
-            end = self.raw_latest_time - self.raw_plot_origin
-            for plot in self.plots.values():
-                plot.setXRange(end - self.raw_view_seconds, end, padding=0)
+        if not self.raw_follow_live or self.raw_latest_time is None:
+            return
+        # Smoothly advance the viewport between LSL chunk arrivals without
+        # fabricating any samples. Cap lead time if the publisher stalls.
+        age = max(0.0, time.monotonic() - self.raw_last_received_at)
+        head = self.raw_latest_time + min(age, 0.12)
+        end = head - self.raw_plot_origin
+        for plot in self.plots.values():
+            plot.setXRange(end - self.raw_view_seconds, end, padding=0)
+
+    def tab_changed(self, index):
+        if index == 0:
+            self.raw_dirty = True
+            self.draw()
+        elif index == 1:
+            self.metric_dirty = True
+            self.refresh_metric_plot()
+
+    def render_frame(self):
+        # Animation is independent of data acquisition and analysis cadence.
+        if self.tabs.currentIndex() == 0:
+            self.update_raw_xranges()
+            if self.raw_dirty and time.monotonic() - self.raw_last_render_time >= 0.032:
+                self.draw()
+        elif self.tabs.currentIndex() == 1:
+            self.update_metric_xrange()
+            if self.metric_dirty:
+                self.refresh_metric_plot()
 
     def draw(self):
         if self.tabs.currentIndex() != 0:
             return
-        self.update_raw_xranges()
+        self.raw_dirty = False
+        self.raw_last_render_time = time.monotonic()
         for kind, chunks in self.raw_history.items():
             if not chunks:
                 continue
@@ -809,6 +845,8 @@ class MainWindow(QMainWindow):
             if len(self.curves[kind]) != 2*n:
                 plot.clear()
                 self.curves[kind] = []
+                plot.enableAutoRange(axis='y', enable=False)
+                plot.setYRange(-3., n*6., padding=0)
                 for i in range(n):
                     color = pg.intColor(i, hues=max(n, 3))
                     self.curves[kind].append(plot.plot(
