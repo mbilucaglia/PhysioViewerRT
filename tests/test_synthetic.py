@@ -38,7 +38,7 @@ class SyntheticPhysiologyTests(unittest.TestCase):
             split = SyntheticPhysiology(seed=20)
             segments = []
             tick = 0
-            for samples in (13, fs, 59, 2*fs, 3*fs):
+            for samples in (13, fs, 59, 2*fs, 2*fs):
                 segments.append(split.generate(kind, tick, samples))
                 tick += samples
             segments.append(split.generate(kind, tick, 6*fs-tick))
