@@ -164,7 +164,6 @@ class MainWindow(QMainWindow):
         self.raw_last_received_at = None
         self.raw_clock = SmoothViewportClock()
         self.raw_scale = {}
-        self.raw_dirty_kinds = set()
         self.raw_dirty = True
         self.metric_dirty = True
         self.raw_last_render_time = 0.0
@@ -490,8 +489,12 @@ class MainWindow(QMainWindow):
         self.pending.pop(kind, None)
         self.raw_history[kind].clear()
         self.raw_last_sample.pop(kind, None)
+        if not self.raw_last_sample:
+            self.raw_clock.reset()
+            self.raw_plot_origin = None
+            self.raw_latest_time = None
+            self.raw_last_received_at = None
         self.raw_scale.pop(kind, None)
-        self.raw_dirty_kinds.add(kind)
         self.raw_dirty = True
         self.latest_metrics.pop(kind, None)
         for key in self.metric_keys:
@@ -873,7 +876,12 @@ class MainWindow(QMainWindow):
             # Anchor both raw and processed curves to the same robust
             # scaling reference, established once for the stream. Avoid
             # artificial movement from recomputing median/std each frame.
-            if kind not in self.raw_scale and len(raw):
+            if kind not in self.raw_scale:
+                # Wait for a meaningful fraction of a second before
+                # freezing scaling; first LSL chunks may have 1-5 samples.
+                fs = chunks[-1][4]
+                if len(raw) < max(8, round(fs * .75)):
+                    continue
                 centers = np.median(raw[:, :n], axis=0)
                 spreads = np.std(raw[:, :n], axis=0)
                 spreads = np.where(np.isfinite(spreads) & (spreads > 1e-12),
