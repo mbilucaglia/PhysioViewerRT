@@ -347,7 +347,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f'{kind} cancelled; no calibration saved')
             return
         if session['errors']:
-            QMessageBox.warning(self, 'Calibration invalid', '\\n'.join(session['errors']))
+            QMessageBox.warning(self, 'Calibration invalid', '\n'.join(session['errors']))
             return
         streams = {}
         for modality, value in session['streams'].items():
@@ -426,7 +426,7 @@ class MainWindow(QMainWindow):
                         f"(N={stats['valid_windows']})"
                     )
                 lines.append('')
-            view.setPlainText('\\n'.join(lines))
+            view.setPlainText('\n'.join(lines))
             layout.addWidget(view)
         close = QPushButton('Close inspection')
         close.clicked.connect(dlg.accept)
