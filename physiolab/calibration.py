@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 from scipy.signal import welch
+from .emotion import emotional_index
 
 DURATION_SECONDS = 60.0
 POSTERIOR = {
@@ -55,6 +56,7 @@ def analyze_bsl(streams, iaf_hz=10.0):
     """Compute baseline summaries of metrics evaluated every 0.5 s."""
     from .processing import Processor
     summaries = {}
+    all_series = {}
     for kind, item in streams.items():
         if kind not in ('EEG', 'EDA', 'PPG'):
             continue
@@ -74,6 +76,7 @@ def analyze_bsl(streams, iaf_hz=10.0):
                     continue
                 if np.isfinite(value):
                     series.setdefault(name, []).append(float(value))
+        all_series[kind] = series
         for name, measurements in series.items():
             vals = np.asarray(measurements)
             if len(vals) < 5:
@@ -87,6 +90,35 @@ def analyze_bsl(streams, iaf_hz=10.0):
                 'q1': float(q1), 'q3': float(q3),
                 'minimum': float(np.min(vals)), 'maximum': float(np.max(vals)),
                 'valid_windows': int(len(vals)),
+            }
+    # EI reference: standardized HR and SCL from THIS BSL, before any
+    # user-selected display normalization. Alignment is by common 0.5-s
+    # analysis slots; a production release should use corrected LSL time.
+    hr_ref = summaries.get('PPG', {}).get('HR')
+    scl_ref = summaries.get('EDA', {}).get('SCL')
+    if hr_ref is not None and scl_ref is not None:
+        hr_series = all_series.get('PPG', {}).get('HR', [])
+        scl_series = all_series.get('EDA', {}).get('SCL', [])
+        # Take common chronological updates; missing beats may shift this
+        # approximation. A time-aligned implementation is required for trials.
+        ei_values = [
+            emotional_index(hr, scl, hr_ref, scl_ref)
+            for hr, scl in zip(hr_series, scl_series)
+        ]
+        arr = np.asarray([v for v in ei_values if v is not None], dtype=float)
+        if len(arr) >= 5:
+            q1, q3 = np.percentile(arr, [25, 75])
+            median = float(np.median(arr))
+            summaries.setdefault('EI', {})['EI'] = {
+                'mu': float(np.mean(arr)),
+                'sigma': float(np.std(arr, ddof=1)),
+                'median': median,
+                'iqr': float(q3 - q1),
+                'mad': float(np.median(np.abs(arr - median))),
+                'q1': float(q1), 'q3': float(q3),
+                'minimum': float(np.min(arr)),
+                'maximum': float(np.max(arr)),
+                'valid_windows': int(len(arr)),
             }
     return {'iaf_hz_used': float(iaf_hz), 'metrics': summaries,
             'method': '1-second windows, 50% overlap; sample standard deviation (ddof=1)'}
