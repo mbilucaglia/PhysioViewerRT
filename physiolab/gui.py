@@ -223,7 +223,7 @@ class MainWindow(QMainWindow):
                     continue
                 value = metric.get(key)
                 reference = references.get(kind, {}).get(key)
-                if mode != 'identity' and kind != 'EEG' or (mode != 'identity' and key != 'IAF'):
+                if mode != 'identity' and not (kind == 'EEG' and key == 'IAF'):
                     if isinstance(value, (int, float)) and np.isfinite(value):
                         value = normalize(value, reference, mode) if reference else None
                     else:
