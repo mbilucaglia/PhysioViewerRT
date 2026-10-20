@@ -1,12 +1,10 @@
-"""Emotional Index (EI) with *within-signal* HR / SCL standardization.
+"""Emotional Index using BSL-fixed HR/SCL mean and standard deviation.
 
-Stage 1: z-score HR and SCL using statistics of the signal being analyzed.
-For BSL, use the full 60-s recording; for live monitoring, a causal 60-s
-rolling history (no baseline values enter stage 1).
-Stage 2: optional transformation of the resulting EI using the EI
-distribution saved from BSL. See calibration.normalize().
+Stage 1: z-score live HR and SCL using the fixed HR/SCL statistics computed
+during BSL; BSL EI uses HR/SCL z-scored within that same baseline recording.
+Stage 2: apply the user's optional display transform to EI using the
+BSL EI reference distribution (calibration.normalize).
 """
-from collections import deque
 import math
 import numpy as np
 
@@ -70,53 +68,62 @@ def baseline_ei(hr_series, scl_series):
     )
 
 
-class RollingEmotionalIndex:
-    """Streaming 60-second causal z-scoring with freshness/quality gating.
+def emotional_index_from_bsl(hr, scl, hr_reference, scl_reference):
+    """Calculate EI using HR/SCL z-scores relative to BSL statistics.
 
-    update() accepts contemporaneous *metric* samples and their monotonic
-    acquisition times. Call at the metric cadence (nominally 0.5 s).
-    Missing values are discarded, never replaced by old HR/SCL.
+    Missing/invalid HR, SCL or reference variance => None.
     """
-    def __init__(self, seconds=ROLLING_SECONDS):
-        self.seconds = float(seconds)
-        self.history = {'HR': deque(), 'SCL': deque()}
+    if hr is None or scl is None or not hr_reference or not scl_reference:
+        return None
+    try:
+        hr = float(hr)
+        scl = float(scl)
+        mh = float(hr_reference['mu'])
+        sh = float(hr_reference['sigma'])
+        mg = float(scl_reference['mu'])
+        sg = float(scl_reference['sigma'])
+    except (TypeError, ValueError, KeyError):
+        return None
+    if not all(np.isfinite(v) for v in (hr, scl, mh, sh, mg, sg)):
+        return None
+    if sh <= 1e-12 or sg <= 1e-12:
+        return None
+    return emotional_index_z((hr - mh) / sh, (scl - mg) / sg)
+
+
+class BaselineEmotionalIndex:
+    """Combine fresh HR/SCL metric values using fixed BSL statistics.
+
+    Only validity/freshness gating remains: no 60-second live history.
+    """
+
+    def __init__(self, hr_reference=None, scl_reference=None, max_age=1.0):
+        self.hr_reference = hr_reference
+        self.scl_reference = scl_reference
+        self.max_age = float(max_age)
         self.latest = {}
+
+    def set_references(self, hr_reference, scl_reference):
+        self.hr_reference = hr_reference
+        self.scl_reference = scl_reference
 
     def update(self, kind, value, timestamp):
         name = {'PPG': 'HR', 'EDA': 'SCL'}.get(kind)
         if name is None:
             return
-        t = float(timestamp)
-        if value is not None and np.isfinite(value):
-            pair = (t, float(value))
-            self.history[name].append(pair)
-            self.latest[name] = pair
-        self._trim(t)
-
-    def _trim(self, now):
-        cutoff = now - self.seconds
-        for stream in self.history.values():
-            while stream and stream[0][0] < cutoff:
-                stream.popleft()
+        if value is None or not np.isfinite(value):
+            self.latest.pop(name, None)
+        else:
+            self.latest[name] = (float(timestamp), float(value))
 
     def value(self, now):
-        now = float(now)
-        self._trim(now)
-        if not all(name in self.latest for name in ('HR', 'SCL')):
+        if not all(k in self.latest for k in ('HR', 'SCL')):
             return None
-        if any(now - self.latest[k][0] > 1.0 for k in ('HR', 'SCL')):
+        if any(now - self.latest[k][0] > self.max_age for k in ('HR', 'SCL')):
             return None
-        # Pair updates must be close in time; streams need not be simultaneous.
-        if abs(self.latest['HR'][0] - self.latest['SCL'][0]) > 1.0:
+        if abs(self.latest['HR'][0] - self.latest['SCL'][0]) > self.max_age:
             return None
-        z = {}
-        for key, history in self.history.items():
-            if (len(history) < MIN_VALID_SAMPLES or
-                    history[-1][0] - history[0][0] < MIN_COVERAGE_SECONDS):
-                return None
-            data = np.asarray([v for _, v in history], dtype=float)
-            sigma = float(np.std(data, ddof=1))
-            if not np.isfinite(sigma) or sigma < 1e-12:
-                return None
-            z[key] = float((self.latest[key][1] - np.mean(data)) / sigma)
-        return emotional_index_z(z['HR'], z['SCL'])
+        return emotional_index_from_bsl(
+            self.latest['HR'][1], self.latest['SCL'][1],
+            self.hr_reference, self.scl_reference
+        )
