@@ -638,7 +638,7 @@ class MainWindow(QMainWindow):
             visible = self.metric_checks[key].isChecked()
             curve.setVisible(visible)
             markers = self.metric_point_curves[key]
-            markers.setVisible(visible and show_markers)
+            markers.setVisible(visible and (show_markers or interpolation == 'none'))
             if not visible:
                 continue
             points = [(t, val) for t, val in self.metric_history[key]
@@ -661,8 +661,11 @@ class MainWindow(QMainWindow):
                 interpolation=interpolation, display_hz=20.0,
                 max_gap=1.1,
             )
-            curve.setData(x, y, connect='finite')
-            if show_markers:
+            if interpolation == 'none':
+                curve.clear()
+            else:
+                curve.setData(x, y, connect='finite')
+            if show_markers or interpolation == 'none':
                 markers.setData(measured_x, measured_y)
         self.update_metric_xrange()
 
