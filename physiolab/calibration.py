@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 import numpy as np
 from scipy.signal import welch
-from .emotion import emotional_index
 
 DURATION_SECONDS = 60.0
 POSTERIOR = {
