@@ -10,11 +10,13 @@ class Receiver(QThread):
     samples_received = Signal(str, object, object, object, float)
     stream_ready = Signal(str, object, float)
 
-    def __init__(self, info, kind, selected_indices):
+    def __init__(self, info, kind, selected_indices, selected_names):
         super().__init__()
         self.info, self.kind = info, kind
         self.selected_indices = validated_indices(selected_indices, info.channel_count(), kind)
-        self.selected_names = [channel_labels(info)[i] for i in self.selected_indices]
+        if len(selected_names) != info.channel_count():
+            raise ValueError('Channel label count differs from the source count')
+        self.selected_names = [str(selected_names[i]) for i in self.selected_indices]
         self.active = True
         self.iaf_hz = 10.0
 

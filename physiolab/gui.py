@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu
 )
 from .worker import Receiver, discover
-from .channel_selection import channel_labels, validated_indices
+from .channel_selection import channel_labels, full_channel_labels, validated_indices
 from .emotion import RollingEmotionalIndex
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
@@ -136,6 +136,7 @@ class MainWindow(QMainWindow):
         controls = QHBoxLayout()
         layout.addLayout(controls)
         self.selectors, self.channel_selectors, self.workers = {}, {}, {}
+        self.channel_metadata_cache = {}
         self.plots, self.curves = {}, {}
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
@@ -261,6 +262,7 @@ class MainWindow(QMainWindow):
     def refresh(self):
         try:
             streams = discover()
+            self.channel_metadata_cache.clear()
             for kind, combo in self.selectors.items():
                 old = combo.currentData()
                 uid = old.uid() if old is not None else None
@@ -285,9 +287,22 @@ class MainWindow(QMainWindow):
 
     def stream_selection_changed(self, kind):
         info = self.selectors[kind].currentData()
-        self.channel_selectors[kind].set_channels(
-            channel_labels(info) if info is not None else []
-        )
+        if info is None:
+            self.channel_selectors[kind].set_channels([])
+            return
+        identifier = info.uid()
+        if identifier not in self.channel_metadata_cache:
+            try:
+                self.channel_metadata_cache[identifier] = full_channel_labels(info)
+            except Exception as exc:
+                self.channel_metadata_cache[identifier] = (
+                    channel_labels(info),
+                    f'Unable to fetch full LSL channel metadata: {exc}',
+                )
+        labels, warning = self.channel_metadata_cache[identifier]
+        self.channel_selectors[kind].set_channels(labels)
+        if warning:
+            self.statusBar().showMessage(warning)
 
     def connect_stream(self, kind):
         info = self.selectors[kind].currentData()
@@ -313,7 +328,7 @@ class MainWindow(QMainWindow):
             self.metric_history[('EI', 'EI')].clear()
             self.latest_metrics.pop('EI', None)
         self.latest_metrics.pop(kind, None)
-        worker = Receiver(info, kind, indices)
+        worker = Receiver(info, kind, indices, self.channel_selectors[kind].names)
         worker.updated.connect(self.receive)
         worker.samples_received.connect(self.capture_samples)
         worker.stream_ready.connect(self.ready_stream)

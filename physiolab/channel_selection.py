@@ -37,3 +37,24 @@ def select_chunk(samples, indices):
     if x.ndim != 2:
         raise ValueError('LSL samples must be a 2D array')
     return x[:, indices]
+
+
+def full_channel_labels(info, timeout=2.0):
+    """Fetch expanded LSL stream metadata via inlet.info(), not resolve_streams().
+
+    Stream resolution returns abbreviated StreamInfo with no description.
+    Only the expanded info() response carries electrode/channel labels.
+    Returns labels and an explanation if the publisher has no names.
+    """
+    from pylsl import StreamInlet
+    inlet = StreamInlet(info, max_buflen=1)
+    try:
+        full = inlet.info(timeout=timeout)
+        labels = channel_labels(full)
+        unlabeled = [i for i, name in enumerate(labels) if name.endswith('(unlabeled)')]
+        return labels, (
+            f'{len(unlabeled)} of {len(labels)} channels have no LSL label/name '
+            'in the publisher metadata.' if unlabeled else ''
+        )
+    finally:
+        inlet.close_stream()
