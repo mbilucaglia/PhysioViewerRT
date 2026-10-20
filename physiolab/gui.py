@@ -17,7 +17,7 @@ from .worker import Receiver, discover
 from .channel_selection import channel_labels, full_channel_labels, validated_indices
 from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
-from .raw_timing import clean_lsl_chunk, visible_chunk
+from .raw_timing import clean_lsl_chunk, visible_chunk, SmoothViewportClock
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
@@ -162,6 +162,8 @@ class MainWindow(QMainWindow):
         self.raw_latest_time = None
         self.raw_last_sample = {}
         self.raw_last_received_at = None
+        self.raw_clock = SmoothViewportClock()
+        self.raw_scale = {}
         self.raw_dirty = True
         self.metric_dirty = True
         self.raw_last_render_time = 0.0
@@ -487,6 +489,12 @@ class MainWindow(QMainWindow):
         self.pending.pop(kind, None)
         self.raw_history[kind].clear()
         self.raw_last_sample.pop(kind, None)
+        if not self.raw_last_sample:
+            self.raw_clock.reset()
+            self.raw_plot_origin = None
+            self.raw_latest_time = None
+            self.raw_last_received_at = None
+        self.raw_scale.pop(kind, None)
         self.raw_dirty = True
         self.latest_metrics.pop(kind, None)
         for key in self.metric_keys:
@@ -728,7 +736,9 @@ class MainWindow(QMainWindow):
         if self.raw_latest_time is None or float(t[-1]) > self.raw_latest_time:
             self.raw_latest_time = float(t[-1])
             self.raw_last_received_at = time.monotonic()
+            self.raw_clock.observe(self.raw_latest_time, self.raw_last_received_at)
         self.raw_dirty = True
+        self.raw_dirty_kinds.add(kind)
         cutoff = self.raw_latest_time - 300.0
         chunks = self.raw_history[kind]
         while chunks and chunks[0][0][-1] < cutoff:
@@ -778,12 +788,11 @@ class MainWindow(QMainWindow):
         self.draw()
 
     def update_raw_xranges(self):
-        if not self.raw_follow_live or self.raw_latest_time is None:
+        if not self.raw_follow_live or self.raw_plot_origin is None:
             return
-        # Smoothly advance the viewport between LSL chunk arrivals without
-        # fabricating any samples. Cap lead time if the publisher stalls.
-        age = max(0.0, time.monotonic() - self.raw_last_received_at)
-        head = self.raw_latest_time + min(age, 0.12)
+        head = self.raw_clock.advance(time.monotonic())
+        if head is None:
+            return
         end = head - self.raw_plot_origin
         for plot in self.plots.values():
             plot.setXRange(end - self.raw_view_seconds, end, padding=0)
@@ -819,13 +828,21 @@ class MainWindow(QMainWindow):
             low, high = plot.viewRange()[0]
             times, raw_parts, filtered_parts = [], [], []
             names = chunks[-1][3]
-            for stamps, raw, filtered, _, fs in chunks:
-                if (stamps[-1] < self.raw_plot_origin + low or
-                        stamps[0] > self.raw_plot_origin + high):
-                    continue
+            # Iterate backwards from the newest chunk, stopping once
+            # history is older than the viewport. Never scan all five
+            # retained minutes for a five-second view.
+            t_min = self.raw_plot_origin + low
+            t_max = self.raw_plot_origin + high
+            selected = []
+            for item in reversed(chunks):
+                stamps = item[0]
+                if stamps[-1] < t_min:
+                    break
+                if stamps[0] <= t_max:
+                    selected.append(item)
+            for stamps, raw, filtered, _, fs in reversed(selected):
                 visible_t, visible_raw, visible_filtered = visible_chunk(
-                    stamps, raw, filtered,
-                    self.raw_plot_origin + low, self.raw_plot_origin + high
+                    stamps, raw, filtered, t_min, t_max
                 )
                 if not len(visible_t):
                     continue
@@ -856,18 +873,33 @@ class MainWindow(QMainWindow):
                         name=f'{names[i]} processed',
                         pen=pg.mkPen(color, width=2, style=Qt.PenStyle.DashLine)
                     ))
+            # Anchor both raw and processed curves to the same robust
+            # scaling reference, established once for the stream. Avoid
+            # artificial movement from recomputing median/std each frame.
+            if kind not in self.raw_scale:
+                # Wait for a meaningful fraction of a second before
+                # freezing scaling; first LSL chunks may have 1-5 samples.
+                fs = chunks[-1][4]
+                if len(raw) < max(8, round(fs * .75)):
+                    continue
+                centers = np.median(raw[:, :n], axis=0)
+                spreads = np.std(raw[:, :n], axis=0)
+                spreads = np.where(np.isfinite(spreads) & (spreads > 1e-12),
+                                   spreads, 1.)
+                self.raw_scale[kind] = (centers, spreads)
+            centers, spreads = self.raw_scale[kind]
             for i in range(n):
                 r, p = raw[:, i], filtered[:, i]
-                center = float(np.median(r))
-                scale = float(np.std(r))
-                if not np.isfinite(scale) or scale < 1e-12:
-                    scale = 1.
                 if self.show_raw.isChecked():
-                    self.curves[kind][2*i].setData(t, (r-center)/scale + i*6)
+                    self.curves[kind][2*i].setData(
+                        t, (r-centers[i])/spreads[i] + i*6
+                    )
                 else:
                     self.curves[kind][2*i].clear()
                 if self.show_processed.isChecked():
-                    self.curves[kind][2*i+1].setData(t, (p-center)/scale + i*6)
+                    self.curves[kind][2*i+1].setData(
+                        t, (p-centers[i])/spreads[i] + i*6
+                    )
                 else:
                     self.curves[kind][2*i+1].clear()
 

@@ -35,3 +35,47 @@ def visible_chunk(timestamps, raw, filtered, start, stop):
     lo = int(np.searchsorted(t, start, side='left'))
     hi = int(np.searchsorted(t, stop, side='right'))
     return t[lo:hi], raw[lo:hi], filtered[lo:hi]
+
+
+class SmoothViewportClock:
+    """Monotone presentation clock slewed toward the newest LSL sample.
+
+    This tracks real source timestamps without reconstructing sample times.
+    Short-lived GUI scheduling jitter changes the clock's speed slightly
+    instead of making the time axis jump forwards or backwards.
+    """
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.head = None
+        self.latest_sample = None
+        self.received_at = None
+        self.frame_at = None
+
+    def observe(self, sample_time, received_at):
+        sample_time = float(sample_time)
+        received_at = float(received_at)
+        if not np.isfinite(sample_time) or not np.isfinite(received_at):
+            return
+        if self.latest_sample is None or sample_time > self.latest_sample:
+            self.latest_sample = sample_time
+            self.received_at = received_at
+            if self.head is None:
+                self.head = sample_time
+                self.frame_at = received_at
+
+    def advance(self, now):
+        if self.head is None:
+            return None
+        now = float(now)
+        dt = max(0., min(now - self.frame_at, .1))
+        self.frame_at = now
+        # Keep no more than ~80ms of visual lead on the newest *real* data.
+        target = self.latest_sample + min(max(now - self.received_at, 0.), .08)
+        distance = target - self.head
+        # Slew correction at at most 50% of normal speed, never jump.
+        speed = max(0., min(1.5, 1. + distance * 3.))
+        self.head += min(dt * speed, max(0., target - self.head))
+        return self.head
