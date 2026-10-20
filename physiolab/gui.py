@@ -825,13 +825,21 @@ class MainWindow(QMainWindow):
             low, high = plot.viewRange()[0]
             times, raw_parts, filtered_parts = [], [], []
             names = chunks[-1][3]
-            for stamps, raw, filtered, _, fs in chunks:
-                if (stamps[-1] < self.raw_plot_origin + low or
-                        stamps[0] > self.raw_plot_origin + high):
-                    continue
+            # Iterate backwards from the newest chunk, stopping once
+            # history is older than the viewport. Never scan all five
+            # retained minutes for a five-second view.
+            t_min = self.raw_plot_origin + low
+            t_max = self.raw_plot_origin + high
+            selected = []
+            for item in reversed(chunks):
+                stamps = item[0]
+                if stamps[-1] < t_min:
+                    break
+                if stamps[0] <= t_max:
+                    selected.append(item)
+            for stamps, raw, filtered, _, fs in reversed(selected):
                 visible_t, visible_raw, visible_filtered = visible_chunk(
-                    stamps, raw, filtered,
-                    self.raw_plot_origin + low, self.raw_plot_origin + high
+                    stamps, raw, filtered, t_min, t_max
                 )
                 if not len(visible_t):
                     continue
@@ -862,18 +870,28 @@ class MainWindow(QMainWindow):
                         name=f'{names[i]} processed',
                         pen=pg.mkPen(color, width=2, style=Qt.PenStyle.DashLine)
                     ))
+            # Anchor both raw and processed curves to the same robust
+            # scaling reference, established once for the stream. Avoid
+            # artificial movement from recomputing median/std each frame.
+            if kind not in self.raw_scale and len(raw):
+                centers = np.median(raw[:, :n], axis=0)
+                spreads = np.std(raw[:, :n], axis=0)
+                spreads = np.where(np.isfinite(spreads) & (spreads > 1e-12),
+                                   spreads, 1.)
+                self.raw_scale[kind] = (centers, spreads)
+            centers, spreads = self.raw_scale[kind]
             for i in range(n):
                 r, p = raw[:, i], filtered[:, i]
-                center = float(np.median(r))
-                scale = float(np.std(r))
-                if not np.isfinite(scale) or scale < 1e-12:
-                    scale = 1.
                 if self.show_raw.isChecked():
-                    self.curves[kind][2*i].setData(t, (r-center)/scale + i*6)
+                    self.curves[kind][2*i].setData(
+                        t, (r-centers[i])/spreads[i] + i*6
+                    )
                 else:
                     self.curves[kind][2*i].clear()
                 if self.show_processed.isChecked():
-                    self.curves[kind][2*i+1].setData(t, (p-center)/scale + i*6)
+                    self.curves[kind][2*i+1].setData(
+                        t, (p-centers[i])/spreads[i] + i*6
+                    )
                 else:
                     self.curves[kind][2*i+1].clear()
 
