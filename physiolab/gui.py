@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from .worker import Receiver, discover
 from .channel_selection import channel_labels, full_channel_labels, validated_indices
 from .emotion import BaselineEmotionalIndex
+from .metric_display import prepare_metric_curve
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
@@ -306,6 +307,45 @@ class MainWindow(QMainWindow):
         zoom_row.addWidget(self.metric_live_button)
         zoom_row.addStretch()
         metrics_layout.addLayout(zoom_row)
+        processing_row = QHBoxLayout()
+        processing_row.addWidget(QLabel('Smoothing'))
+        self.metric_smoothing = QComboBox()
+        for label, value in (
+            ('None', 'none'), ('Moving average', 'mean'),
+            ('Exponential (EMA)', 'ema'), ('Moving median', 'median')
+        ):
+            self.metric_smoothing.addItem(label, value)
+        self.metric_smoothing.currentIndexChanged.connect(self.refresh_metric_plot)
+        processing_row.addWidget(self.metric_smoothing)
+        processing_row.addWidget(QLabel('Duration'))
+        self.metric_smoothing_duration = QComboBox()
+        for duration in (1, 2, 3, 5, 10):
+            self.metric_smoothing_duration.addItem(f'{duration} s', float(duration))
+        self.metric_smoothing_duration.setCurrentIndex(1)
+        self.metric_smoothing_duration.setEnabled(False)
+        self.metric_smoothing_duration.currentIndexChanged.connect(self.refresh_metric_plot)
+        processing_row.addWidget(self.metric_smoothing_duration)
+        self.metric_smoothing.currentIndexChanged.connect(
+            lambda: self.metric_smoothing_duration.setEnabled(
+                self.metric_smoothing.currentData() != 'none'
+            )
+        )
+        processing_row.addWidget(QLabel('Interpolation'))
+        self.metric_interpolation = QComboBox()
+        for label, value in (
+            ('None (points)', 'none'), ('Linear', 'linear'),
+            ('PCHIP', 'pchip'), ('Cubic spline', 'cubic')
+        ):
+            self.metric_interpolation.addItem(label, value)
+        self.metric_interpolation.setCurrentIndex(2)
+        self.metric_interpolation.currentIndexChanged.connect(self.refresh_metric_plot)
+        processing_row.addWidget(self.metric_interpolation)
+        self.metric_sample_markers = QCheckBox('Measured points')
+        self.metric_sample_markers.setChecked(True)
+        self.metric_sample_markers.toggled.connect(self.refresh_metric_plot)
+        processing_row.addWidget(self.metric_sample_markers)
+        processing_row.addStretch()
+        metrics_layout.addLayout(processing_row)
         self.metric_plot = pg.PlotWidget(title='Combined live metrics — 5 s default, up to 5 min history')
         self.metric_plot.setLabel('bottom', 'Elapsed session time', units='s')
         self.metric_plot.showGrid(x=True, y=True, alpha=.2)
@@ -315,12 +355,17 @@ class MainWindow(QMainWindow):
             self.metric_view_changed_manually
         )
         self.metric_curves = {}
+        self.metric_point_curves = {}
         for key, color in zip(self.metric_keys, (
             '#e69f00', '#56b4e9', '#009e73', '#cc79a7', '#d55e00'
         )):
             self.metric_curves[key] = self.metric_plot.plot(
                 name=f'{key[0]} / {key[1]}', pen=pg.mkPen(color, width=2),
                 connect='finite',
+            )
+            self.metric_point_curves[key] = self.metric_plot.plot(
+                pen=None, symbol='o', symbolSize=5,
+                symbolBrush=pg.mkBrush(color), symbolPen=None,
             )
         metrics_layout.addWidget(self.metric_plot, stretch=4)
         metrics_layout.addWidget(QLabel(
@@ -582,25 +627,43 @@ class MainWindow(QMainWindow):
                 elapsed - self.metric_view_seconds, elapsed, padding=0
             )
 
-    def refresh_metric_plot(self):
+    def refresh_metric_plot(self, *_):
         now = time.monotonic()
+        method = self.metric_smoothing.currentData()
+        duration = self.metric_smoothing_duration.currentData()
+        interpolation = self.metric_interpolation.currentData()
+        show_markers = self.metric_sample_markers.isChecked()
         for (kind, name), curve in self.metric_curves.items():
-            visible = self.metric_checks[(kind, name)].isChecked()
+            key = (kind, name)
+            visible = self.metric_checks[key].isChecked()
             curve.setVisible(visible)
+            markers = self.metric_point_curves[key]
+            markers.setVisible(visible and show_markers)
             if not visible:
                 continue
-            points = [(t, val) for t, val in self.metric_history[(kind, name)]
+            points = [(t, val) for t, val in self.metric_history[key]
                       if now - t <= 300]
             if not points:
                 curve.clear()
+                markers.clear()
                 continue
-            timestamps = np.asarray([t - self.metric_plot_origin for t, _ in points], dtype=float)
+            timestamps = np.asarray(
+                [t - self.metric_plot_origin for t, _ in points], dtype=float
+            )
             display = [self.displayed_value(kind, name, val) for _, val in points]
             values = np.asarray(
                 [float(v) if v is not None else np.nan for v in display],
                 dtype=float,
             )
-            curve.setData(timestamps, values, connect='finite')
+            x, y, measured_x, measured_y = prepare_metric_curve(
+                timestamps, values,
+                smoothing=method, seconds=float(duration),
+                interpolation=interpolation, display_hz=20.0,
+                max_gap=1.1,
+            )
+            curve.setData(x, y, connect='finite')
+            if show_markers:
+                markers.setData(measured_x, measured_y)
         self.update_metric_xrange()
 
     def append_raw_chunk(self, kind, raw, processed, names, fs):
