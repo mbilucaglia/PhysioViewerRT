@@ -5,7 +5,7 @@ import numpy as np
 
 from physiolab.emotion import (
     BaselineEmotionalIndex, emotional_index_from_bsl, emotional_index_z,
-    baseline_ei, standardize_pair,
+    baseline_ei, standardize_pair, ei_matrix, ei_epochs,
 )
 from physiolab.calibration import normalize, summarize_metric
 
@@ -15,7 +15,7 @@ class EmotionalIndexRegressionTests(unittest.TestCase):
         """Direct MATLAB EI_matrix reference: atan2(GSR, HR), then beta."""
         samples = [
             (1., 1.), (1., -1.), (-1., -1.), (-1., 1.),
-            (1., 0.), (-1., 0.), (0., 1.), (0., -1.),
+            (1., 0.), (-1., 0.),
         ]
         for hr_z, gsr_z in samples:
             with self.subTest(hr_z=hr_z, gsr_z=gsr_z):
@@ -34,8 +34,42 @@ class EmotionalIndexRegressionTests(unittest.TestCase):
         self.assertAlmostEqual(emotional_index_z(1., -1.), .25)
         self.assertAlmostEqual(emotional_index_z(-1., -1.), -.25)
         self.assertAlmostEqual(emotional_index_z(-1., 1.), -.75)
-        self.assertAlmostEqual(emotional_index_z(0., 1.), -1.)
-        self.assertAlmostEqual(emotional_index_z(0., -1.), 0.)
+        self.assertIsNone(emotional_index_z(0., 1.))
+        self.assertIsNone(emotional_index_z(0., -1.))
+
+    def test_matlab_ei_matrix_epoch_vector_and_zero_guard(self):
+        hr = np.array([1., 1., -1., -1., 0., 0., np.nan])
+        scl = np.array([1., -1., -1., 1., 1., -1., 1.])
+        observed = ei_matrix(scl, hr)
+        np.testing.assert_allclose(
+            observed[:6], [.75, .25, -.25, -.75, -1., 0.],
+            atol=1e-12,
+        )
+        self.assertTrue(np.isnan(observed[6]))
+        self.assertTrue(np.isnan(ei_matrix([1., -1.], [0., 0.])).all())
+        with self.assertRaises(ValueError):
+            ei_matrix([1., 2.], [1.])
+
+    def test_matlab_normalize_then_ei_per_epoch(self):
+        hr_ref = {'mu': 70., 'sigma': 5.}
+        scl_ref = {'mu': 4., 'sigma': .5}
+        hr_epochs = [
+            np.array([75., 75., 65., 65.]),
+            np.array([75., 70., 65.]),
+        ]
+        scl_epochs = [
+            np.array([4.5, 3.5, 3.5, 4.5]),
+            np.array([4.5, 4.5, 4.]),
+        ]
+        result = ei_epochs(scl_epochs, hr_epochs, scl_ref, hr_ref)
+        self.assertEqual(len(result), 2)
+        np.testing.assert_allclose(result[0], [.75, .25, -.25, -.75], atol=1e-12)
+        np.testing.assert_allclose(result[1], [.75, -1., -.5], atol=1e-12)
+        self.assertAlmostEqual(result[1][0], emotional_index_from_bsl(
+            75., 4.5, hr_ref, scl_ref,
+        ))
+        with self.assertRaises(ValueError):
+            ei_epochs(scl_epochs[:1], hr_epochs, scl_ref, hr_ref)
 
     def test_signal_standardization_not_reference(self):
         t = np.linspace(0, 3*np.pi, 120)
