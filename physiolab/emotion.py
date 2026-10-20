@@ -52,7 +52,7 @@ def ei_matrix(scl_z, hr_z):
     hr = np.asarray(hr_z, dtype=float)
     if scl.shape != hr.shape:
         raise ValueError('HR and SCL epochs must have identical shapes')
-    if not np.any(hr != 0):
+    if not np.any(np.isfinite(hr) & (hr != 0)):
         return np.full(hr.shape, np.nan, dtype=float)
     theta = np.arctan2(scl, hr)
     beta = np.pi / 2 - theta
