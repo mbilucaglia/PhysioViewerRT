@@ -1,6 +1,7 @@
 """Local two-tab biosignal monitor: waveforms and metrics."""
 import json
 import time
+from collections import deque
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QFileDialog, QDialog, QPlainTextEdit
 )
 from .worker import Receiver, discover
+from .emotion import RollingEmotionalIndex
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
@@ -86,6 +88,10 @@ class MainWindow(QMainWindow):
         self.loaded_eyc = None
         self.loaded_bsl = None
         self.latest_metrics = {}
+        self.ei_estimator = RollingEmotionalIndex(seconds=60)
+        self.metric_keys = [('EEG', 'AWI'), ('EEG', 'BAR'), ('EDA', 'SCL'),
+                            ('PPG', 'HR'), ('EI', 'EI')]
+        self.metric_history = {key: deque(maxlen=900) for key in self.metric_keys}
         self.iaf_hz = 10.0
         self._configure_calibration_menu()
 
@@ -145,12 +151,30 @@ class MainWindow(QMainWindow):
         metrics_layout.addLayout(normalize_row)
         self.calibration_state = QLabel('EYC: none (default IAF 10 Hz) | BSL: none')
         metrics_layout.addWidget(self.calibration_state)
+        self.metric_plot = pg.PlotWidget(title='Combined live metrics — last 5 minutes')
+        self.metric_plot.setLabel('bottom', 'Time relative to now', units='s')
+        self.metric_plot.showGrid(x=True, y=True, alpha=.2)
+        self.metric_plot.addLegend()
+        self.metric_curves = {}
+        for key, color in zip(self.metric_keys, (
+            '#e69f00', '#56b4e9', '#009e73', '#cc79a7', '#d55e00'
+        )):
+            self.metric_curves[key] = self.metric_plot.plot(
+                name=f'{key[0]} / {key[1]}', pen=pg.mkPen(color, width=2),
+                connect='finite',
+            )
+        metrics_layout.addWidget(self.metric_plot, stretch=4)
+        metrics_layout.addWidget(QLabel(
+            'Original mode uses mixed units on one axis. Normalized modes '
+            'use stored BSL references; missing data appear as gaps.'
+        ))
         metrics_grid = QGridLayout()
         metrics_layout.addLayout(metrics_grid)
         for row, (kind, keys) in enumerate((
-            ('EEG', ('IAF', 'FAA', 'alpha_left', 'alpha_right')),
+            ('EEG', ('IAF', 'AWI', 'BAR')),
             ('EDA', ('SCL',)),
             ('PPG', ('HR',)),
+            ('EI', ('EI',)),
         )):
             group = QVBoxLayout()
             title = QLabel(f'<h2>{kind} metrics</h2>')
@@ -199,6 +223,14 @@ class MainWindow(QMainWindow):
         if kind in self.workers:
             self.workers[kind].stop()
         self.pending.pop(kind, None)
+        for key in self.metric_keys:
+            if key[0] == kind:
+                self.metric_history[key].clear()
+        if kind in ('PPG', 'EDA'):
+            self.ei_estimator = RollingEmotionalIndex(seconds=60)
+            self.metric_history[('EI', 'EI')].clear()
+            self.latest_metrics.pop('EI', None)
+        self.latest_metrics.pop(kind, None)
         worker = Receiver(info, kind)
         worker.updated.connect(self.receive)
         worker.samples_received.connect(self.capture_samples)
@@ -210,32 +242,70 @@ class MainWindow(QMainWindow):
 
     def receive(self, kind, raw, processed, names, metric, fs):
         self.pending[kind] = (raw, processed, names, fs)
-        if metric is not None:
-            self.latest_metrics[kind] = metric
-            self.refresh_metrics()  # update continuously even if raw view is selected
+        if metric is None:
+            return
+        now = time.monotonic()
+        self.latest_metrics[kind] = metric
+        for modality, name in self.metric_keys:
+            if modality == kind:
+                val = metric.get(name)
+                self.metric_history[(modality, name)].append(
+                    (now, float(val) if isinstance(val, (int, float))
+                     and np.isfinite(val) else float('nan'))
+                )
+        if kind in ('PPG', 'EDA'):
+            name = 'HR' if kind == 'PPG' else 'SCL'
+            self.ei_estimator.update(kind, metric.get(name), now)
+            value = self.ei_estimator.value(now)
+            self.latest_metrics['EI'] = {
+                'EI': value,
+                'status': 'Rolling 60 s within-signal HR/GSR standardization'
+                if value is not None else 'Waiting for 60 s valid HR/GSR data',
+            }
+            self.metric_history[('EI', 'EI')].append(
+                (now, float(value) if value is not None else float('nan'))
+            )
+        self.refresh_metrics()
+
+    def displayed_value(self, kind, name, value):
+        if value is None or not isinstance(value, (int, float)) or not np.isfinite(value):
+            return None
+        mode = self.normalization.currentData()
+        if mode == 'identity' or (kind == 'EEG' and name == 'IAF'):
+            return float(value)
+        refs = ((self.loaded_bsl or {}).get('analysis') or {}).get('metrics', {})
+        reference = refs.get(kind, {}).get(name)
+        if reference is None:
+            return None
+        # Live EI derives from within-signal z scores; any display transform
+        # uses the *EI* reference statistics measured during BSL.
+        return normalize(value, reference, mode)
 
     def refresh_metrics(self, *_):
-        mode = self.normalization.currentData()
-        references = ((self.loaded_bsl or {}).get('analysis') or {}).get('metrics', {})
-        for kind, metric in self.latest_metrics.items():
-            for (modality, key), label in self.metric_labels.items():
-                if modality != kind:
-                    continue
-                value = metric.get(key)
-                reference = references.get(kind, {}).get(key)
-                if mode != 'identity' and not (kind == 'EEG' and key == 'IAF'):
-                    if isinstance(value, (int, float)) and np.isfinite(value):
-                        value = normalize(value, reference, mode) if reference else None
-                    else:
-                        value = None
-                label.setText(
-                    f'{key}: {value:.3f}' if isinstance(value, (int, float))
-                    and np.isfinite(value) else f'{key}: —'
-                )
-            self.metric_status[kind].setText(
-                metric.get('status', 'Updated (1 s window, 50% overlap)')
-                + (' | no compatible BSL value: —' if mode != 'identity' and not references.get(kind) else '')
+        for (kind, name), label in self.metric_labels.items():
+            raw = self.latest_metrics.get(kind, {}).get(name)
+            value = self.displayed_value(kind, name, raw)
+            label.setText(f'{name}: {value:.3f}' if value is not None else f'{name}: —')
+        for kind, label in self.metric_status.items():
+            label.setText(self.latest_metrics.get(kind, {}).get('status', 'Waiting for data'))
+        self.refresh_metric_plot()
+
+    def refresh_metric_plot(self):
+        now = time.monotonic()
+        for (kind, name), curve in self.metric_curves.items():
+            points = [(t, val) for t, val in self.metric_history[(kind, name)]
+                      if now - t <= 300]
+            if not points:
+                curve.clear()
+                continue
+            timestamps = np.asarray([t - now for t, _ in points], dtype=float)
+            display = [self.displayed_value(kind, name, val) for _, val in points]
+            values = np.asarray(
+                [float(v) if v is not None else np.nan for v in display],
+                dtype=float,
             )
+            curve.setData(timestamps, values, connect='finite')
+        self.metric_plot.setXRange(-300, 0, padding=0)
 
     def draw(self):
         # Acquisition and metric computation continue regardless of the selected tab.
