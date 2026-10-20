@@ -21,8 +21,8 @@ def emotional_index_z(hr_z, gsr_z):
         EI = 1 - beta/pi
 
     HR is horizontal, GSR/SCL vertical. The source MATLAB returns NaN
-    for an all-zero HR vector. For scalar live EI, the zero vector
-    (0, 0) is undefined and is therefore not assigned an EI.
+    for an all-zero HR vector. A scalar HR_z of zero is thus treated
+    as unavailable, consistent with a length-one MATLAB input.
     Do not clip the calculated output; preserve the supplied formula.
     """
     if hr_z is None or gsr_z is None:
@@ -31,7 +31,7 @@ def emotional_index_z(hr_z, gsr_z):
         h, g = float(hr_z), float(gsr_z)
     except (TypeError, ValueError):
         return None
-    if not np.isfinite(h) or not np.isfinite(g) or (h == 0. and g == 0.):
+    if not np.isfinite(h) or not np.isfinite(g) or h == 0.:
         return None
     theta = math.atan2(g, h)
     beta = 2.5 * math.pi - theta if g >= 0. and h <= 0. else (
