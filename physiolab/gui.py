@@ -157,6 +157,7 @@ class MainWindow(QMainWindow):
         self.capture = None
         self.loaded_eyc = None
         self.loaded_bsl = None
+        self.calibration_paths = {'EYC': None, 'BSL': None}
         self.latest_metrics = {}
         self.ei_estimator = RollingEmotionalIndex(seconds=60)
         self.metric_keys = [('EEG', 'AWI'), ('EEG', 'BAR'), ('EDA', 'SCL'),
@@ -225,6 +226,21 @@ class MainWindow(QMainWindow):
         normalize_row.addWidget(self.normalization)
         normalize_row.addStretch()
         metrics_layout.addLayout(normalize_row)
+        calibration_row = QHBoxLayout()
+        calibration_row.addWidget(QLabel('Calibration files:'))
+        self.calibration_file_labels = {}
+        for calibration_kind in ('EYC', 'BSL'):
+            select_file = QPushButton(f'Load {calibration_kind}…')
+            select_file.clicked.connect(
+                lambda _, k=calibration_kind: self.load_existing(k)
+            )
+            calibration_row.addWidget(select_file)
+            file_label = QLabel('None selected')
+            file_label.setToolTip(f'No {calibration_kind} file loaded')
+            calibration_row.addWidget(file_label)
+            self.calibration_file_labels[calibration_kind] = file_label
+        calibration_row.addStretch()
+        metrics_layout.addLayout(calibration_row)
         self.calibration_state = QLabel('EYC: none (default IAF 10 Hz) | BSL: none')
         metrics_layout.addWidget(self.calibration_state)
         metric_visibility = QHBoxLayout()
@@ -638,7 +654,7 @@ class MainWindow(QMainWindow):
             filename += '.npz'
         try:
             save_calibration(filename, kind, streams, analysis)
-            self.apply_calibration(kind, {'analysis': analysis})
+            self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
             self.statusBar().showMessage(f'Saved {kind}: {filename}')
         except Exception as exc:
             QMessageBox.critical(self, 'Save failed', str(exc))
@@ -686,7 +702,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(close)
         dlg.exec()
 
-    def apply_calibration(self, kind, meta):
+    def apply_calibration(self, kind, meta, filename=None):
         if kind == 'EYC':
             self.loaded_eyc = meta
             self.iaf_hz = float(meta['analysis']['iaf_hz'])
@@ -695,6 +711,10 @@ class MainWindow(QMainWindow):
                     worker.iaf_hz = self.iaf_hz
         else:
             self.loaded_bsl = meta
+        self.calibration_paths[kind] = filename
+        file_label = self.calibration_file_labels[kind]
+        file_label.setText(Path(filename).name if filename else 'Loaded (unsaved)')
+        file_label.setToolTip(filename or 'Calibration active but not saved to a file')
         self.calibration_state.setText(
             f"EYC: {self.iaf_hz:.2f} Hz"
             f" | BSL: {'loaded' if self.loaded_bsl else 'none'}"
@@ -712,7 +732,7 @@ class MainWindow(QMainWindow):
             # Inspect the saved result, also recompute if an older file lacks it.
             analysis = meta.get('analysis') or self.analyze_calibration(kind, streams)
             self.inspect_calibration(kind, analysis)
-            self.apply_calibration(kind, {'analysis': analysis})
+            self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
             self.statusBar().showMessage(f'Loaded {kind}: {filename}')
         except Exception as exc:
             QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
