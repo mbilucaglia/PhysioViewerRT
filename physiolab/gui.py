@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 from .worker import Receiver, discover
 from .channel_selection import channel_labels, full_channel_labels, validated_indices
-from .emotion import RollingEmotionalIndex
+from .emotion import BaselineEmotionalIndex
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
@@ -159,7 +159,7 @@ class MainWindow(QMainWindow):
         self.loaded_bsl = None
         self.calibration_paths = {'EYC': None, 'BSL': None}
         self.latest_metrics = {}
-        self.ei_estimator = RollingEmotionalIndex(seconds=60)
+        self.ei_estimator = BaselineEmotionalIndex()
         self.metric_keys = [('EEG', 'AWI'), ('EEG', 'BAR'), ('EDA', 'SCL'),
                             ('PPG', 'HR'), ('EI', 'EI')]
         self.metric_history = {key: deque(maxlen=900) for key in self.metric_keys}
@@ -458,8 +458,8 @@ class MainWindow(QMainWindow):
             value = self.ei_estimator.value(now)
             self.latest_metrics['EI'] = {
                 'EI': value,
-                'status': 'Rolling 60 s within-signal HR/GSR standardization'
-                if value is not None else 'Waiting for 60 s valid HR/GSR data',
+                'status': 'EI from HR/GSR z-scores against BSL'
+                if value is not None else 'EI needs valid BSL HR/SCL references and fresh signals',
             }
             self.metric_history[('EI', 'EI')].append(
                 (now, float(value) if value is not None else float('nan'))
@@ -711,6 +711,11 @@ class MainWindow(QMainWindow):
                     worker.iaf_hz = self.iaf_hz
         else:
             self.loaded_bsl = meta
+            references = (meta.get('analysis') or {}).get('metrics', {})
+            self.ei_estimator.set_references(
+                references.get('PPG', {}).get('HR'),
+                references.get('EDA', {}).get('SCL'),
+            )
         self.calibration_paths[kind] = filename
         file_label = self.calibration_file_labels[kind]
         file_label.setText(Path(filename).name if filename else 'Loaded (unsaved)')
