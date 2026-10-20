@@ -800,7 +800,7 @@ class MainWindow(QMainWindow):
         # Animation is independent of data acquisition and analysis cadence.
         if self.tabs.currentIndex() == 0:
             self.update_raw_xranges()
-            if self.raw_dirty and time.monotonic() - self.raw_last_render_time >= 0.075:
+            if self.raw_dirty and time.monotonic() - self.raw_last_render_time >= 0.032:
                 self.draw()
         elif self.tabs.currentIndex() == 1:
             self.update_metric_xrange()
@@ -845,6 +845,8 @@ class MainWindow(QMainWindow):
             if len(self.curves[kind]) != 2*n:
                 plot.clear()
                 self.curves[kind] = []
+                plot.enableAutoRange(axis='y', enable=False)
+                plot.setYRange(-3., n*6., padding=0)
                 for i in range(n):
                     color = pg.intColor(i, hues=max(n, 3))
                     self.curves[kind].append(plot.plot(
