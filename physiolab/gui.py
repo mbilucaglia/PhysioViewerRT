@@ -17,7 +17,7 @@ from .worker import Receiver, discover
 from .channel_selection import channel_labels, full_channel_labels, validated_indices
 from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
-from .raw_timing import clean_lsl_chunk, visible_chunk
+from .raw_timing import clean_lsl_chunk, visible_chunk, SmoothViewportClock
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
@@ -162,6 +162,9 @@ class MainWindow(QMainWindow):
         self.raw_latest_time = None
         self.raw_last_sample = {}
         self.raw_last_received_at = None
+        self.raw_clock = SmoothViewportClock()
+        self.raw_scale = {}
+        self.raw_dirty_kinds = set()
         self.raw_dirty = True
         self.metric_dirty = True
         self.raw_last_render_time = 0.0
@@ -487,6 +490,8 @@ class MainWindow(QMainWindow):
         self.pending.pop(kind, None)
         self.raw_history[kind].clear()
         self.raw_last_sample.pop(kind, None)
+        self.raw_scale.pop(kind, None)
+        self.raw_dirty_kinds.add(kind)
         self.raw_dirty = True
         self.latest_metrics.pop(kind, None)
         for key in self.metric_keys:
@@ -728,7 +733,9 @@ class MainWindow(QMainWindow):
         if self.raw_latest_time is None or float(t[-1]) > self.raw_latest_time:
             self.raw_latest_time = float(t[-1])
             self.raw_last_received_at = time.monotonic()
+            self.raw_clock.observe(self.raw_latest_time, self.raw_last_received_at)
         self.raw_dirty = True
+        self.raw_dirty_kinds.add(kind)
         cutoff = self.raw_latest_time - 300.0
         chunks = self.raw_history[kind]
         while chunks and chunks[0][0][-1] < cutoff:
@@ -778,12 +785,11 @@ class MainWindow(QMainWindow):
         self.draw()
 
     def update_raw_xranges(self):
-        if not self.raw_follow_live or self.raw_latest_time is None:
+        if not self.raw_follow_live or self.raw_plot_origin is None:
             return
-        # Smoothly advance the viewport between LSL chunk arrivals without
-        # fabricating any samples. Cap lead time if the publisher stalls.
-        age = max(0.0, time.monotonic() - self.raw_last_received_at)
-        head = self.raw_latest_time + min(age, 0.12)
+        head = self.raw_clock.advance(time.monotonic())
+        if head is None:
+            return
         end = head - self.raw_plot_origin
         for plot in self.plots.values():
             plot.setXRange(end - self.raw_view_seconds, end, padding=0)
