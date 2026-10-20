@@ -38,9 +38,11 @@ class SyntheticPhysiologyTests(unittest.TestCase):
             split = SyntheticPhysiology(seed=20)
             segments = []
             tick = 0
-            for samples in (13, fs, 59, 2*fs, 2*fs):
+            # Keep total below 6*fs even for EDA at 32 Hz.
+            for samples in (13, fs, 7, 2*fs, 2*fs):
                 segments.append(split.generate(kind, tick, samples))
                 tick += samples
+            self.assertGreater(6*fs - tick, 0)
             segments.append(split.generate(kind, tick, 6*fs-tick))
             np.testing.assert_allclose(full, np.vstack(segments),
                                        atol=2e-5, rtol=1e-6)

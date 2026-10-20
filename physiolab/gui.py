@@ -17,6 +17,7 @@ from .worker import Receiver, discover
 from .channel_selection import channel_labels, full_channel_labels, validated_indices
 from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
+from .raw_timing import clean_lsl_chunk, visible_chunk
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
@@ -157,8 +158,9 @@ class MainWindow(QMainWindow):
         self.raw_history = {k: deque() for k in ('EEG', 'EDA', 'PPG')}
         self.raw_view_seconds = 5.0
         self.raw_follow_live = True
-        self.raw_plot_origin = time.monotonic()
-        self.raw_latest_time = self.raw_plot_origin
+        self.raw_plot_origin = None
+        self.raw_latest_time = None
+        self.raw_last_sample = {}
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -477,6 +479,7 @@ class MainWindow(QMainWindow):
     def reset_stream_display(self, kind):
         self.pending.pop(kind, None)
         self.raw_history[kind].clear()
+        self.raw_last_sample.pop(kind, None)
         self.latest_metrics.pop(kind, None)
         for key in self.metric_keys:
             if key[0] == kind:
@@ -560,8 +563,8 @@ class MainWindow(QMainWindow):
         worker.start()
         self.statusBar().showMessage(f'{kind}: starting selected LSL stream reception')
 
-    def receive(self, kind, raw, processed, names, metric, fs):
-        self.append_raw_chunk(kind, raw, processed, names, fs)
+    def receive(self, kind, raw, processed, names, metric, fs, timestamps):
+        self.append_raw_chunk(kind, raw, processed, names, fs, timestamps)
         if metric is None:
             return
         now = time.monotonic()
@@ -688,23 +691,28 @@ class MainWindow(QMainWindow):
                 markers.setData(measured_x, measured_y)
         self.update_metric_xrange()
 
-    def append_raw_chunk(self, kind, raw, processed, names, fs):
-        raw = np.asarray(raw, dtype=float)
-        processed = np.asarray(processed, dtype=float)
-        count = min(len(raw), len(processed))
-        if count < 1 or fs <= 0:
-            return
-        now = time.monotonic()
-        start = now - (count - 1) / fs
-        self.raw_history[kind].append(
-            (start, raw[-count:].copy(), processed[-count:].copy(),
-             list(names), float(fs))
+    def append_raw_chunk(self, kind, raw, processed, names, fs, timestamps):
+        # The worker passes the actual LSL timestamps along with exactly
+        # corresponding raw/filtered samples. Arrival time varies with
+        # thread scheduling and MUST NOT determine sample positions.
+        t, raw, processed = clean_lsl_chunk(
+            timestamps, raw, processed, self.raw_last_sample.get(kind)
         )
-        self.raw_latest_time = max(self.raw_latest_time, now)
-        cutoff = now - 300.0
+        if not len(t):
+            return
+        self.raw_last_sample[kind] = float(t[-1])
+        if self.raw_plot_origin is None:
+            self.raw_plot_origin = float(t[0])
+        self.raw_history[kind].append(
+            (t, raw.copy(), processed.copy(), list(names), float(fs))
+        )
+        self.raw_latest_time = (
+            float(t[-1]) if self.raw_latest_time is None
+            else max(self.raw_latest_time, float(t[-1]))
+        )
+        cutoff = self.raw_latest_time - 300.0
         chunks = self.raw_history[kind]
-        while chunks and (chunks[0][0] + (len(chunks[0][1]) - 1)
-                          / chunks[0][4] < cutoff):
+        while chunks and chunks[0][0][-1] < cutoff:
             chunks.popleft()
 
     def set_raw_time_window(self, *_):
@@ -740,7 +748,7 @@ class MainWindow(QMainWindow):
         self.draw()
 
     def update_raw_xranges(self):
-        if self.raw_follow_live:
+        if self.raw_follow_live and self.raw_latest_time is not None:
             end = self.raw_latest_time - self.raw_plot_origin
             for plot in self.plots.values():
                 plot.setXRange(end - self.raw_view_seconds, end, padding=0)
@@ -756,20 +764,19 @@ class MainWindow(QMainWindow):
             low, high = plot.viewRange()[0]
             times, raw_parts, filtered_parts = [], [], []
             names = chunks[-1][3]
-            for start, raw, filtered, _, fs in chunks:
-                end = start + (len(raw) - 1) / fs
-                if end < self.raw_plot_origin + low or start > self.raw_plot_origin + high:
+            for stamps, raw, filtered, _, fs in chunks:
+                if (stamps[-1] < self.raw_plot_origin + low or
+                        stamps[0] > self.raw_plot_origin + high):
                     continue
-                i0 = max(0, int((self.raw_plot_origin + low - start) * fs))
-                i1 = min(len(raw), int(np.ceil(
-                    (self.raw_plot_origin + high - start) * fs
-                )) + 1)
-                if i0 >= i1:
+                visible_t, visible_raw, visible_filtered = visible_chunk(
+                    stamps, raw, filtered,
+                    self.raw_plot_origin + low, self.raw_plot_origin + high
+                )
+                if not len(visible_t):
                     continue
-                times.append(start - self.raw_plot_origin +
-                             np.arange(i0, i1) / fs)
-                raw_parts.append(raw[i0:i1])
-                filtered_parts.append(filtered[i0:i1])
+                times.append(visible_t - self.raw_plot_origin)
+                raw_parts.append(visible_raw)
+                filtered_parts.append(visible_filtered)
             if not times:
                 for curve in self.curves[kind]:
                     curve.clear()

@@ -5,7 +5,7 @@ from .channel_selection import channel_labels, validated_indices, select_chunk
 
 
 class Receiver(QThread):
-    updated = Signal(str, object, object, object, object, float)
+    updated = Signal(str, object, object, object, object, float, object)
     failure = Signal(str)
     samples_received = Signal(str, object, object, object, float)
     stream_ready = Signal(str, object, float)
@@ -45,7 +45,7 @@ class Receiver(QThread):
                     self.kind,
                     selected.copy(),
                     proc.filtered[-count_plot:].copy(),
-                    names, metric, float(fs)
+                    names, metric, float(fs), timestamps
                 )
         except Exception as exc:
             self.failure.emit(f'{self.kind}: {exc}')
