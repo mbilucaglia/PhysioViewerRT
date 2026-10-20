@@ -44,7 +44,7 @@ Use **Calibration** in the application menu:
 ## Application tabs
 
 - **Raw Data**: EEG, EDA/GSR, and PPG waveforms with independently switchable raw (solid) and filtered/processed (dashed) traces. Acquisition and metrics continue while the Metrics tab is open.
-- **Metrics**: EEG FAA and alpha powers, EDA SCL, and PPG HR, with per-modality status. Metrics use 1-second windows and 50% overlap; HR uses an extended pulse history.
+- **Metrics**: one combined rolling five-minute plot of **AWI**, **BAR**, **SCL**, **HR** and **EI**, a legend and their live values. IAF is shown as an EEG calibration parameter, not as a plot line. The **Original** mode plots mixed physiological units on one y-axis; z-score, robust z-MAD, robust IQR and fixed min-max modes transform each metric using its saved BSL reference. Invalid/insufficient values appear as gaps. EI requires approximately 60 seconds of valid rolling HR and SCL history to derive within-signal z-scores; optional subsequent EI normalization uses the **BSL EI distribution**. EEG, EDA and PPG metrics retain 1-second windows with 50% overlap; HR uses a longer beat history.
 
 The current non-calibrated EEG default is **IAF 10 Hz**, with alpha power integrated over **8–12 Hz** (IAF ± 2 Hz). Guided EYC/BSL file capture and basic z-score/z-MAD/fixed-min-max normalization are implemented. ASR, PPG wavelets, and EDA artifact correction remain unimplemented.
 
@@ -56,11 +56,12 @@ LSL stream types must be `EEG`, `EDA` or `GSR`, and `PPG`. EEG alpha asymmetry u
 
 - Continuous causal EEG band-pass (1–40 Hz) and PPG band-pass (0.5–8 Hz), limited by Nyquist.
 - Nominal 1-second analysis windows with 50% overlap: metrics are evaluated approximately every 500 ms.
-- FAA = ln(alpha power F4) − ln(alpha power F3) from Welch PSD over 8–12 Hz (default IAF 10 Hz ± 2 Hz).
+- AWI = ln(alpha power F4) − ln(alpha power F3) from Welch PSD over 8–12 Hz (default IAF 10 Hz ± 2 Hz).
+- BAR = (mean 13–30 Hz beta power across eligible EEG channels) / (mean IAF±2 Hz alpha power across those channels), from a 1-second Hann-windowed Welch PSD. If insufficient spectral support, BAR is unavailable.
 - EDA: one-second median skin-conductance level, in source units.
 - PPG: heart rate from valid pulse intervals over up to 10 seconds of signal history; **not** a one-second-only HR estimate.
 - Graph refresh approximately 25 FPS; displayed channels are normalized independently.
 
 ## Research prototype limitations
 
-Not a medical device. Do not use for clinical decisions. Missing automated artifact detection, channel-quality gating, reference selection, inter-stream timestamp alignment, general recording/replay, notch filtering, SCR detection, sophisticated calibration artifact rejection, and closed-loop neurofeedback. The PPG peak detector is heuristic; the FAA estimate from one second is noisy. Simulated signals validate the software path only, not biological accuracy. Confirm montage, units, sampling rates, and signal quality with real hardware. The application has not undergone an end-to-end hardware/Windows integration test. Packaging as a standalone EXE is not yet provided.
+Not a medical device. Do not use for clinical decisions. Missing automated artifact detection, channel-quality gating, reference selection, inter-stream timestamp alignment, general recording/replay, notch filtering, SCR detection, sophisticated calibration artifact rejection, and closed-loop neurofeedback. The PPG peak detector is heuristic; the AWI and BAR estimates from one second are noisy. Simulated signals validate the software path only, not biological accuracy. Confirm montage, units, sampling rates, and signal quality with real hardware. The application has not undergone an end-to-end hardware/Windows integration test. Packaging as a standalone EXE is not yet provided.
