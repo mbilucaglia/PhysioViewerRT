@@ -7,7 +7,7 @@ def channel_labels(info):
     channel = info.desc().child('channels').child('channel')
     labels = []
     for i in range(count):
-        labels.append(channel.child_value('label') or f'Ch{i+1}')
+        labels.append((channel.child_value('label') or channel.child_value('name') or '').strip()\n                      or f'Ch{i+1} (unlabeled)')
         channel = channel.next_sibling()
     return labels
 
