@@ -10,14 +10,69 @@ from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
-    QMessageBox, QFileDialog, QDialog, QPlainTextEdit
+    QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu
 )
 from .worker import Receiver, discover
+from .channel_selection import channel_labels, validated_indices
 from .emotion import RollingEmotionalIndex
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
 )
+
+
+class CheckChannelDropdown(QToolButton):
+    """Checkbox popup: EEG multiple, EDA/PPG exactly one."""
+
+    def __init__(self, kind, parent=None):
+        super().__init__(parent)
+        self.kind = kind
+        self.names = []
+        self.actions = []
+        self.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.setFixedWidth(210)
+        self.setToolTip('Choose channels; source labels are shown in the checklist')
+        self.menu = QMenu(self)
+        self.setMenu(self.menu)
+        self.set_channels([])
+
+    def set_channels(self, names):
+        self.names = list(names)
+        self.actions = []
+        self.menu.clear()
+        for index, name in enumerate(self.names):
+            action = self.menu.addAction(f'{index + 1}: {name}')
+            action.setCheckable(True)
+            action.setChecked(self.kind == 'EEG' or index == 0)
+            action.triggered.connect(lambda checked, i=index: self.select(i, checked))
+            self.actions.append(action)
+        self.update_label()
+
+    def select(self, index, checked):
+        if self.kind in ('EDA', 'PPG'):
+            for i, action in enumerate(self.actions):
+                action.setChecked(i == index)
+        else:
+            self.actions[index].setChecked(checked)
+        self.update_label()
+
+    def selected_indices(self):
+        return [i for i, action in enumerate(self.actions) if action.isChecked()]
+
+    def update_label(self):
+        chosen = self.selected_indices()
+        if not chosen:
+            self.setText('Select channels')
+            self.setToolTip('No channels selected. Open the dropdown to choose.')
+            return
+        selected = [f'{i + 1}: {self.names[i]}' for i in chosen]
+        # Show the actual labels instead of just "N channels". Width is
+        # bounded; the tooltip gives the unabridged list on hover.
+        full = ', '.join(selected)
+        self.setText(self.fontMetrics().elidedText(
+            full, Qt.TextElideMode.ElideRight, self.width() - 30
+        ))
+        self.setToolTip('Selected source channels:\\n' + '\\n'.join(selected))
 
 
 class CalibrationScreen(QDialog):
@@ -80,7 +135,7 @@ class MainWindow(QMainWindow):
 
         controls = QHBoxLayout()
         layout.addLayout(controls)
-        self.selectors, self.workers = {}, {}
+        self.selectors, self.channel_selectors, self.workers = {}, {}, {}
         self.plots, self.curves = {}, {}
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
@@ -101,6 +156,10 @@ class MainWindow(QMainWindow):
             combo.setMinimumWidth(160)
             self.selectors[kind] = combo
             controls.addWidget(combo)
+            picker = CheckChannelDropdown(kind)
+            self.channel_selectors[kind] = picker
+            controls.addWidget(picker)
+            combo.currentIndexChanged.connect(lambda _, k=kind: self.stream_selection_changed(k))
             button = QPushButton('Connect')
             button.clicked.connect(lambda _, k=kind: self.connect_stream(k))
             controls.addWidget(button)
@@ -203,22 +262,45 @@ class MainWindow(QMainWindow):
         try:
             streams = discover()
             for kind, combo in self.selectors.items():
+                old = combo.currentData()
+                uid = old.uid() if old is not None else None
+                combo.blockSignals(True)
                 combo.clear()
                 for info in streams:
-                    match = info.type().upper() in (('EDA', 'GSR') if kind == 'EDA' else (kind,))
-                    if match:
-                        combo.addItem(
-                            f'{info.name()} ({info.channel_count()} ch, '
-                            f'{info.nominal_srate():g} Hz)', info
-                        )
+                    combo.addItem(
+                        f'{info.name()} [{info.type()}] '
+                        f'({info.channel_count()} ch, {info.nominal_srate():g} Hz)',
+                        info
+                    )
+                if uid is not None:
+                    for idx in range(combo.count()):
+                        if combo.itemData(idx).uid() == uid:
+                            combo.setCurrentIndex(idx)
+                            break
+                combo.blockSignals(False)
+                self.stream_selection_changed(kind)
             self.statusBar().showMessage(f'Found {len(streams)} LSL streams')
         except Exception as exc:
             self.statusBar().showMessage(str(exc))
+
+    def stream_selection_changed(self, kind):
+        info = self.selectors[kind].currentData()
+        self.channel_selectors[kind].set_channels(
+            channel_labels(info) if info is not None else []
+        )
 
     def connect_stream(self, kind):
         info = self.selectors[kind].currentData()
         if info is None:
             self.statusBar().showMessage(f'No {kind} stream selected')
+            return
+        try:
+            indices = validated_indices(
+                self.channel_selectors[kind].selected_indices(),
+                info.channel_count(), kind,
+            )
+        except ValueError as exc:
+            QMessageBox.warning(self, f'{kind} channel selection', str(exc))
             return
         if kind in self.workers:
             self.workers[kind].stop()
@@ -231,7 +313,7 @@ class MainWindow(QMainWindow):
             self.metric_history[('EI', 'EI')].clear()
             self.latest_metrics.pop('EI', None)
         self.latest_metrics.pop(kind, None)
-        worker = Receiver(info, kind)
+        worker = Receiver(info, kind, indices)
         worker.updated.connect(self.receive)
         worker.samples_received.connect(self.capture_samples)
         worker.stream_ready.connect(self.ready_stream)
@@ -394,11 +476,7 @@ class MainWindow(QMainWindow):
         for modality in included:
             worker = connected[modality]
             info = worker.info
-            channels = []
-            ch = info.desc().child('channels').child('channel')
-            for idx in range(info.channel_count()):
-                channels.append(ch.child_value('label') or f'Ch{idx+1}')
-                ch = ch.next_sibling()
+            channels = list(worker.selected_names)
             meta[modality] = {
                 'fs': float(info.nominal_srate()), 'channels': channels,
                 'chunks': [], 'times': [],

@@ -8,7 +8,7 @@ Local Python desktop application for LSL EEG, EDA/GSR and PPG monitoring.
 2. Clone or download the `feature/windows-lsl-mvp` branch into a writable folder.
 3. Double-click `setup_windows.cmd` to create `.venv` and install dependencies.
 4. Double-click `simulate_windows.cmd` to start demonstration EEG/EDA/PPG streams, or start your hardware LSL outlets.
-5. Double-click `start_windows.cmd`, press **Refresh LSL**, and connect each modality.
+5. Double-click `start_windows.cmd`. Press **Refresh LSL**, select a stream and its channels for each modality, then press **Connect**.
 
 If the installer cannot locate Python, open Command Prompt and run `python --version`, `where python`, and `py --list`. The command may be unavailable even though Python is installed, if its directory is missing from PATH. Python 3.13+ or 32-bit-only installations are not selected by this MVP installer. If an old/incomplete `.venv` exists, delete that folder and rerun setup.
 
@@ -48,9 +48,15 @@ Use **Calibration** in the application menu:
 
 The current non-calibrated EEG default is **IAF 10 Hz**, with alpha power integrated over **8–12 Hz** (IAF ± 2 Hz). Guided EYC/BSL file capture and basic z-score/z-MAD/fixed-min-max normalization are implemented. ASR, PPG wavelets, and EDA artifact correction remain unimplemented.
 
+## Assigning streams and channels
+
+Each modality has two controls: **LSL stream** (every available stream is listed regardless of its LSL type) and **Channels** (checkbox dropdown). **EEG** supports one or more selected channels, with all channels checked initially. **EDA/GSR** and **PPG** each require exactly one checked channel. A single multichannel LSL stream may be independently connected for more than one modality; each receiver processes only its chosen columns. The source channel labels and selected order are retained for live plots, metrics, EYC and BSL recordings. Check that channel labels match the actual EEG montage: AWI requires F3/F4 or Fp1/Fp2, and EYC needs posterior channel labels.
+
+Changing a stream or its checked channels does not change a running connection until **Connect** is pressed again. Refreshing LSL repopulates the channel choices. The same source must have a positive nominal sample rate.
+
 ## Expected streams
 
-LSL stream types must be `EEG`, `EDA` or `GSR`, and `PPG`. EEG alpha asymmetry uses F3 and F4 labels (falls back to Fp1 and Fp2).
+All LSL stream types are available in each modality's stream menu. Assign the appropriate channels for EEG, EDA/GSR and PPG. EEG AWI uses F3/F4 labels (falling back to Fp1/Fp2).
 
 ## Metrics and timing
 

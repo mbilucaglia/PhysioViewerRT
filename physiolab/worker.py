@@ -1,6 +1,7 @@
 from PySide6.QtCore import QThread, Signal
 from pylsl import StreamInlet, resolve_streams
 from .processing import Processor
+from .channel_selection import channel_labels, validated_indices, select_chunk
 
 
 class Receiver(QThread):
@@ -9,9 +10,11 @@ class Receiver(QThread):
     samples_received = Signal(str, object, object, object, float)
     stream_ready = Signal(str, object, float)
 
-    def __init__(self, info, kind):
+    def __init__(self, info, kind, selected_indices):
         super().__init__()
         self.info, self.kind = info, kind
+        self.selected_indices = validated_indices(selected_indices, info.channel_count(), kind)
+        self.selected_names = [channel_labels(info)[i] for i in self.selected_indices]
         self.active = True
         self.iaf_hz = 10.0
 
@@ -21,12 +24,8 @@ class Receiver(QThread):
             fs = self.info.nominal_srate()
             if fs <= 0:
                 raise ValueError('Irregular-rate streams are not supported in MVP')
-            count = self.info.channel_count()
-            names = []
-            ch = self.info.desc().child('channels').child('channel')
-            for i in range(count):
-                names.append(ch.child_value('label') or f'Ch{i+1}')
-                ch = ch.next_sibling()
+            count = len(self.selected_indices)
+            names = list(self.selected_names)
             proc = Processor(self.kind, fs, count, names, iaf_hz=self.iaf_hz)
             self.stream_ready.emit(self.kind, names, float(fs))
             while self.active:
@@ -34,8 +33,9 @@ class Receiver(QThread):
                 if not samples:
                     continue
                 proc.iaf_hz = self.iaf_hz
-                self.samples_received.emit(self.kind, samples, timestamps, names, float(fs))
-                metric = proc.push(samples)
+                selected = select_chunk(samples, self.selected_indices)
+                self.samples_received.emit(self.kind, selected, timestamps, names, float(fs))
+                metric = proc.push(selected)
                 count_plot = max(1, int(fs * 5))
                 self.updated.emit(
                     self.kind,
