@@ -3,7 +3,8 @@ import unittest
 import numpy as np
 
 from physiolab.emotion import (
-    RollingEmotionalIndex, emotional_index_z, baseline_ei, standardize_pair,
+    BaselineEmotionalIndex, emotional_index_from_bsl, emotional_index_z,
+    baseline_ei, standardize_pair,
 )
 from physiolab.calibration import normalize, summarize_metric
 
@@ -35,32 +36,55 @@ class EmotionalIndexRegressionTests(unittest.TestCase):
         )
         self.assertAlmostEqual(normalize(raw_ei, ref, 'identity'), raw_ei)
 
-    def test_rolling_requires_sixty_seconds(self):
-        model = RollingEmotionalIndex(seconds=60)
-        for i in range(105):  # 52.5 seconds
-            t = i * .5
-            model.update('PPG', 70 + 4*np.sin(i*.12), t)
-            model.update('EDA', 3 + .2*np.cos(i*.12), t)
-        self.assertIsNone(model.value(52.))
-        for i in range(105, 121):
-            t = i*.5
-            model.update('PPG', 70 + 4*np.sin(i*.12), t)
-            model.update('EDA', 3 + .2*np.cos(i*.12), t)
-        value = model.value(60.)
-        self.assertIsNotNone(value)
-        self.assertGreaterEqual(value, -1)
-        self.assertLessEqual(value, 1)
+    def test_live_ei_uses_bsl_means_and_sigmas_immediately(self):
+        hr_ref = {'mu': 70., 'sigma': 5.}
+        scl_ref = {'mu': 3., 'sigma': .5}
+        expected = emotional_index_z(1., -1.)
+        self.assertAlmostEqual(
+            emotional_index_from_bsl(75., 2.5, hr_ref, scl_ref), expected
+        )
+        model = BaselineEmotionalIndex(hr_ref, scl_ref)
+        model.update('PPG', 75., 1.)
+        model.update('EDA', 2.5, 1.1)
+        self.assertAlmostEqual(model.value(1.1), expected)
+        self.assertIsNone(model.value(2.2))
 
-    def test_missing_hr_suppresses_ei(self):
-        model = RollingEmotionalIndex()
-        for i in range(125):
-            t = i*.5
-            model.update('PPG', 68+4*np.sin(i*.1), t)
-            model.update('EDA', 3+.2*np.cos(i*.1), t)
-        self.assertIsNotNone(model.value(62.))
-        for i in range(125, 130):
-            model.update('EDA', 3+.2*np.cos(i*.1), i*.5)
-        self.assertIsNone(model.value(64.5))
+    def test_missing_or_zero_variance_bsl_rejects_ei(self):
+        valid_hr = {'mu': 70., 'sigma': 5.}
+        valid_scl = {'mu': 3., 'sigma': .5}
+        self.assertIsNone(emotional_index_from_bsl(
+            75., 2.5, valid_hr, {'mu': 3., 'sigma': 0.}
+        ))
+        self.assertIsNone(emotional_index_from_bsl(
+            75., 2.5, None, valid_scl
+        ))
+        self.assertIsNone(emotional_index_from_bsl(
+            None, 2.5, valid_hr, valid_scl
+        ))
+        model = BaselineEmotionalIndex()
+        model.update('PPG', 75., 1.)
+        model.update('EDA', 2.5, 1.)
+        self.assertIsNone(model.value(1.))
+        model.set_references(valid_hr, valid_scl)
+        self.assertIsNotNone(model.value(1.))
+        model.update('PPG', None, 1.2)
+        self.assertIsNone(model.value(1.2))
+
+    def test_ei_baseline_reference_is_independent_of_display_normalization(self):
+        hr = np.linspace(65., 76., 120)
+        scl = 3.5 + .2 * np.sin(np.linspace(0., 6*np.pi, 120))
+        raw = baseline_ei(hr, scl)
+        ref = summarize_metric(raw)
+        hr_stats = summarize_metric(hr)
+        scl_stats = summarize_metric(scl)
+        value = emotional_index_from_bsl(
+            73., 3.65, hr_stats, scl_stats
+        )
+        self.assertIsNotNone(value)
+        self.assertAlmostEqual(normalize(value, ref, 'identity'), value)
+        self.assertAlmostEqual(
+            normalize(value, ref, 'zscore'), (value-ref['mu']) / ref['sigma']
+        )
 
     def test_invalid_baseline_gives_no_ei(self):
         hr = np.full(120, 70.0)
