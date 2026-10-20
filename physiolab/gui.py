@@ -161,6 +161,10 @@ class MainWindow(QMainWindow):
         self.raw_plot_origin = None
         self.raw_latest_time = None
         self.raw_last_sample = {}
+        self.raw_last_received_at = None
+        self.raw_dirty = True
+        self.metric_dirty = True
+        self.raw_last_render_time = 0.0
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -198,6 +202,7 @@ class MainWindow(QMainWindow):
         controls.addWidget(refresh)
 
         self.tabs = QTabWidget()
+        self.tabs.currentChanged.connect(self.tab_changed)
         layout.addWidget(self.tabs)
 
         signals_page = QWidget()
@@ -421,8 +426,9 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage('Start an LSL source, then press Refresh LSL.')
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.draw)
-        self.timer.start(40)
+        self.timer.timeout.connect(self.render_frame)
+        self.timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self.timer.start(33)
         self.refresh()
 
     def refresh(self):
@@ -481,6 +487,7 @@ class MainWindow(QMainWindow):
         self.pending.pop(kind, None)
         self.raw_history[kind].clear()
         self.raw_last_sample.pop(kind, None)
+        self.raw_dirty = True
         self.latest_metrics.pop(kind, None)
         for key in self.metric_keys:
             if key[0] == kind:
@@ -714,10 +721,10 @@ class MainWindow(QMainWindow):
         self.raw_history[kind].append(
             (t, raw.copy(), processed.copy(), list(names), float(fs))
         )
-        self.raw_latest_time = (
-            float(t[-1]) if self.raw_latest_time is None
-            else max(self.raw_latest_time, float(t[-1]))
-        )
+        if self.raw_latest_time is None or float(t[-1]) > self.raw_latest_time:
+            self.raw_latest_time = float(t[-1])
+            self.raw_last_received_at = time.monotonic()
+        self.raw_dirty = True
         cutoff = self.raw_latest_time - 300.0
         chunks = self.raw_history[kind]
         while chunks and chunks[0][0][-1] < cutoff:
