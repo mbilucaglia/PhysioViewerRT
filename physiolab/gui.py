@@ -1,12 +1,70 @@
 """Local two-tab biosignal monitor: waveforms and metrics."""
+import json
+import time
+from pathlib import Path
+
 import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox
+    QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
+    QMessageBox, QFileDialog, QDialog, QPlainTextEdit
 )
 from .worker import Receiver, discover
+from .calibration import (
+    analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
+    DURATION_SECONDS,
+)
+
+
+class CalibrationScreen(QDialog):
+    """Fullscreen 60-second calibration prompt. Esc cancels recording."""
+
+    def __init__(self, kind, parent=None):
+        super().__init__(parent)
+        self.kind = kind
+        self.started_at = None
+        self.setWindowTitle(f'{kind} calibration')
+        self.setStyleSheet('background: black; color: white;')
+        self.setWindowState(Qt.WindowState.WindowFullScreen)
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.instruction = QLabel('Close your eyes' if kind == 'EYC' else '•')
+        self.instruction.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.instruction.setStyleSheet(
+            'font-size: 52px; color: white;' if kind == 'EYC'
+            else 'font-size: 80px; color: white;'
+        )
+        layout.addWidget(self.instruction)
+        self.clock = QLabel('')
+        self.clock.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.clock.setStyleSheet('font-size: 22px; color: #aaa;')
+        if kind == 'EYC':
+            layout.addWidget(self.clock)
+        self.timer = QTimer(self)
+        self.timer.setInterval(100)
+        self.timer.timeout.connect(self.tick)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.started_at = time.monotonic()
+        self.timer.start()
+
+    def tick(self):
+        remaining = max(0, DURATION_SECONDS - (time.monotonic() - self.started_at))
+        if self.kind == 'EYC':
+            self.clock.setText(f'{remaining:.0f} s')
+        if remaining <= 0:
+            self.timer.stop()
+            self.accept()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.timer.stop()
+            self.reject()
+        else:
+            super().keyPressEvent(event)
 
 
 class MainWindow(QMainWindow):
@@ -24,6 +82,12 @@ class MainWindow(QMainWindow):
         self.plots, self.curves = {}, {}
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
+        self.capture = None
+        self.loaded_eyc = None
+        self.loaded_bsl = None
+        self.latest_metrics = {}
+        self.iaf_hz = 10.0
+        self._configure_calibration_menu()
 
         for kind in ('EEG', 'EDA', 'PPG'):
             controls.addWidget(QLabel(kind))
@@ -65,7 +129,24 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(signals_page, 'Raw Data')
 
         metrics_page = QWidget()
-        metrics_grid = QGridLayout(metrics_page)
+        metrics_layout = QVBoxLayout(metrics_page)
+        normalize_row = QHBoxLayout()
+        normalize_row.addWidget(QLabel('Normalization'))
+        self.normalization = QComboBox()
+        for name, value in [('Original (identity)', 'identity'),
+                            ('z-score (BSL)', 'zscore'),
+                            ('robust z-MAD (BSL)', 'zmad'),
+                            ('robust IQR (BSL)', 'robust_iqr'),
+                            ('fixed min-max (BSL)', 'minmax')]:
+            self.normalization.addItem(name, value)
+        self.normalization.currentIndexChanged.connect(self.refresh_metrics)
+        normalize_row.addWidget(self.normalization)
+        normalize_row.addStretch()
+        metrics_layout.addLayout(normalize_row)
+        self.calibration_state = QLabel('EYC: none (default IAF 10 Hz) | BSL: none')
+        metrics_layout.addWidget(self.calibration_state)
+        metrics_grid = QGridLayout()
+        metrics_layout.addLayout(metrics_grid)
         for row, (kind, keys) in enumerate((
             ('EEG', ('IAF', 'FAA', 'alpha_left', 'alpha_right')),
             ('EDA', ('SCL',)),
@@ -120,6 +201,9 @@ class MainWindow(QMainWindow):
         self.pending.pop(kind, None)
         worker = Receiver(info, kind)
         worker.updated.connect(self.receive)
+        worker.samples_received.connect(self.capture_samples)
+        worker.stream_ready.connect(self.ready_stream)
+        worker.iaf_hz = self.iaf_hz
         worker.failure.connect(self.statusBar().showMessage)
         self.workers[kind] = worker
         worker.start()
@@ -127,15 +211,31 @@ class MainWindow(QMainWindow):
     def receive(self, kind, raw, processed, names, metric, fs):
         self.pending[kind] = (raw, processed, names, fs)
         if metric is not None:
+            self.latest_metrics[kind] = metric
+            self.refresh_metrics()  # update continuously even if raw view is selected
+
+    def refresh_metrics(self, *_):
+        mode = self.normalization.currentData()
+        references = ((self.loaded_bsl or {}).get('analysis') or {}).get('metrics', {})
+        for kind, metric in self.latest_metrics.items():
             for (modality, key), label in self.metric_labels.items():
                 if modality != kind:
                     continue
                 value = metric.get(key)
+                reference = references.get(kind, {}).get(key)
+                if mode != 'identity' and kind != 'EEG' or (mode != 'identity' and key != 'IAF'):
+                    if isinstance(value, (int, float)) and np.isfinite(value):
+                        value = normalize(value, reference, mode) if reference else None
+                    else:
+                        value = None
                 label.setText(
                     f'{key}: {value:.3f}' if isinstance(value, (int, float))
                     and np.isfinite(value) else f'{key}: —'
                 )
-            self.metric_status[kind].setText(metric.get('status', 'Updated (1 s window, 50% overlap)'))
+            self.metric_status[kind].setText(
+                metric.get('status', 'Updated (1 s window, 50% overlap)')
+                + (' | no compatible BSL value: —' if mode != 'identity' and not references.get(kind) else '')
+            )
 
     def draw(self):
         # Acquisition and metric computation continue regardless of the selected tab.
@@ -172,6 +272,197 @@ class MainWindow(QMainWindow):
                 self.curves[kind][2*i].setData(t, raw_y) if self.show_raw.isChecked() else self.curves[kind][2*i].clear()
                 self.curves[kind][2*i+1].setData(t, processed_y) if self.show_processed.isChecked() else self.curves[kind][2*i+1].clear()
             self.pending.pop(kind, None)
+
+
+    def _configure_calibration_menu(self):
+        menu = self.menuBar().addMenu('Calibration')
+        menu.addAction('Record EYC (60 s)...', lambda: self.record_calibration('EYC'))
+        menu.addAction('Record BSL (60 s)...', lambda: self.record_calibration('BSL'))
+        menu.addSeparator()
+        menu.addAction('Load EYC file...', lambda: self.load_existing('EYC'))
+        menu.addAction('Load BSL file...', lambda: self.load_existing('BSL'))
+
+    def ready_stream(self, kind, channels, fs):
+        self.statusBar().showMessage(f'{kind} ready: {len(channels)} channels at {fs:g} Hz')
+
+    def capture_samples(self, kind, samples, timestamps, channels, fs):
+        session = self.capture
+        if session is None or kind not in session['streams']:
+            return
+        if time.monotonic() > session['deadline']:
+            return
+        arr = np.asarray(samples, dtype=float)
+        ts = np.asarray(timestamps, dtype=float)
+        if arr.ndim != 2 or len(arr) != len(ts) or not len(ts):
+            return
+        item = session['streams'][kind]
+        if item['channels'] != list(channels) or item['fs'] != float(fs):
+            session['errors'].append(f'{kind} stream metadata changed')
+            return
+        item['chunks'].append(arr.copy())
+        item['times'].append(ts.copy())
+
+    def record_calibration(self, kind):
+        if self.capture is not None:
+            QMessageBox.warning(self, 'Calibration', 'A calibration is already running.')
+            return
+        connected = {modality: worker for modality, worker in self.workers.items()
+                     if worker.isRunning() and worker.active}
+        if kind == 'EYC' and 'EEG' not in connected:
+            QMessageBox.warning(self, 'EYC calibration', 'Connect an EEG LSL stream first.')
+            return
+        if kind == 'BSL' and not connected:
+            QMessageBox.warning(self, 'BSL calibration', 'Connect at least one LSL stream first.')
+            return
+        instruction = ('Close your eyes for 60 seconds. Press Esc to cancel.'
+                       if kind == 'EYC' else
+                       'Look steadily at the white dot for 60 seconds. Press Esc to cancel.')
+        QMessageBox.information(self, f'{kind} instructions', instruction)
+        # Record every connected modality during BSL, EEG during EYC.
+        included = ['EEG'] if kind == 'EYC' else list(connected)
+        meta = {}
+        for modality in included:
+            worker = connected[modality]
+            info = worker.info
+            channels = []
+            ch = info.desc().child('channels').child('channel')
+            for idx in range(info.channel_count()):
+                channels.append(ch.child_value('label') or f'Ch{idx+1}')
+                ch = ch.next_sibling()
+            meta[modality] = {
+                'fs': float(info.nominal_srate()), 'channels': channels,
+                'chunks': [], 'times': [],
+            }
+        screen = CalibrationScreen(kind, self)
+        self.capture = {
+            'kind': kind, 'streams': meta, 'errors': [],
+            'deadline': time.monotonic() + DURATION_SECONDS + 1,
+        }
+        result = screen.exec()
+        session = self.capture
+        self.capture = None
+        if kind == 'EYC':
+            QMessageBox.information(self, 'EYC finished', 'Open your eyes.')
+        if result != QDialog.DialogCode.Accepted:
+            self.statusBar().showMessage(f'{kind} cancelled; no calibration saved')
+            return
+        if session['errors']:
+            QMessageBox.warning(self, 'Calibration invalid', '\\n'.join(session['errors']))
+            return
+        streams = {}
+        for modality, value in session['streams'].items():
+            if not value['chunks']:
+                continue
+            data = np.concatenate(value['chunks'])
+            stamps = np.concatenate(value['times'])
+            duration = len(data) / value['fs']
+            if duration < 55:
+                QMessageBox.warning(self, 'Recording incomplete',
+                                    f'{modality}: only {duration:.1f} s of samples. Please retry.')
+                return
+            streams[modality] = {
+                'data': data, 'timestamps': stamps,
+                'fs': value['fs'], 'channels': value['channels'],
+            }
+        try:
+            analysis = self.analyze_calibration(kind, streams)
+        except Exception as exc:
+            QMessageBox.warning(self, 'Calibration analysis failed', str(exc))
+            return
+        self.inspect_calibration(kind, analysis)
+        answer = QMessageBox.question(
+            self, f'Save {kind} calibration?', 'Save recorded calibration data and analysis?',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        filename, _ = QFileDialog.getSaveFileName(
+            self, f'Save {kind}', f'{kind.lower()}_calibration.npz', 'Calibration (*.npz)'
+        )
+        if not filename:
+            return
+        if not filename.lower().endswith('.npz'):
+            filename += '.npz'
+        try:
+            save_calibration(filename, kind, streams, analysis)
+            self.apply_calibration(kind, {'analysis': analysis})
+            self.statusBar().showMessage(f'Saved {kind}: {filename}')
+        except Exception as exc:
+            QMessageBox.critical(self, 'Save failed', str(exc))
+
+    def analyze_calibration(self, kind, streams):
+        if kind == 'EYC':
+            if 'EEG' not in streams:
+                raise ValueError('An EEG stream is required')
+            return analyze_eyc(streams['EEG'])
+        return analyze_bsl(streams, iaf_hz=self.iaf_hz)
+
+    def inspect_calibration(self, kind, analysis):
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f'{kind} calibration inspection')
+        dlg.resize(760, 570)
+        layout = QVBoxLayout(dlg)
+        if kind == 'EYC':
+            layout.addWidget(QLabel(
+                f"Posterior alpha center of gravity: {analysis['iaf_hz']:.2f} Hz "
+                f"(7–13 Hz), channels: {', '.join(analysis['posterior_channels'])}"
+            ))
+            plot = pg.PlotWidget(title='Average posterior-channel PSD (Welch, Hann, 1 s, 50% overlap)')
+            plot.plot(analysis['psd_hz'], analysis['mean_psd'], pen=pg.mkPen('#33aaff', width=2))
+            plot.addLine(x=analysis['iaf_hz'], pen=pg.mkPen('red', width=2))
+            plot.setXRange(3, 20)
+            plot.setLabel('bottom', 'Frequency', 'Hz')
+            layout.addWidget(plot)
+        else:
+            view = QPlainTextEdit()
+            view.setReadOnly(True)
+            lines = [f"IAF used: {analysis['iaf_hz_used']:.2f} Hz", ""]
+            for modality, fields in analysis['metrics'].items():
+                lines.append(f"{modality}")
+                for name, stats in fields.items():
+                    lines.append(
+                        f"  {name}: μ={stats['mu']:.5g} σ={stats['sigma']:.5g} "
+                        f"median={stats['median']:.5g} IQR={stats['iqr']:.5g} "
+                        f"(N={stats['valid_windows']})"
+                    )
+                lines.append('')
+            view.setPlainText('\\n'.join(lines))
+            layout.addWidget(view)
+        close = QPushButton('Close inspection')
+        close.clicked.connect(dlg.accept)
+        layout.addWidget(close)
+        dlg.exec()
+
+    def apply_calibration(self, kind, meta):
+        if kind == 'EYC':
+            self.loaded_eyc = meta
+            self.iaf_hz = float(meta['analysis']['iaf_hz'])
+            for worker in self.workers.values():
+                if worker.kind == 'EEG':
+                    worker.iaf_hz = self.iaf_hz
+        else:
+            self.loaded_bsl = meta
+        self.calibration_state.setText(
+            f"EYC: {self.iaf_hz:.2f} Hz"
+            f" | BSL: {'loaded' if self.loaded_bsl else 'none'}"
+        )
+        self.refresh_metrics()
+
+    def load_existing(self, kind):
+        filename, _ = QFileDialog.getOpenFileName(
+            self, f'Open {kind} calibration', '', 'Calibration (*.npz)'
+        )
+        if not filename:
+            return
+        try:
+            meta, streams = load_calibration(filename, kind)
+            # Inspect the saved result, also recompute if an older file lacks it.
+            analysis = meta.get('analysis') or self.analyze_calibration(kind, streams)
+            self.inspect_calibration(kind, analysis)
+            self.apply_calibration(kind, {'analysis': analysis})
+            self.statusBar().showMessage(f'Loaded {kind}: {filename}')
+        except Exception as exc:
+            QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
 
     def closeEvent(self, event):
         for worker in self.workers.values():
