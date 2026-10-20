@@ -8,30 +8,36 @@ BSL EI reference distribution (calibration.normalize).
 import math
 import numpy as np
 
-ROLLING_SECONDS = 60.0
 MIN_VALID_SAMPLES = 30
-MIN_COVERAGE_SECONDS = 55.0
 
 
 def emotional_index_z(hr_z, gsr_z):
-    """Compute angular EI from *already standardized* HR and GSR.
+    """Vecchiato EI_matrix angular formula for z-scored HR and GSR.
 
-    Keep the convention used previously in PhysioViewerRT; do not treat
-    standardized EI as a direct measurement of affect.
+    MATLAB reference:
+        theta = atan2(SCL, HR)
+        beta = pi/2 - theta
+        if SCL >= 0 and HR <= 0: beta = 2.5*pi - theta
+        EI = 1 - beta/pi
+
+    HR is horizontal, GSR/SCL vertical. The source MATLAB returns NaN
+    for an all-zero HR vector. For scalar live EI, the zero vector
+    (0, 0) is undefined and is therefore not assigned an EI.
+    Do not clip the calculated output; preserve the supplied formula.
     """
     if hr_z is None or gsr_z is None:
         return None
-    h, g = float(hr_z), float(gsr_z)
-    if not np.isfinite(h) or not np.isfinite(g) or math.hypot(h, g) < 1e-9:
+    try:
+        h, g = float(hr_z), float(gsr_z)
+    except (TypeError, ValueError):
         return None
-    theta = math.atan2(h, g)
-    if theta < 0:
-        beta = abs(theta) + math.pi / 2
-    elif theta <= math.pi / 2:
-        beta = math.pi / 2 - theta
-    else:
-        beta = 5 * math.pi / 2 - theta
-    return float(np.clip(1.0 - beta / math.pi, -1.0, 1.0))
+    if not np.isfinite(h) or not np.isfinite(g) or (h == 0. and g == 0.):
+        return None
+    theta = math.atan2(g, h)
+    beta = 2.5 * math.pi - theta if g >= 0. and h <= 0. else (
+        math.pi / 2 - theta
+    )
+    return float(1. - beta / math.pi)
 
 
 def standardize_pair(hr, scl):
