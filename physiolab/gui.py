@@ -163,6 +163,9 @@ class MainWindow(QMainWindow):
         self.metric_keys = [('EEG', 'AWI'), ('EEG', 'BAR'), ('EDA', 'SCL'),
                             ('PPG', 'HR'), ('EI', 'EI')]
         self.metric_history = {key: deque(maxlen=900) for key in self.metric_keys}
+        self.metric_plot_origin = time.monotonic()
+        self.metric_view_seconds = 5.0
+        self.metric_follow_live = True
         self.iaf_hz = 10.0
         self._configure_calibration_menu()
 
@@ -254,10 +257,35 @@ class MainWindow(QMainWindow):
             metric_visibility.addWidget(checkbox)
         metric_visibility.addStretch()
         metrics_layout.addLayout(metric_visibility)
-        self.metric_plot = pg.PlotWidget(title='Combined live metrics — last 5 minutes')
-        self.metric_plot.setLabel('bottom', 'Time relative to now', units='s')
+        zoom_row = QHBoxLayout()
+        zoom_row.addWidget(QLabel('Time window'))
+        self.metric_time_window = QComboBox()
+        for label, seconds in (
+            ('5 s', 5), ('10 s', 10), ('30 s', 30),
+            ('1 min', 60), ('5 min', 300),
+        ):
+            self.metric_time_window.addItem(label, seconds)
+        self.metric_time_window.currentIndexChanged.connect(self.set_metric_time_window)
+        zoom_row.addWidget(self.metric_time_window)
+        zoom_in = QPushButton('Zoom +')
+        zoom_in.clicked.connect(lambda: self.zoom_metric_plot(0.5))
+        zoom_row.addWidget(zoom_in)
+        zoom_out = QPushButton('Zoom −')
+        zoom_out.clicked.connect(lambda: self.zoom_metric_plot(2.0))
+        zoom_row.addWidget(zoom_out)
+        self.metric_live_button = QPushButton('Live view')
+        self.metric_live_button.clicked.connect(self.resume_metric_live)
+        zoom_row.addWidget(self.metric_live_button)
+        zoom_row.addStretch()
+        metrics_layout.addLayout(zoom_row)
+        self.metric_plot = pg.PlotWidget(title='Combined live metrics — 5 s default, up to 5 min history')
+        self.metric_plot.setLabel('bottom', 'Elapsed session time', units='s')
         self.metric_plot.showGrid(x=True, y=True, alpha=.2)
         self.metric_plot.addLegend()
+        self.metric_plot.setMouseEnabled(x=True, y=True)
+        self.metric_plot.getViewBox().sigRangeChangedManually.connect(
+            self.metric_view_changed_manually
+        )
         self.metric_curves = {}
         for key, color in zip(self.metric_keys, (
             '#e69f00', '#56b4e9', '#009e73', '#cc79a7', '#d55e00'
@@ -489,6 +517,42 @@ class MainWindow(QMainWindow):
             label.setText(self.latest_metrics.get(kind, {}).get('status', 'Waiting for data'))
         self.refresh_metric_plot()
 
+    def set_metric_time_window(self, *_):
+        seconds = self.metric_time_window.currentData()
+        if seconds is None:
+            return
+        self.metric_view_seconds = float(seconds)
+        self.resume_metric_live()
+
+    def zoom_metric_plot(self, scale):
+        self.metric_view_seconds = float(np.clip(
+            self.metric_view_seconds * scale, 1.0, 300.0
+        ))
+        self.metric_time_window.blockSignals(True)
+        idx = self.metric_time_window.findData(int(self.metric_view_seconds))
+        self.metric_time_window.setCurrentIndex(idx)
+        self.metric_time_window.blockSignals(False)
+        self.resume_metric_live()
+
+    def resume_metric_live(self):
+        self.metric_follow_live = True
+        self.metric_live_button.setEnabled(False)
+        self.update_metric_xrange()
+
+    def metric_view_changed_manually(self, *_):
+        # Mouse-wheel zoom or drag pauses the moving viewport, not acquisition.
+        self.metric_follow_live = False
+        self.metric_live_button.setEnabled(True)
+        xlow, xhigh = self.metric_plot.viewRange()[0]
+        self.metric_view_seconds = float(max(0.01, xhigh - xlow))
+
+    def update_metric_xrange(self):
+        if self.metric_follow_live:
+            elapsed = time.monotonic() - self.metric_plot_origin
+            self.metric_plot.setXRange(
+                elapsed - self.metric_view_seconds, elapsed, padding=0
+            )
+
     def refresh_metric_plot(self):
         now = time.monotonic()
         for (kind, name), curve in self.metric_curves.items():
@@ -501,14 +565,14 @@ class MainWindow(QMainWindow):
             if not points:
                 curve.clear()
                 continue
-            timestamps = np.asarray([t - now for t, _ in points], dtype=float)
+            timestamps = np.asarray([t - self.metric_plot_origin for t, _ in points], dtype=float)
             display = [self.displayed_value(kind, name, val) for _, val in points]
             values = np.asarray(
                 [float(v) if v is not None else np.nan for v in display],
                 dtype=float,
             )
             curve.setData(timestamps, values, connect='finite')
-        self.metric_plot.setXRange(-300, 0, padding=0)
+        self.update_metric_xrange()
 
     def draw(self):
         # Acquisition and metric computation continue regardless of the selected tab.
