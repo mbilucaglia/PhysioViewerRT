@@ -1,7 +1,7 @@
 """Metric display processing tests (no Qt or LSL required)."""
 import unittest
 import numpy as np
-from physiolab.metric_display import prepare_metric_curve
+from physiolab.metric_display import prepare_metric_curve, monotonic_display_samples
 
 
 class MetricDisplayTests(unittest.TestCase):
@@ -61,9 +61,36 @@ class MetricDisplayTests(unittest.TestCase):
             )
             np.testing.assert_allclose(first, all_values[:5])
 
+    def test_nonmonotonic_duplicate_and_invalid_times_do_not_break_pchip(self):
+        stamps = [0., .5, .5, .25, 1., np.nan, 1.5, 1.5, 2.]
+        vals = [1., 2., 3., 100., 4., 999., 5., 6., 7.]
+        x, y = monotonic_display_samples(stamps, vals)
+        np.testing.assert_array_equal(x, [0., .5, 1., 1.5, 2.])
+        np.testing.assert_array_equal(y, [1., 3., 4., 6., 7.])
+        dense_x, dense_y, measured_x, measured_y = prepare_metric_curve(
+            stamps, vals, interpolation='pchip'
+        )
+        self.assertTrue(np.all(np.diff(dense_x) > 0))
+        np.testing.assert_array_equal(measured_x, x)
+        np.testing.assert_array_equal(measured_y, y)
+        self.assertTrue(np.isfinite(dense_y).all())
+
+    def test_nonfinite_times_are_ignored_without_rewriting_metric_values(self):
+        x, y, markers_x, markers_y = prepare_metric_curve(
+            [np.nan, 1., 1., 2., np.inf, 3.],
+            [2., 3., 4., 5., 6., 7.], interpolation='linear'
+        )
+        np.testing.assert_array_equal(markers_x, [1., 2., 3.])
+        np.testing.assert_array_equal(markers_y, [4., 5., 7.])
+        self.assertTrue(np.isfinite(x).all())
+        self.assertTrue(np.isfinite(y).all())
+
     def test_invalid_modes_and_nonmonotonic_timestamps(self):
-        with self.assertRaises(ValueError):
-            prepare_metric_curve([0., 0.], [1., 2.])
+        x, y, measured_x, measured_y = prepare_metric_curve(
+            [0., 0.], [1., 2.]
+        )
+        np.testing.assert_array_equal(measured_x, [0.])
+        np.testing.assert_array_equal(measured_y, [2.])
         with self.assertRaises(ValueError):
             prepare_metric_curve([0., .5], [1., 2.], interpolation='wrong')
         with self.assertRaises(ValueError):
