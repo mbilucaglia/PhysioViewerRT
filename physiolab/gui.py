@@ -596,7 +596,8 @@ class MainWindow(QMainWindow):
             self.metric_history[('EI', 'EI')].append(
                 (now, float(value) if value is not None else float('nan'))
             )
-        self.refresh_metrics()
+        self.refresh_metric_labels()
+        self.metric_dirty = True
 
     def displayed_value(self, kind, name, value):
         if value is None or not isinstance(value, (int, float)) or not np.isfinite(value):
@@ -613,13 +614,16 @@ class MainWindow(QMainWindow):
         return normalize(value, reference, mode)
 
     def refresh_metrics(self, *_):
+        self.refresh_metric_labels()
+        self.metric_dirty = True
+
+    def refresh_metric_labels(self):
         for (kind, name), label in self.metric_labels.items():
             raw = self.latest_metrics.get(kind, {}).get(name)
             value = self.displayed_value(kind, name, raw)
             label.setText(f'{name}: {value:.3f}' if value is not None else f'{name}: —')
         for kind, label in self.metric_status.items():
             label.setText(self.latest_metrics.get(kind, {}).get('status', 'Waiting for data'))
-        self.refresh_metric_plot()
 
     def set_metric_time_window(self, *_):
         seconds = self.metric_time_window.currentData()
@@ -704,7 +708,7 @@ class MainWindow(QMainWindow):
                 curve.setData(x, y, connect='finite')
             if show_markers or interpolation == 'none':
                 markers.setData(measured_x, measured_y)
-        self.update_metric_xrange()
+        self.metric_dirty = False
 
     def append_raw_chunk(self, kind, raw, processed, names, fs, timestamps):
         # The worker passes the actual LSL timestamps along with exactly
