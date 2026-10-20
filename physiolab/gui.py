@@ -734,8 +734,13 @@ class MainWindow(QMainWindow):
             return
         try:
             meta, streams = load_calibration(filename, kind)
-            # Inspect the saved result, also recompute if an older file lacks it.
-            analysis = meta.get('analysis') or self.analyze_calibration(kind, streams)
+            # EI_matrix changed to the MATLAB axis/quadrant convention.
+            # Reanalyze saved BSL recordings to avoid using historical EI
+            # reference statistics computed with the old angular formula.
+            # EYC is unchanged and can use its saved result.
+            analysis = (self.analyze_calibration(kind, streams)
+                        if kind == 'BSL'
+                        else meta.get('analysis') or self.analyze_calibration(kind, streams))
             self.inspect_calibration(kind, analysis)
             self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
             self.statusBar().showMessage(f'Loaded {kind}: {filename}')
