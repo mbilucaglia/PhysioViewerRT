@@ -44,19 +44,29 @@ class Processor:
     def metrics(self):
         w = self.filtered[-round(self.fs):]
         if self.kind == 'EEG':
-            names = [s.lower().strip() for s in self.names]
-            left = next((names.index(n) for n in ('f3', 'fp1') if n in names), None)
-            right = next((names.index(n) for n in ('f4', 'fp2') if n in names), None)
-            if left is None or right is None:
-                return {'FAA': None, 'status': 'Need F3/F4 or Fp1/Fp2 channel labels'}
-            f, p = welch(w[:, [left, right]], fs=self.fs, nperseg=len(w), axis=0)
-            mask = (f >= self.iaf_hz - ALPHA_HALF_WIDTH_HZ) & (f <= self.iaf_hz + ALPHA_HALF_WIDTH_HZ)
-            if not mask.any():
-                return {'FAA': None, 'status': 'Sampling rate too low'}
-            powers = np.maximum(np.sum(p[mask], axis=0) * (f[1] - f[0]), 1e-20)
-            return {'FAA': float(np.log(powers[1]) - np.log(powers[0])),
-                    'IAF': self.iaf_hz,
-                    'alpha_left': float(powers[0]), 'alpha_right': float(powers[1])}
+            # One-second Hann-windowed PSD, updated at 2 Hz.
+            labels = [str(label).strip().lower() for label in self.names]
+            f, psd = welch(w, fs=self.fs, nperseg=len(w), window='hann', axis=0)
+            df = float(f[1] - f[0]) if len(f) > 1 else 0.0
+            alpha_mask = (f >= self.iaf_hz - ALPHA_HALF_WIDTH_HZ) & (f <= self.iaf_hz + ALPHA_HALF_WIDTH_HZ)
+            beta_mask = (f >= 13.0) & (f <= 30.0)
+            output = {'IAF': float(self.iaf_hz), 'AWI': None, 'BAR': None}
+            if df <= 0 or not alpha_mask.any() or not beta_mask.any() or not np.isfinite(psd).all():
+                output['status'] = 'EEG spectrum insufficient for alpha/beta'
+                return output
+            alpha = np.sum(psd[alpha_mask], axis=0) * df
+            beta = np.sum(psd[beta_mask], axis=0) * df
+            valid = np.isfinite(alpha) & np.isfinite(beta) & (alpha > 1e-18)
+            if np.any(valid):
+                # BAR = average beta power / average alpha power, across valid EEG channels.
+                output['BAR'] = float(np.mean(beta[valid]) / np.mean(alpha[valid]))
+            left = next((labels.index(c) for c in ('f3','fp1') if c in labels), None)
+            right = next((labels.index(c) for c in ('f4','fp2') if c in labels), None)
+            if left is not None and right is not None and valid[left] and valid[right]:
+                output['AWI'] = float(np.log(alpha[right]) - np.log(alpha[left]))
+            else:
+                output['status'] = 'AWI needs valid F3/F4 or Fp1/Fp2'
+            return output
         if self.kind == 'EDA':
             return {'SCL': float(np.median(w[:, 0])), 'unit': 'source units'}
         if self.kind == 'PPG':
