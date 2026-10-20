@@ -1,4 +1,3 @@
-import time
 from PySide6.QtCore import QThread, Signal
 from pylsl import StreamInlet, resolve_streams
 from .processing import Processor
