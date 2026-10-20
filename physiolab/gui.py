@@ -227,6 +227,17 @@ class MainWindow(QMainWindow):
         metrics_layout.addLayout(normalize_row)
         self.calibration_state = QLabel('EYC: none (default IAF 10 Hz) | BSL: none')
         metrics_layout.addWidget(self.calibration_state)
+        metric_visibility = QHBoxLayout()
+        metric_visibility.addWidget(QLabel('Plot metrics:'))
+        self.metric_checks = {}
+        for key in self.metric_keys:
+            checkbox = QCheckBox(key[1])
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(self.refresh_metric_plot)
+            self.metric_checks[key] = checkbox
+            metric_visibility.addWidget(checkbox)
+        metric_visibility.addStretch()
+        metrics_layout.addLayout(metric_visibility)
         self.metric_plot = pg.PlotWidget(title='Combined live metrics — last 5 minutes')
         self.metric_plot.setLabel('bottom', 'Time relative to now', units='s')
         self.metric_plot.showGrid(x=True, y=True, alpha=.2)
@@ -465,6 +476,10 @@ class MainWindow(QMainWindow):
     def refresh_metric_plot(self):
         now = time.monotonic()
         for (kind, name), curve in self.metric_curves.items():
+            visible = self.metric_checks[(kind, name)].isChecked()
+            curve.setVisible(visible)
+            if not visible:
+                continue
             points = [(t, val) for t, val in self.metric_history[(kind, name)]
                       if now - t <= 300]
             if not points:
