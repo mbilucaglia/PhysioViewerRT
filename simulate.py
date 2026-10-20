@@ -3,7 +3,7 @@ import numpy as np
 from pylsl import StreamInfo, StreamOutlet, local_clock
 
 specs = [
-    ('EEG', 256, ['F3', 'F4', 'C3', 'C4']),
+    ('EEG', 256, ['F3', 'F4', 'C3', 'C4', 'O1', 'O2']),
     ('EDA', 32, ['EDA']),
     ('PPG', 128, ['PPG']),
 ]
