@@ -774,15 +774,40 @@ class MainWindow(QMainWindow):
         self.draw()
 
     def update_raw_xranges(self):
-        if self.raw_follow_live and self.raw_latest_time is not None:
-            end = self.raw_latest_time - self.raw_plot_origin
-            for plot in self.plots.values():
-                plot.setXRange(end - self.raw_view_seconds, end, padding=0)
+        if not self.raw_follow_live or self.raw_latest_time is None:
+            return
+        # Smoothly advance the viewport between LSL chunk arrivals without
+        # fabricating any samples. Cap lead time if the publisher stalls.
+        age = max(0.0, time.monotonic() - self.raw_last_received_at)
+        head = self.raw_latest_time + min(age, 0.12)
+        end = head - self.raw_plot_origin
+        for plot in self.plots.values():
+            plot.setXRange(end - self.raw_view_seconds, end, padding=0)
+
+    def tab_changed(self, index):
+        if index == 0:
+            self.raw_dirty = True
+            self.draw()
+        elif index == 1:
+            self.metric_dirty = True
+            self.refresh_metric_plot()
+
+    def render_frame(self):
+        # Animation is independent of data acquisition and analysis cadence.
+        if self.tabs.currentIndex() == 0:
+            self.update_raw_xranges()
+            if self.raw_dirty and time.monotonic() - self.raw_last_render_time >= 0.075:
+                self.draw()
+        elif self.tabs.currentIndex() == 1:
+            self.update_metric_xrange()
+            if self.metric_dirty:
+                self.refresh_metric_plot()
 
     def draw(self):
         if self.tabs.currentIndex() != 0:
             return
-        self.update_raw_xranges()
+        self.raw_dirty = False
+        self.raw_last_render_time = time.monotonic()
         for kind, chunks in self.raw_history.items():
             if not chunks:
                 continue
