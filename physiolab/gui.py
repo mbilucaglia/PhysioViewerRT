@@ -603,41 +603,124 @@ class MainWindow(QMainWindow):
             curve.setData(timestamps, values, connect='finite')
         self.update_metric_xrange()
 
+    def append_raw_chunk(self, kind, raw, processed, names, fs):
+        raw = np.asarray(raw, dtype=float)
+        processed = np.asarray(processed, dtype=float)
+        count = min(len(raw), len(processed))
+        if count < 1 or fs <= 0:
+            return
+        now = time.monotonic()
+        start = now - (count - 1) / fs
+        self.raw_history[kind].append(
+            (start, raw[-count:].copy(), processed[-count:].copy(),
+             list(names), float(fs))
+        )
+        self.raw_latest_time = max(self.raw_latest_time, now)
+        cutoff = now - 300.0
+        chunks = self.raw_history[kind]
+        while chunks and (chunks[0][0] + (len(chunks[0][1]) - 1)
+                          / chunks[0][4] < cutoff):
+            chunks.popleft()
+
+    def set_raw_time_window(self, *_):
+        seconds = self.raw_time_window.currentData()
+        if seconds is not None:
+            self.raw_view_seconds = float(seconds)
+            self.resume_raw_live()
+
+    def zoom_raw_plots(self, factor):
+        self.raw_view_seconds = float(np.clip(
+            self.raw_view_seconds * factor, 1.0, 300.0
+        ))
+        self.raw_time_window.blockSignals(True)
+        index = self.raw_time_window.findData(int(self.raw_view_seconds))
+        self.raw_time_window.setCurrentIndex(index)
+        self.raw_time_window.blockSignals(False)
+        self.resume_raw_live()
+
+    def resume_raw_live(self):
+        self.raw_follow_live = True
+        self.raw_live_button.setEnabled(False)
+        self.update_raw_xranges()
+        self.draw()
+
+    def raw_view_changed_manually(self, kind):
+        self.raw_follow_live = False
+        self.raw_live_button.setEnabled(True)
+        low, high = self.plots[kind].viewRange()[0]
+        self.raw_view_seconds = float(max(.01, high - low))
+        for other, plot in self.plots.items():
+            if other != kind:
+                plot.setXRange(low, high, padding=0)
+        self.draw()
+
+    def update_raw_xranges(self):
+        if self.raw_follow_live:
+            end = self.raw_latest_time - self.raw_plot_origin
+            for plot in self.plots.values():
+                plot.setXRange(end - self.raw_view_seconds, end, padding=0)
+
     def draw(self):
-        # Acquisition and metric computation continue regardless of the selected tab.
         if self.tabs.currentIndex() != 0:
             return
-        for kind, (raw, processed, names, fs) in list(self.pending.items()):
-            n = min(raw.shape[1], 8 if kind == 'EEG' else 2)
+        self.update_raw_xranges()
+        for kind, chunks in self.raw_history.items():
+            if not chunks:
+                continue
             plot = self.plots[kind]
-            if len(self.curves[kind]) != 2 * n:
+            low, high = plot.viewRange()[0]
+            times, raw_parts, filtered_parts = [], [], []
+            names = chunks[-1][3]
+            for start, raw, filtered, _, fs in chunks:
+                end = start + (len(raw) - 1) / fs
+                if end < self.raw_plot_origin + low or start > self.raw_plot_origin + high:
+                    continue
+                i0 = max(0, int((self.raw_plot_origin + low - start) * fs))
+                i1 = min(len(raw), int(np.ceil(
+                    (self.raw_plot_origin + high - start) * fs
+                )) + 1)
+                if i0 >= i1:
+                    continue
+                times.append(start - self.raw_plot_origin +
+                             np.arange(i0, i1) / fs)
+                raw_parts.append(raw[i0:i1])
+                filtered_parts.append(filtered[i0:i1])
+            if not times:
+                for curve in self.curves[kind]:
+                    curve.clear()
+                continue
+            t = np.concatenate(times)
+            raw = np.concatenate(raw_parts)
+            filtered = np.concatenate(filtered_parts)
+            stride = max(1, int(np.ceil(len(t) / 5000)))
+            t, raw, filtered = t[::stride], raw[::stride], filtered[::stride]
+            n = min(raw.shape[1], 8 if kind == 'EEG' else 1)
+            if len(self.curves[kind]) != 2*n:
                 plot.clear()
-                curves = []
+                self.curves[kind] = []
                 for i in range(n):
                     color = pg.intColor(i, hues=max(n, 3))
-                    curves.append(plot.plot(
+                    self.curves[kind].append(plot.plot(
                         name=f'{names[i]} raw', pen=pg.mkPen(color, width=1)
                     ))
-                    curves.append(plot.plot(
+                    self.curves[kind].append(plot.plot(
                         name=f'{names[i]} processed',
                         pen=pg.mkPen(color, width=2, style=Qt.PenStyle.DashLine)
                     ))
-                self.curves[kind] = curves
-            count = min(len(raw), len(processed))
-            if count < 1:
-                continue
-            t = (np.arange(count) - count + 1) / fs
             for i in range(n):
-                r = raw[-count:, i]
-                p = processed[-count:, i]
+                r, p = raw[:, i], filtered[:, i]
+                center = float(np.median(r))
                 scale = float(np.std(r))
                 if not np.isfinite(scale) or scale < 1e-12:
                     scale = 1.
-                raw_y = (r - np.median(r)) / scale + i * 6
-                processed_y = (p - np.median(r)) / scale + i * 6
-                self.curves[kind][2*i].setData(t, raw_y) if self.show_raw.isChecked() else self.curves[kind][2*i].clear()
-                self.curves[kind][2*i+1].setData(t, processed_y) if self.show_processed.isChecked() else self.curves[kind][2*i+1].clear()
-            self.pending.pop(kind, None)
+                if self.show_raw.isChecked():
+                    self.curves[kind][2*i].setData(t, (r-center)/scale + i*6)
+                else:
+                    self.curves[kind][2*i].clear()
+                if self.show_processed.isChecked():
+                    self.curves[kind][2*i+1].setData(t, (p-center)/scale + i*6)
+                else:
+                    self.curves[kind][2*i+1].clear()
 
 
     def _configure_calibration_menu(self):
