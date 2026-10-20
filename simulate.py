@@ -3,6 +3,7 @@
 Run: python simulate.py
 Synthetic data exercise UI/processing and are not a physiological validation.
 """
+import argparse
 import time
 from pylsl import StreamInfo, StreamOutlet, local_clock
 from physiolab.synthetic import SPECS, SyntheticPhysiology
@@ -28,14 +29,14 @@ def start_outlets():
     return outlets
 
 
-def run(seed=2026):
-    model = SyntheticPhysiology(seed=seed)
+def run(seed=2026, artifacts='moderate'):
+    model = SyntheticPhysiology(seed=seed, artifact_level=artifacts)
     outlets = start_outlets()
     ticks = {kind: 0 for kind in SPECS}
     t0 = local_clock()
     print('Simulated 32-channel EEG (256 Hz), EDA (32 Hz) and PPG (128 Hz).')
     print('Signals have evolving EEG rhythms, skin conductance responses and')
-    print('beat-to-beat heart-rate variation. Ctrl+C to stop.')
+    print(f'beat-to-beat heart-rate variation. Artifacts: {artifacts}. Ctrl+C to stop.')
     try:
         while True:
             elapsed = local_clock() - t0
@@ -56,4 +57,12 @@ def run(seed=2026):
 
 
 if __name__ == '__main__':
-    run()
+    parser = argparse.ArgumentParser(description='Synthetic LSL physiology')
+    parser.add_argument('--seed', type=int, default=2026)
+    parser.add_argument('--artifacts',
+                        choices=('none', 'mild', 'moderate', 'strong'),
+                        default='moderate',
+                        help='Intermittent artifact intensity')
+    args = parser.parse_args()
+    run(seed=args.seed, artifacts=args.artifacts)
+
