@@ -152,6 +152,11 @@ class MainWindow(QMainWindow):
         self.stream_buttons = {}
         self.channel_metadata_cache = {}
         self.plots, self.curves = {}, {}
+        self.raw_history = {k: deque() for k in ('EEG', 'EDA', 'PPG')}
+        self.raw_view_seconds = 5.0
+        self.raw_follow_live = True
+        self.raw_plot_origin = time.monotonic()
+        self.raw_latest_time = self.raw_plot_origin
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -202,13 +207,36 @@ class MainWindow(QMainWindow):
         visibility.addWidget(self.show_raw)
         visibility.addWidget(self.show_processed)
         visibility.addStretch()
+        visibility.addWidget(QLabel('Time window'))
+        self.raw_time_window = QComboBox()
+        for label, seconds in (
+            ('5 s', 5), ('10 s', 10), ('30 s', 30),
+            ('1 min', 60), ('5 min', 300),
+        ):
+            self.raw_time_window.addItem(label, seconds)
+        self.raw_time_window.currentIndexChanged.connect(self.set_raw_time_window)
+        visibility.addWidget(self.raw_time_window)
+        raw_zoom_in = QPushButton('Zoom +')
+        raw_zoom_in.clicked.connect(lambda: self.zoom_raw_plots(0.5))
+        visibility.addWidget(raw_zoom_in)
+        raw_zoom_out = QPushButton('Zoom −')
+        raw_zoom_out.clicked.connect(lambda: self.zoom_raw_plots(2.0))
+        visibility.addWidget(raw_zoom_out)
+        self.raw_live_button = QPushButton('Live view')
+        self.raw_live_button.clicked.connect(self.resume_raw_live)
+        self.raw_live_button.setEnabled(False)
+        visibility.addWidget(self.raw_live_button)
         signals_layout.addWidget(QLabel(
             'Solid = raw; dashed = processed. Both use the same per-channel display scaling.'
         ))
         for kind in ('EEG', 'EDA', 'PPG'):
-            plot = pg.PlotWidget(title=f'{kind} — last 5 seconds')
+            plot = pg.PlotWidget(title=f'{kind} — 5 s view, 5 min history')
             plot.showGrid(x=True, y=True, alpha=0.2)
-            plot.setLabel('bottom', 'Time', 's')
+            plot.setLabel('bottom', 'Elapsed session time', 's')
+            plot.getViewBox().sigRangeChangedManually.connect(
+                lambda *args, k=kind: self.raw_view_changed_manually(k)
+            )
+            plot.setXRange(-5, 0, padding=0)
             signals_layout.addWidget(plot)
             self.plots[kind] = plot
             self.curves[kind] = []
@@ -384,6 +412,7 @@ class MainWindow(QMainWindow):
 
     def reset_stream_display(self, kind):
         self.pending.pop(kind, None)
+        self.raw_history[kind].clear()
         self.latest_metrics.pop(kind, None)
         for key in self.metric_keys:
             if key[0] == kind:
@@ -468,7 +497,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f'{kind}: starting selected LSL stream reception')
 
     def receive(self, kind, raw, processed, names, metric, fs):
-        self.pending[kind] = (raw, processed, names, fs)
+        self.append_raw_chunk(kind, raw, processed, names, fs)
         if metric is None:
             return
         now = time.monotonic()
