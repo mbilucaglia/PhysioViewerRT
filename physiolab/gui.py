@@ -136,6 +136,7 @@ class MainWindow(QMainWindow):
         controls = QHBoxLayout()
         layout.addLayout(controls)
         self.selectors, self.channel_selectors, self.workers = {}, {}, {}
+        self.stream_buttons = {}
         self.channel_metadata_cache = {}
         self.plots, self.curves = {}, {}
         self.metric_labels, self.metric_status = {}, {}
@@ -161,8 +162,10 @@ class MainWindow(QMainWindow):
             self.channel_selectors[kind] = picker
             controls.addWidget(picker)
             combo.currentIndexChanged.connect(lambda _, k=kind: self.stream_selection_changed(k))
-            button = QPushButton('Connect')
-            button.clicked.connect(lambda _, k=kind: self.connect_stream(k))
+            button = QPushButton('▶ Play')
+            button.setToolTip(f'Start/stop local {kind} LSL reception (not the publisher)')
+            button.clicked.connect(lambda _, k=kind: self.toggle_stream(k))
+            self.stream_buttons[kind] = button
             controls.addWidget(button)
         refresh = QPushButton('Refresh LSL')
         refresh.clicked.connect(self.refresh)
@@ -304,7 +307,68 @@ class MainWindow(QMainWindow):
         if warning:
             self.statusBar().showMessage(warning)
 
+    def toggle_stream(self, kind):
+        worker = self.workers.get(kind)
+        if worker is not None and worker.isRunning():
+            self.stop_stream(kind)
+        else:
+            self.connect_stream(kind)
+
+    def reset_stream_display(self, kind):
+        self.pending.pop(kind, None)
+        self.latest_metrics.pop(kind, None)
+        for key in self.metric_keys:
+            if key[0] == kind:
+                self.metric_history[key].clear()
+        plot = self.plots[kind]
+        plot.clear()
+        self.curves[kind] = []
+        if kind in ('EDA', 'PPG'):
+            self.ei_estimator = RollingEmotionalIndex(seconds=60)
+            self.metric_history[('EI', 'EI')].clear()
+            self.latest_metrics.pop('EI', None)
+        self.refresh_metrics()
+
+    def stop_stream(self, kind):
+        if self.capture is not None:
+            QMessageBox.warning(self, 'Calibration in progress',
+                                'Finish or cancel the calibration before stopping a stream.')
+            return
+        worker = self.workers.get(kind)
+        if worker is None:
+            self.stream_buttons[kind].setText('▶ Play')
+            return
+        self.stream_buttons[kind].setEnabled(False)
+        self.stream_buttons[kind].setText('Stopping…')
+        stopped = worker.stop()
+        if stopped:
+            self.workers.pop(kind, None)
+            self.stream_buttons[kind].setEnabled(True)
+            self.stream_buttons[kind].setText('▶ Play')
+            self.reset_stream_display(kind)
+            self.statusBar().showMessage(
+                f'{kind} reception stopped (LSL source is still transmitting)'
+            )
+        else:
+            self.statusBar().showMessage(f'{kind}: waiting for receiver to stop')
+
+    def receiver_finished(self, kind, worker):
+        if self.workers.get(kind) is not worker:
+            return
+        self.workers.pop(kind, None)
+        self.stream_buttons[kind].setEnabled(True)
+        self.stream_buttons[kind].setText('▶ Play')
+        self.reset_stream_display(kind)
+        if worker.active:
+            self.statusBar().showMessage(f'{kind} receiver ended unexpectedly')
+        else:
+            self.statusBar().showMessage(f'{kind} reception stopped')
+
     def connect_stream(self, kind):
+        if self.capture is not None:
+            QMessageBox.warning(self, 'Calibration in progress',
+                                'Finish or cancel calibration before changing a stream.')
+            return
         info = self.selectors[kind].currentData()
         if info is None:
             self.statusBar().showMessage(f'No {kind} stream selected')
@@ -314,28 +378,26 @@ class MainWindow(QMainWindow):
                 self.channel_selectors[kind].selected_indices(),
                 info.channel_count(), kind,
             )
-        except ValueError as exc:
+            previous = self.workers.get(kind)
+            if previous is not None and previous.isRunning():
+                QMessageBox.warning(self, 'Receiver active',
+                                    f'Stop {kind} before starting another stream.')
+                return
+            worker = Receiver(info, kind, indices, self.channel_selectors[kind].names)
+        except (ValueError, RuntimeError) as exc:
             QMessageBox.warning(self, f'{kind} channel selection', str(exc))
             return
-        if kind in self.workers:
-            self.workers[kind].stop()
-        self.pending.pop(kind, None)
-        for key in self.metric_keys:
-            if key[0] == kind:
-                self.metric_history[key].clear()
-        if kind in ('PPG', 'EDA'):
-            self.ei_estimator = RollingEmotionalIndex(seconds=60)
-            self.metric_history[('EI', 'EI')].clear()
-            self.latest_metrics.pop('EI', None)
-        self.latest_metrics.pop(kind, None)
-        worker = Receiver(info, kind, indices, self.channel_selectors[kind].names)
+        self.reset_stream_display(kind)
         worker.updated.connect(self.receive)
         worker.samples_received.connect(self.capture_samples)
         worker.stream_ready.connect(self.ready_stream)
         worker.iaf_hz = self.iaf_hz
         worker.failure.connect(self.statusBar().showMessage)
+        worker.finished.connect(lambda k=kind, w=worker: self.receiver_finished(k, w))
         self.workers[kind] = worker
+        self.stream_buttons[kind].setText('■ Stop')
         worker.start()
+        self.statusBar().showMessage(f'{kind}: starting selected LSL stream reception')
 
     def receive(self, kind, raw, processed, names, metric, fs):
         self.pending[kind] = (raw, processed, names, fs)
