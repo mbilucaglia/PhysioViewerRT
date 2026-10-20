@@ -255,22 +255,45 @@ class MainWindow(QMainWindow):
         try:
             streams = discover()
             for kind, combo in self.selectors.items():
+                old = combo.currentData()
+                uid = old.uid() if old is not None else None
+                combo.blockSignals(True)
                 combo.clear()
                 for info in streams:
-                    match = info.type().upper() in (('EDA', 'GSR') if kind == 'EDA' else (kind,))
-                    if match:
-                        combo.addItem(
-                            f'{info.name()} ({info.channel_count()} ch, '
-                            f'{info.nominal_srate():g} Hz)', info
-                        )
+                    combo.addItem(
+                        f'{info.name()} [{info.type()}] '
+                        f'({info.channel_count()} ch, {info.nominal_srate():g} Hz)',
+                        info
+                    )
+                if uid is not None:
+                    for idx in range(combo.count()):
+                        if combo.itemData(idx).uid() == uid:
+                            combo.setCurrentIndex(idx)
+                            break
+                combo.blockSignals(False)
+                self.stream_selection_changed(kind)
             self.statusBar().showMessage(f'Found {len(streams)} LSL streams')
         except Exception as exc:
             self.statusBar().showMessage(str(exc))
+
+    def stream_selection_changed(self, kind):
+        info = self.selectors[kind].currentData()
+        self.channel_selectors[kind].set_channels(
+            channel_labels(info) if info is not None else []
+        )
 
     def connect_stream(self, kind):
         info = self.selectors[kind].currentData()
         if info is None:
             self.statusBar().showMessage(f'No {kind} stream selected')
+            return
+        try:
+            indices = validated_indices(
+                self.channel_selectors[kind].selected_indices(),
+                info.channel_count(), kind,
+            )
+        except ValueError as exc:
+            QMessageBox.warning(self, f'{kind} channel selection', str(exc))
             return
         if kind in self.workers:
             self.workers[kind].stop()
@@ -283,7 +306,7 @@ class MainWindow(QMainWindow):
             self.metric_history[('EI', 'EI')].clear()
             self.latest_metrics.pop('EI', None)
         self.latest_metrics.pop(kind, None)
-        worker = Receiver(info, kind)
+        worker = Receiver(info, kind, indices)
         worker.updated.connect(self.receive)
         worker.samples_received.connect(self.capture_samples)
         worker.stream_ready.connect(self.ready_stream)
@@ -446,11 +469,7 @@ class MainWindow(QMainWindow):
         for modality in included:
             worker = connected[modality]
             info = worker.info
-            channels = []
-            ch = info.desc().child('channels').child('channel')
-            for idx in range(info.channel_count()):
-                channels.append(ch.child_value('label') or f'Ch{idx+1}')
-                ch = ch.next_sibling()
+            channels = list(worker.selected_names)
             meta[modality] = {
                 'fs': float(info.nominal_srate()), 'channels': channels,
                 'chunks': [], 'times': [],
