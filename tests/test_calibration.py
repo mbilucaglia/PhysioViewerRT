@@ -36,7 +36,7 @@ class CalibrationTests(unittest.TestCase):
         t = np.arange(fs * 60) / fs
         eda = 4 + .1 * np.sin(2*np.pi*.04*t)
         result = analyze_bsl({'EDA': {
-            'fs': fs, 'channels': ['EDA'], 'data': eda[:, None]
+            'fs': fs, 'channels': ['EDA'], 'data': eda[:, None], 'timestamps': t + 100
         }})
         stats = result['metrics']['EDA']['SCL']
         self.assertGreater(stats['valid_windows'], 30)
