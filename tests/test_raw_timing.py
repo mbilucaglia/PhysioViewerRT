@@ -56,7 +56,9 @@ class RawTimingTests(unittest.TestCase):
         clock.observe(101., 11.01)
         after = clock.advance(11.04)
         self.assertGreaterEqual(after, before)
-        self.assertLessEqual(after - before, .06)
+        # Floating-point rounding at this exact upper bound can exceed
+        # 0.06 by a few ULPs on both Linux and Windows.
+        self.assertLessEqual(after - before, .06 + 1e-12)
         clock.reset()
         self.assertIsNone(clock.advance(12.))
 
