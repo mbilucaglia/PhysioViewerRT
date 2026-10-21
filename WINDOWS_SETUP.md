@@ -126,3 +126,124 @@ All LSL stream types are available in each modality's stream menu. Assign the ap
 ## Research prototype limitations
 
 Not a medical device. Do not use for clinical decisions. Missing automated artifact detection, channel-quality gating, reference selection, inter-stream timestamp alignment, general recording/replay, SCR detection, sophisticated calibration artifact rejection, and closed-loop neurofeedback. The PPG peak detector is heuristic; the AWI and BAR estimates from one second are noisy. Simulated signals validate the software path only, not biological accuracy. Confirm montage, units, sampling rates, and signal quality with real hardware. The application has not undergone an end-to-end hardware/Windows integration test. Packaging as a standalone EXE is not yet provided.
+
+## Experimental GPU Raw Data renderer (VisPy/OpenGL)
+
+An optional A/B comparison of Raw Data visualization is available on branch
+`experiment/vispy-raw-renderer`. It is inspired by the **LineVis**
+OpenGL multi-channel rendering approach of Intheon's StreamViewer
+(https://github.com/intheon/stream_viewer, MIT licensed), but is an
+independent, lightweight renderer. No StreamViewer code is copied.
+
+On Windows PowerShell, after switching to this branch and with the virtual
+environment already installed:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements-vispy.txt
+.\start_windows.cmd
+```
+
+In the **Raw Data** tab, select the new **Waveform renderer** dropdown:
+**pyqtgraph (original)** or **VisPy / OpenGL (experimental)**.
+You can switch while synthetic LSL streams are playing. All processing,
+Metrics, EYC/BSL and acquired timestamps still use the existing pipelines.
+
+The OpenGL prototype batches multiple channels into one GPU line visual
+per modality and trace layer (raw and filtered). It provides fixed channel
+offsets, time-window and zoom buttons, live follow, show/hide raw and
+filtered, and vertical page scrolling. **GPU mode currently omits the
+pyqtgraph axis context menus and mouse-based plot panning.** Return to
+pyqtgraph mode for those features; this is intentional so we can isolate
+renderer performance before investing in alternative axis controls.
+
+VisPy requires usable OpenGL drivers and may not work on all remote desktop
+sessions. If OpenGL initialization fails, the app shows an error and retains
+pyqtgraph. This experiment does not establish that the freeze is fixed.
+Run the synthetic EEG+EDA+PPG workload for at least ten minutes with each
+backend, and compare the optional performance JSONL profiles. Switching
+renderers only affects Raw Data, not the Metrics tab.
+
+## Experimental VisPy/OpenGL Metrics panel
+
+Branch `experiment/vispy-metrics` extends the Raw Data GPU prototype with a
+VisPy renderer for **Metrics**. Install the same optional dependencies:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements-vispy.txt
+.\start_windows.cmd
+```
+
+On a normal desktop, if VisPy is installed, **both Raw Data and Metrics default
+to VisPy/OpenGL**; each tab has an independent renderer dropdown, so either
+can be returned to the original pyqtgraph implementation. An offscreen test
+session defaults to pyqtgraph.
+
+The new Metrics canvas renders all five physiological series using the same
+existing normalized/smoothed/interpolated arrays. Missing observations retain
+their gaps; measured-point markers, axis labels, y-axis scaling, time-window,
+zoom buttons, metric visibility switches, and live-follow remain supported.
+Metrics OpenGL deliberately omits mouse-driven plot panning in this first
+prototype; switch to pyqtgraph when manual dragging is needed. The series
+legend is presently represented by the existing labeled metric checkboxes
+rather than drawn within the GPU canvas.
+
+Compare the same EEG, EDA and PPG synthetic session for at least ten minutes
+with both tabs on VisPy, then switch Metrics alone back to pyqtgraph and verify
+there are no changes to AWI, BAR, SCL, HR or EI values. These experiments do
+not change calibration, samples, filters, numerical algorithms, or recordings.
+
+## Shared VisPy engine and GPU sweep behavior
+
+Raw Data and Metrics now reuse `physiolab/vispy_plot_engine.py` for the
+white OpenGL background, viewport, axes, grid, scene and lifecycle.
+The raw waveform renderer adds a **left-to-right sweep**: a completed pass
+stays on the display while the following pass replaces it progressively.
+The trace is split at sweep boundaries so the end of one pass is never
+joined diagonally to the start of the next. This change is purely visual;
+LSL timestamps, recording, processing and Metrics are not changed.
+
+The default sweep window is **5 seconds**. The Raw Data **Time window**
+selector offers 5, 8, 10, 15 and 30 seconds, and 1 or 5 minutes. Zoom
+buttons adjust the same duration. Each modality has its own **vertical
+amplitude** selector (0.25×, 0.5×, 1×, 2×, 4×, 8×); for EEG a single
+factor applies consistently to all displayed EEG channels. Vertical
+amplitude uses existing per-channel display normalization, and is **not**
+a fixed ±100 µV scale or a physical calibration. Channel names are drawn
+on the left of each GPU plot. All raw waveforms are red; processed
+waveforms are black. The GPU canvas background is white in both tabs.
+
+The two-pass sweep needs twice the selected time window in history. Existing
+raw sample history is limited to five minutes, so at very long sweep
+durations a full previous cycle cannot persist. The short 5–30s settings
+are recommended for real-time viewing and stable two-cycle persistence.
+
+Legacy pyqtgraph remains available as an independent fallback.
+
+## Clinical three-tab UI and sweep controls (experimental)
+
+The app now has **Raw Data**, **Metrics**, and **Sources** tabs. Stream
+discovery, EEG/EDA/PPG source selectors, channel selectors and LSL Play/Stop
+controls are on **Sources**. Reception and recording do not pause when
+switching tabs.
+
+The Raw Data tab is modeled on the clean clinical layout: a white GPU
+plot for each EEG, PPG and skin conductance (EDA/SC) signal, with no axis
+ticks/grids, red raw traces, black filtered traces and a **thin blue
+sweep cursor**. There is no opaque white erase band. A draggable vertical
+Qt splitter shares the available display height among the three plots;
+dragging one divider enlarges one panel and reduces the adjacent panel.
+The Raw Data default view does not need a vertical scrollbar.
+
+**Amplitude** is adjusted independently for each of EEG, EDA/SC and
+PPG using +/− buttons or an editable numeric spin box (0.05–50×).
+The EEG amplitude multiplier applies equally to every displayed EEG
+channel, not to physical units or a fixed 100 µV scale.
+
+Both **Raw Data** and **Metrics** in VisPy use stable left-to-right
+sweeps with the previous cycle retained until the cursor overwrites it.
+Their default duration is 5 s and each tab retains its own time-window
+selector and zoom controls. pyqtgraph remains available for the original
+scrolling display. The plot cursor uses the shared VisPy scene engine,
+and physiological algorithms, timestamps, calibration and recordings
+are unchanged. Continuous gain and thin GPU cursor require the VisPy
+renderer; they do not alter the historical pyqtgraph presentation.

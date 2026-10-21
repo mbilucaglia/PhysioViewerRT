@@ -38,8 +38,22 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
     t = np.concatenate(times)
     x = np.concatenate(raws)
     y = np.concatenate(filters)
-    stride = max(1, int(np.ceil(len(t) / max_points)))
-    t, x, y = t[::stride], x[::stride], y[::stride]
+    # Anchor decimation to the stream's sample clock rather than the first
+    # sample in the moving viewport. The previous t[::stride] scheme changed
+    # which historical points were retained whenever the viewport moved by
+    # one sample, making the *already drawn* sweep visibly shimmer.
+    fs = float(chunks[-1][4])
+    if not np.isfinite(fs) or fs <= 0:
+        fs = max(1., len(t) / max(right-left, 1e-6))
+    stride = max(1, int(np.ceil(fs * (right-left) / max_points)))
+    if stride > 1:
+        # Using origin-relative nominal sample indices fixes the phase across
+        # frames without requiring sample-index counters in the LSL reader.
+        index = np.rint((t - origin) * fs).astype(np.int64)
+        keep = index % stride == 0
+        t, x, y = t[keep], x[keep], y[keep]
+        if not len(t):
+            return None
     n = min(x.shape[1], max_channels)
     x, y = x[:, :n], y[:, :n]
     if reference is None:
