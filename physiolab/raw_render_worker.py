@@ -48,10 +48,12 @@ class RawRenderWorker(QThread):
             for kind, source in request['sources'].items():
                 chunks, left, right, origin, reference = source[:5]
                 decimation_span = source[5] if len(source) > 5 else None
+                display_count = source[6] if len(source) > 6 else 8
                 try:
                     frames[kind] = prepare_raw_window(
                         chunks, left, right, origin, reference,
-                        decimation_span=decimation_span
+                        decimation_span=decimation_span,
+                        max_channels=display_count
                     )
                 except (ValueError, IndexError) as exc:
                     frames[kind] = None
