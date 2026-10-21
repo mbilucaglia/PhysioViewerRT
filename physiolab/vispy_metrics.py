@@ -145,6 +145,21 @@ class VisPyMetricPlot:
         self._y_limits = (-1., 1.)
         self.engine.set_view(0., 1., *self._y_limits)
 
+    def _reset_series(self, key):
+        from .incremental_sweep import IncrementalSweepLayer
+        old_line, old_points = self._layers[key]
+        old_line.close()
+        old_points.close()
+        color = METRIC_COLORS[self.keys.index(key)]
+        line = IncrementalSweepLayer(
+            self.view.scene, self._duration, 20., color, max_gap=1.1)
+        points = IncrementalSweepLayer(
+            self.view.scene, self._duration, 20., color,
+            max_gap=1.1, mode='points')
+        self._layers[key] = (line, points)
+        self.lines[key] = line.visual
+        self.points[key] = points.visual
+
     def set_presentation_signature(self, signature):
         """Rebuild only when data transformation settings change."""
         signature = tuple(signature)
@@ -163,7 +178,7 @@ class VisPyMetricPlot:
                     np.isfinite(dots.ring.last_time))):
             # Re-enabled series must replay retained data, otherwise samples
             # that arrived while the visual was hidden cannot be recovered.
-            self._configure_layers()
+            self._reset_series(key)
             line, dots = self._layers[key]
         line.visual.visible = line_enabled
         dots.visual.visible = dots_enabled
