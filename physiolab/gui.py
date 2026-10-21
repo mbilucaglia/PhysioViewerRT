@@ -23,6 +23,7 @@ from .raw_render_worker import RawRenderWorker
 from .performance import PerformanceMonitor
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
+    samples_after_timestamp,
     DURATION_SECONDS,
 )
 
@@ -1027,12 +1028,11 @@ class MainWindow(QMainWindow):
         # Receiver mailboxes may contain buffered pre-calibration chunks after
         # prolonged GUI interaction. Use LSL source time, not GUI receipt time,
         # to ensure the saved EYC/BSL recording begins at capture start.
-        boundary = item.get('start_lsl_timestamp')
-        if boundary is not None:
-            valid = np.isfinite(ts) & (ts > boundary)
-            arr, ts = arr[valid], ts[valid]
-            if not len(ts):
-                return
+        arr, ts = samples_after_timestamp(
+            arr, ts, item.get('start_lsl_timestamp')
+        )
+        if not len(ts):
+            return
         item['chunks'].append(arr.copy())
         item['times'].append(ts.copy())
 
