@@ -53,11 +53,11 @@ class MailboxTests(unittest.TestCase):
 
     def test_queue_stays_bounded_under_gui_pause(self):
         box = ChunkMailbox(32, max_seconds=2.)
-        for i in range(100):
+        for i in range(300):
             box.put(self.chunk(8, {'SCL': i}))
         stats = box.stats()
         self.assertLessEqual(stats['queued_samples'], max(1024, 2 * 32))
-        self.assertGreaterEqual(stats['dropped_samples'], 0)
+        self.assertGreater(stats['dropped_samples'], 0)
         self.assertEqual(sum(len(x[0]) for x in box.drain(max_chunks=200)),
                          stats['queued_samples'])
         with self.assertRaises(ValueError):
