@@ -149,6 +149,22 @@ def normalize(value, reference=None, mode='identity'):
     return float((value-center)/spread)
 
 
+def samples_after_timestamp(data, timestamps, boundary):
+    """Keep original paired LSL samples strictly after capture start.
+
+    A source may have accumulated queued chunks during a GUI interaction;
+    these must not enter a later 60-second calibration recording.
+    """
+    x = np.asarray(data, dtype=float)
+    ts = np.asarray(timestamps, dtype=float)
+    if x.ndim != 2 or ts.ndim != 1 or len(x) != len(ts):
+        raise ValueError('Calibration samples and timestamps must align')
+    valid = np.isfinite(ts)
+    if boundary is not None:
+        valid &= ts > float(boundary)
+    return x[valid], ts[valid]
+
+
 def save_calibration(path, kind, streams, analysis):
     """Persist raw samples, LSL timestamps, labels, fs and summaries without pickle."""
     if kind not in ('EYC', 'BSL'):
