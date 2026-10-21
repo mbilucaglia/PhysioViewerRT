@@ -66,12 +66,12 @@ class VisPyMetricPlot:
         self.yaxis = scene.AxisWidget(
             orientation='left', axis_label='Metric value',
             text_color='#d6dce2', axis_color='#78838d',
-            tick_color='#78838d', width_max=75,
+            tick_color='#78838d',
         )
         self.xaxis = scene.AxisWidget(
             orientation='bottom', axis_label='Elapsed session time (s)',
             text_color='#d6dce2', axis_color='#78838d',
-            tick_color='#78838d', height_max=60,
+            tick_color='#78838d',
         )
         grid.add_widget(self.yaxis, row=0, col=0)
         grid.add_widget(self.xaxis, row=1, col=1)
