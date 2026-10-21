@@ -1,5 +1,7 @@
 """Local two-tab biosignal monitor: waveforms and metrics."""
 import json
+import os
+import importlib.util
 import time
 from collections import deque
 from pathlib import Path
@@ -21,6 +23,7 @@ from .metric_display import prepare_metric_curve
 from .raw_timing import clean_lsl_chunk, SmoothViewportClock
 from .raw_render_worker import RawRenderWorker
 from .vispy_raw import VisPyRawPlot
+from .vispy_metrics import VisPyMetricPlot
 from .performance import PerformanceMonitor
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
@@ -182,6 +185,9 @@ class MainWindow(QMainWindow):
         self.raw_scale = {}
         self.raw_dirty = True
         self.metric_dirty = True
+        self.metric_renderer_mode = 'pyqtgraph'
+        self.vispy_metric_plot = None
+        self.metric_gl_bounds = (-5., 0.)
         self.raw_last_render_time = 0.0
         self.raw_frame_epoch = 0
         self.raw_frame_ticket = 0
@@ -337,6 +343,12 @@ class MainWindow(QMainWindow):
             self.metric_checks[key] = checkbox
             metric_visibility.addWidget(checkbox)
         metric_visibility.addStretch()
+        metric_visibility.addWidget(QLabel('Metrics renderer'))
+        self.metric_renderer_choice = QComboBox()
+        self.metric_renderer_choice.addItem('pyqtgraph (original)', 'pyqtgraph')
+        self.metric_renderer_choice.addItem('VisPy / OpenGL', 'vispy')
+        self.metric_renderer_choice.currentIndexChanged.connect(self.set_metric_renderer)
+        metric_visibility.addWidget(self.metric_renderer_choice)
         metrics_layout.addLayout(metric_visibility)
         zoom_row = QHBoxLayout()
         zoom_row.addWidget(QLabel('Time window'))
@@ -423,7 +435,13 @@ class MainWindow(QMainWindow):
         self.metric_plot.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        metrics_layout.addWidget(self.metric_plot)
+        self.metric_plot_stack = QStackedWidget()
+        self.metric_plot_stack.setMinimumHeight(520)
+        self.metric_plot_stack.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        self.metric_plot_stack.addWidget(self.metric_plot)
+        metrics_layout.addWidget(self.metric_plot_stack)
         metrics_layout.addWidget(QLabel(
             'Original mode uses mixed units on one axis. Normalized modes '
             'use stored BSL references; missing data appear as gaps.'
@@ -460,6 +478,13 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(metrics_scroll, 'Metrics')
 
         # Raw data reduction runs off the GUI thread; painting remains here.
+        # Prefer GPU on normal desktop sessions when the optional VisPy
+        # package is installed. Offscreen CI retains the original backend.
+        if (os.environ.get('QT_QPA_PLATFORM', '').lower() != 'offscreen'
+                and importlib.util.find_spec('vispy') is not None):
+            self.raw_renderer_choice.setCurrentIndex(1)
+            self.metric_renderer_choice.setCurrentIndex(1)
+
         self.raw_render_worker = RawRenderWorker(self)
         self.raw_render_worker.frame_ready.connect(self.apply_raw_frame)
         self.raw_render_worker.start()
@@ -716,6 +741,30 @@ class MainWindow(QMainWindow):
         for kind, label in self.metric_status.items():
             label.setText(self.latest_metrics.get(kind, {}).get('status', 'Waiting for data'))
 
+    def set_metric_renderer(self, *_):
+        """Swap only Metrics presentation, keeping computation untouched."""
+        mode = self.metric_renderer_choice.currentData()
+        if mode == self.metric_renderer_mode:
+            return
+        if mode == 'vispy' and self.vispy_metric_plot is None:
+            try:
+                self.vispy_metric_plot = VisPyMetricPlot(self.metric_keys)
+                self.metric_plot_stack.addWidget(self.vispy_metric_plot.widget)
+            except Exception as exc:
+                self.metric_renderer_choice.blockSignals(True)
+                self.metric_renderer_choice.setCurrentIndex(0)
+                self.metric_renderer_choice.blockSignals(False)
+                QMessageBox.warning(
+                    self, 'Metrics OpenGL unavailable',
+                    f'Could not initialize VisPy metrics renderer: {exc}'
+                )
+                return
+        self.metric_renderer_mode = mode
+        self.metric_plot_stack.setCurrentIndex(1 if mode == 'vispy' else 0)
+        self.update_metric_xrange()
+        self.metric_dirty = True
+        self.refresh_metric_plot()
+
     def set_metric_time_window(self, *_):
         seconds = self.metric_time_window.currentData()
         if seconds is None:
@@ -740,6 +789,8 @@ class MainWindow(QMainWindow):
         self.update_metric_xrange()
 
     def metric_view_changed_manually(self, *_):
+        if self.metric_renderer_mode == 'vispy':
+            return
         xlow, xhigh = self.metric_plot.viewRange()[0]
         span = float(max(.01, xhigh - xlow))
         is_zoom = abs(span - self.metric_view_seconds) > max(.001, .001*self.metric_view_seconds)
@@ -755,9 +806,13 @@ class MainWindow(QMainWindow):
     def update_metric_xrange(self):
         if self.metric_follow_live:
             elapsed = time.monotonic() - self.metric_plot_origin
-            self.metric_plot.setXRange(
-                elapsed - self.metric_view_seconds, elapsed, padding=0
+            self.metric_gl_bounds = (
+                elapsed - self.metric_view_seconds, elapsed
             )
+            if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot:
+                self.vispy_metric_plot.set_xrange(*self.metric_gl_bounds)
+            else:
+                self.metric_plot.setXRange(*self.metric_gl_bounds, padding=0)
 
     def refresh_metric_plot(self, *_):
         now = time.monotonic()
@@ -765,19 +820,28 @@ class MainWindow(QMainWindow):
         duration = self.metric_smoothing_duration.currentData()
         interpolation = self.metric_interpolation.currentData()
         show_markers = self.metric_sample_markers.isChecked()
+        gpu = self.vispy_metric_plot if self.metric_renderer_mode == 'vispy' else None
         for (kind, name), curve in self.metric_curves.items():
             key = (kind, name)
             visible = self.metric_checks[key].isChecked()
-            curve.setVisible(visible)
             markers = self.metric_point_curves[key]
-            markers.setVisible(visible and (show_markers or interpolation == 'none'))
+            if not gpu:
+                curve.setVisible(visible)
+                markers.setVisible(visible and (show_markers or interpolation == 'none'))
             if not visible:
+                if gpu:
+                    empty = np.empty(0)
+                    gpu.set_series(key, empty, empty, empty, empty, visible=False)
                 continue
             points = [(t, val) for t, val in self.metric_history[key]
                       if now - t <= 300]
             if not points:
-                curve.clear()
-                markers.clear()
+                if gpu:
+                    empty = np.empty(0)
+                    gpu.set_series(key, empty, empty, empty, empty, visible=False)
+                else:
+                    curve.clear()
+                    markers.clear()
                 continue
             timestamps = np.asarray(
                 [t - self.metric_plot_origin for t, _ in points], dtype=float
@@ -793,12 +857,23 @@ class MainWindow(QMainWindow):
                 interpolation=interpolation, display_hz=20.0,
                 max_gap=1.1,
             )
-            if interpolation == 'none':
-                curve.clear()
+            if gpu:
+                gpu.set_series(
+                    key, x, y, measured_x, measured_y,
+                    visible=visible, show_line=interpolation != 'none',
+                    show_markers=show_markers or interpolation == 'none',
+                )
             else:
-                curve.setData(x, y, connect='finite')
-            if show_markers or interpolation == 'none':
-                markers.setData(measured_x, measured_y)
+                if interpolation == 'none':
+                    curve.clear()
+                else:
+                    curve.setData(x, y, connect='finite')
+                if show_markers or interpolation == 'none':
+                    markers.setData(measured_x, measured_y)
+                else:
+                    markers.clear()
+        if gpu:
+            gpu.refresh_axes()
         self.metric_dirty = False
 
     def append_raw_chunk(self, kind, raw, processed, names, fs, timestamps):
@@ -1298,6 +1373,8 @@ class MainWindow(QMainWindow):
         self.raw_render_worker.stop()
         for glplot in self.raw_vispy_plots.values():
             glplot.close()
+        if self.vispy_metric_plot is not None:
+            self.vispy_metric_plot.close()
         for worker in self.workers.values():
             worker.stop()
         super().closeEvent(event)
