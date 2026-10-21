@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
     QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu,
-    QScrollArea, QSizePolicy, QApplication
+    QScrollArea, QSizePolicy, QApplication, QStackedWidget
 )
 from .worker import Receiver, discover
 from .channel_selection import channel_labels, validated_indices
@@ -20,6 +20,7 @@ from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
 from .raw_timing import clean_lsl_chunk, SmoothViewportClock
 from .raw_render_worker import RawRenderWorker
+from .vispy_raw import VisPyRawPlot
 from .performance import PerformanceMonitor
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
@@ -166,6 +167,10 @@ class MainWindow(QMainWindow):
         self.performance = PerformanceMonitor()
         self._last_gui_tick = time.monotonic()
         self.plots, self.curves = {}, {}
+        self.raw_plot_stacks = {}
+        self.raw_vispy_plots = {}
+        self.raw_renderer_mode = 'pyqtgraph'
+        self.raw_gl_bounds = (-5., 0.)
         self.raw_history = {k: deque() for k in ('EEG', 'EDA', 'PPG')}
         self.raw_view_seconds = 5.0
         self.raw_follow_live = True
@@ -232,6 +237,12 @@ class MainWindow(QMainWindow):
         self.show_processed.setChecked(True)
         visibility.addWidget(self.show_raw)
         visibility.addWidget(self.show_processed)
+        visibility.addWidget(QLabel('Waveform renderer'))
+        self.raw_renderer_choice = QComboBox()
+        self.raw_renderer_choice.addItem('pyqtgraph (original)', 'pyqtgraph')
+        self.raw_renderer_choice.addItem('VisPy / OpenGL (experimental)', 'vispy')
+        self.raw_renderer_choice.currentIndexChanged.connect(self.set_raw_renderer)
+        visibility.addWidget(self.raw_renderer_choice)
         visibility.addStretch()
         visibility.addWidget(QLabel('Time window'))
         self.raw_time_window = QComboBox()
@@ -266,7 +277,12 @@ class MainWindow(QMainWindow):
             plot.setXRange(-5, 0, padding=0)
             plot.setMinimumHeight(350 if kind == 'EEG' else 300)
             plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            signals_layout.addWidget(plot)
+            stack = QStackedWidget()
+            stack.addWidget(plot)
+            stack.setMinimumHeight(350 if kind == 'EEG' else 300)
+            stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            signals_layout.addWidget(stack)
+            self.raw_plot_stacks[kind] = stack
             self.plots[kind] = plot
             self.curves[kind] = []
         signals_scroll = QScrollArea()
@@ -579,6 +595,8 @@ class MainWindow(QMainWindow):
         plot = self.plots[kind]
         plot.clear()
         self.curves[kind] = []
+        if kind in self.raw_vispy_plots:
+            self.raw_vispy_plots[kind].reset()
         if kind in ('EDA', 'PPG'):
             self.ei_estimator.latest.clear()
             self.metric_history[('EI', 'EI')].clear()
@@ -808,6 +826,37 @@ class MainWindow(QMainWindow):
         while chunks and chunks[0][0][-1] < cutoff:
             chunks.popleft()
 
+    def set_raw_renderer(self, *_):
+        """Switch only the Raw Data presentation backend at runtime."""
+        mode = self.raw_renderer_choice.currentData()
+        if mode == self.raw_renderer_mode:
+            return
+        if mode == 'vispy':
+            try:
+                for kind, stack in self.raw_plot_stacks.items():
+                    if kind not in self.raw_vispy_plots:
+                        renderer = VisPyRawPlot(kind)
+                        self.raw_vispy_plots[kind] = renderer
+                        stack.addWidget(renderer.widget)
+            except Exception as exc:
+                self.raw_renderer_choice.blockSignals(True)
+                self.raw_renderer_choice.setCurrentIndex(0)
+                self.raw_renderer_choice.blockSignals(False)
+                QMessageBox.warning(self, 'OpenGL renderer unavailable',
+                                    f'Could not initialize VisPy/OpenGL: {exc}')
+                return
+        self.raw_renderer_mode = mode
+        for kind, stack in self.raw_plot_stacks.items():
+            stack.setCurrentIndex(1 if mode == 'vispy' else 0)
+        # Manual GPU panning is excluded from this first A/B experiment.
+        if mode == 'vispy':
+            self.resume_raw_live()
+        self.raw_dirty = True
+        self.statusBar().showMessage(
+            'Raw Data renderer: ' + ('VisPy / OpenGL (experimental)'
+                                    if mode == 'vispy' else 'pyqtgraph')
+        )
+
     def set_raw_time_window(self, *_):
         seconds = self.raw_time_window.currentData()
         if seconds is not None:
@@ -860,10 +909,10 @@ class MainWindow(QMainWindow):
         self.raw_dirty = True
 
     def raw_plot_visible(self, kind):
-        plot = self.plots[kind]
+        widget = self.raw_plot_stacks[kind]
         viewport = self.raw_scroll.viewport()
-        top = plot.mapTo(viewport, QPoint(0, 0)).y()
-        return top < viewport.height() and top + plot.height() > 0
+        top = widget.mapTo(viewport, QPoint(0, 0)).y()
+        return top < viewport.height() and top + widget.height() > 0
 
     def update_raw_xranges(self):
         if not self.raw_follow_live or self.raw_plot_origin is None:
@@ -872,9 +921,11 @@ class MainWindow(QMainWindow):
         if head is None:
             return
         end = head - self.raw_plot_origin
-        for kind, plot in self.plots.items():
-            if self.raw_plot_visible(kind):
-                plot.setXRange(end - self.raw_view_seconds, end, padding=0)
+        self.raw_gl_bounds = (end - self.raw_view_seconds, end)
+        if self.raw_renderer_mode == 'pyqtgraph':
+            for kind, plot in self.plots.items():
+                if self.raw_plot_visible(kind):
+                    plot.setXRange(end - self.raw_view_seconds, end, padding=0)
 
     def tab_changed(self, index):
         if index == 0:
@@ -939,7 +990,10 @@ class MainWindow(QMainWindow):
         for kind, chunks in self.raw_history.items():
             if not chunks or not self.raw_plot_visible(kind):
                 continue
-            low, high = self.plots[kind].viewRange()[0]
+            if self.raw_renderer_mode == 'vispy':
+                low, high = self.raw_gl_bounds
+            else:
+                low, high = self.plots[kind].viewRange()[0]
             minimum = self.raw_plot_origin + low
             maximum = self.raw_plot_origin + high
             # Snapshot references to existing immutable chunks; don't copy the
@@ -983,6 +1037,13 @@ class MainWindow(QMainWindow):
             n = raw.shape[1]
             if kind not in self.raw_scale:
                 self.raw_scale[kind] = (centers, spreads)
+            if self.raw_renderer_mode == 'vispy':
+                self.raw_vispy_plots[kind].set_frame(
+                    frame, *self.raw_gl_bounds,
+                    show_raw=self.show_raw.isChecked(),
+                    show_filtered=self.show_processed.isChecked(),
+                )
+                continue
             if len(self.curves[kind]) != 2 * n:
                 plot.clear()
                 self.curves[kind] = []
@@ -1235,6 +1296,8 @@ class MainWindow(QMainWindow):
         for task in list(self.lsl_tasks.values()):
             task.wait(3000)
         self.raw_render_worker.stop()
+        for glplot in self.raw_vispy_plots.values():
+            glplot.close()
         for worker in self.workers.values():
             worker.stop()
         super().closeEvent(event)
