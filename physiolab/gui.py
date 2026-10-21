@@ -189,6 +189,7 @@ class MainWindow(QMainWindow):
         self.raw_scale = {}
         self.raw_dirty = True
         self.metric_dirty = True
+        self.metric_presentation_epoch = 0
         self.metric_renderer_mode = 'pyqtgraph'
         self.vispy_metric_plot = None
         self.metric_gl_bounds = (-5., 0.)
@@ -784,6 +785,9 @@ class MainWindow(QMainWindow):
         return normalize(value, reference, mode)
 
     def refresh_metrics(self, *_):
+        # Explicit normalization/baseline/source changes require a rebuild.
+        # Ordinary live metric samples do NOT call this method.
+        self.metric_presentation_epoch += 1
         self.refresh_metric_labels()
         self.metric_dirty = True
 
@@ -879,6 +883,7 @@ class MainWindow(QMainWindow):
             gpu.set_presentation_signature((
                 self.normalization.currentData(), method, float(duration),
                 interpolation, bool(show_markers),
+                self.metric_presentation_epoch,
             ))
         for (kind, name), curve in self.metric_curves.items():
             key = (kind, name)
