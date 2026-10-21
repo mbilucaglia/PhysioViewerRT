@@ -644,11 +644,11 @@ class MainWindow(QMainWindow):
         worker.start()
         self.statusBar().showMessage(f'{kind}: starting selected LSL stream reception')
 
-    def receive(self, kind, raw, processed, names, metric, fs, timestamps):
+    def receive(self, kind, raw, processed, names, metric, fs, timestamps, metric_at=None):
         self.append_raw_chunk(kind, raw, processed, names, fs, timestamps)
         if metric is None:
             return
-        now = time.monotonic()
+        now = time.monotonic() if metric_at is None else float(metric_at)
         self.latest_metrics[kind] = metric
         for modality, name in self.metric_keys:
             if modality == kind:
@@ -886,11 +886,19 @@ class MainWindow(QMainWindow):
     def poll_receivers(self):
         """Consume bounded LSL chunks on the GUI timer, not per sample event."""
         started = time.perf_counter()
+        incoming = []
         for kind, worker in tuple(self.workers.items()):
-            for raw, filtered, names, metric, fs, timestamps in worker.mailbox.drain(max_chunks=32):
-                if self.capture is not None:
-                    self.capture_samples(kind, raw, timestamps, names, fs)
-                self.receive(kind, raw, filtered, names, metric, fs, timestamps)
+            for chunk in worker.mailbox.drain(max_chunks=32):
+                incoming.append((chunk[-1], kind, chunk))
+        # Chronological ingestion matters for EI when EDA/PPG arrive on
+        # separate threads; the GUI must not re-time buffered observations.
+        incoming.sort(key=lambda entry: entry[0])
+        for acquired_at, kind, chunk in incoming:
+            raw, filtered, names, metric, fs, timestamps, _ = chunk
+            if self.capture is not None:
+                self.capture_samples(kind, raw, timestamps, names, fs)
+            self.receive(kind, raw, filtered, names, metric, fs, timestamps,
+                         metric_at=acquired_at)
         self.performance.measure('ingress_gui', time.perf_counter() - started)
 
     def render_frame(self):
