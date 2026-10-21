@@ -76,6 +76,12 @@ class VisPyMetricPlot:
         grid.add_widget(self.yaxis, row=0, col=0)
         grid.add_widget(self.xaxis, row=1, col=1)
         self.view = grid.add_view(row=0, col=1, border_color='#454f57')
+        # AxisWidget forwards constructor keywords to AxisVisual, which does
+        # not accept width_max or height_max. Apply sizing to the *widgets*
+        # after construction. Without these limits VisPy's grid distributes
+        # ~half of the canvas to the axis columns/rows.
+        self.yaxis.width_max = 80
+        self.xaxis.height_max = 65
         self.view.camera = scene.PanZoomCamera(
             rect=(0, -1, 5, 2), aspect=None,
         )
