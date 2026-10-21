@@ -209,10 +209,8 @@ class MainWindow(QMainWindow):
         self.metric_view_seconds = 5.0
         self.metric_follow_live = True
         self.iaf_hz = 10.0
-        self._configure_calibration_menu()
         self._load_designer_layout()
         self._connect_designer_controls()
-        self.update_metrics_availability()
         self.update_metrics_availability()
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
@@ -253,6 +251,8 @@ class MainWindow(QMainWindow):
             raise RuntimeError(f'Qt Designer could not load {path}')
         self.setCentralWidget(self._ui_form.takeCentralWidget())
         self.setStatusBar(QStatusBar(self))
+        # Calibration actions are in Sources; no unused menu strip above tabs.
+        self.menuBar().setVisible(False)
         self.setStyleSheet(self._ui_form.styleSheet())
         self.tabs = self._required_ui('mainTabs', QTabWidget)
         self.sources_page = self._required_ui('sourcesTab', QWidget)
@@ -550,8 +550,8 @@ class MainWindow(QMainWindow):
             self._required_ui('rawPlotPause', QPushButton).setText(
                 '▶ Resume plotting' if paused else '⏸ Pause plotting')
             if not paused:
-                for plot in self.raw_vispy_plots.values():
-                    plot.reset()
+                # Preserve GPU ring contents across plot-only pause/resume.
+                # Replay buffered samples without a blank-frame reset.
                 self.raw_dirty = True
         else:
             self.metric_plot_paused = bool(paused)
@@ -1094,6 +1094,10 @@ class MainWindow(QMainWindow):
     def tab_changed(self, index):
         if self.tabs.widget(index) is self.raw_page:
             self.raw_dirty = True
+            self.raw_last_render_time = 0.
+            if not self.raw_plot_paused:
+                self.update_raw_xranges()
+                self.draw()
         elif self.tabs.widget(index) is self.metrics_page and not self.metric_plot_paused:
             self.metric_dirty = True
             self.refresh_metric_plot()
