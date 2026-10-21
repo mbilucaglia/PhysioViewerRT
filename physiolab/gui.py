@@ -1024,6 +1024,15 @@ class MainWindow(QMainWindow):
         if item['channels'] != list(channels) or item['fs'] != float(fs):
             session['errors'].append(f'{kind} stream metadata changed')
             return
+        # Receiver mailboxes may contain buffered pre-calibration chunks after
+        # prolonged GUI interaction. Use LSL source time, not GUI receipt time,
+        # to ensure the saved EYC/BSL recording begins at capture start.
+        boundary = item.get('start_lsl_timestamp')
+        if boundary is not None:
+            valid = np.isfinite(ts) & (ts > boundary)
+            arr, ts = arr[valid], ts[valid]
+            if not len(ts):
+                return
         item['chunks'].append(arr.copy())
         item['times'].append(ts.copy())
 
@@ -1053,6 +1062,7 @@ class MainWindow(QMainWindow):
             meta[modality] = {
                 'fs': float(info.nominal_srate()), 'channels': channels,
                 'chunks': [], 'times': [],
+                'start_lsl_timestamp': worker.latest_source_timestamp,
             }
         screen = CalibrationScreen(kind, self)
         self.capture = {
