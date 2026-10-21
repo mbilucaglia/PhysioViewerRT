@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
     QScrollArea, QSizePolicy, QApplication
 )
 from .worker import Receiver, discover
-from .channel_selection import channel_labels, full_channel_labels, validated_indices
+from .channel_selection import channel_labels, validated_indices
+from .lsl_tasks import LSLTask
 from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
 from .raw_timing import clean_lsl_chunk, SmoothViewportClock
@@ -155,6 +156,11 @@ class MainWindow(QMainWindow):
         self.selectors, self.channel_selectors, self.workers = {}, {}, {}
         self.stream_buttons = {}
         self.channel_metadata_cache = {}
+        self.lsl_tasks = {}
+        self._metadata_requests = {}
+        self.lsl_task_serial = 0
+        self.discovery_serial = 0
+        self._closing = False
         self.plots, self.curves = {}, {}
         self.raw_history = {k: deque() for k in ('EEG', 'EDA', 'PPG')}
         self.raw_view_seconds = 5.0
@@ -440,10 +446,35 @@ class MainWindow(QMainWindow):
         self.timer.start(33)
         self.refresh()
 
+    def queue_lsl_task(self, operation, info=None):
+        """Run blocking LSL APIs outside the Qt GUI event loop."""
+        self.lsl_task_serial += 1
+        token = self.lsl_task_serial
+        task = LSLTask(token, operation, info, self)
+        self.lsl_tasks[token] = task
+        task.completed.connect(self.lsl_task_completed)
+        task.finished.connect(lambda n=token, w=task: self.lsl_task_finished(n, w))
+        task.start()
+        return token
+
+    def lsl_task_finished(self, token, task):
+        self.lsl_tasks.pop(token, None)
+        task.deleteLater()
+
     def refresh(self):
-        try:
-            streams = discover()
-            self.channel_metadata_cache.clear()
+        if self._closing:
+            return
+        self.discovery_serial = self.queue_lsl_task('discover')
+        self.statusBar().showMessage('Discovering LSL sources…')
+
+    def lsl_task_completed(self, token, result, error):
+        if self._closing:
+            return
+        if token == self.discovery_serial:
+            if error:
+                self.statusBar().showMessage(f'LSL discovery failed: {error}')
+                return
+            streams = result
             for kind, combo in self.selectors.items():
                 old = combo.currentData()
                 uid = old.uid() if old is not None else None
@@ -463,8 +494,29 @@ class MainWindow(QMainWindow):
                 combo.blockSignals(False)
                 self.stream_selection_changed(kind)
             self.statusBar().showMessage(f'Found {len(streams)} LSL streams')
-        except Exception as exc:
-            self.statusBar().showMessage(str(exc))
+            return
+        # Only the currently selected stream is permitted to change its
+        # channel controls; delayed metadata from previous selections is stale.
+        for identifier, pending in list(self._metadata_requests.items()):
+            if pending == token:
+                self._metadata_requests.pop(identifier, None)
+                if error:
+                    self.statusBar().showMessage(f'LSL metadata failed: {error}')
+                    return
+                self.channel_metadata_cache[identifier] = result
+                names, warning = result
+                for kind, combo in self.selectors.items():
+                    info = combo.currentData()
+                    if info is not None and info.uid() == identifier:
+                        # Preserve checked channel indices when names arrive.
+                        chosen = self.channel_selectors[kind].selected_indices()
+                        self.channel_selectors[kind].set_channels(names)
+                        for i, action in enumerate(self.channel_selectors[kind].actions):
+                            action.setChecked(i in chosen)
+                        self.channel_selectors[kind].update_label()
+                if warning:
+                    self.statusBar().showMessage(warning)
+                return
 
     def stream_selection_changed(self, kind):
         info = self.selectors[kind].currentData()
@@ -472,18 +524,19 @@ class MainWindow(QMainWindow):
             self.channel_selectors[kind].set_channels([])
             return
         identifier = info.uid()
-        if identifier not in self.channel_metadata_cache:
-            try:
-                self.channel_metadata_cache[identifier] = full_channel_labels(info)
-            except Exception as exc:
-                self.channel_metadata_cache[identifier] = (
-                    channel_labels(info),
-                    f'Unable to fetch full LSL channel metadata: {exc}',
-                )
-        labels, warning = self.channel_metadata_cache[identifier]
-        self.channel_selectors[kind].set_channels(labels)
-        if warning:
-            self.statusBar().showMessage(warning)
+        if identifier in self.channel_metadata_cache:
+            names, warning = self.channel_metadata_cache[identifier]
+            self.channel_selectors[kind].set_channels(names)
+            if warning:
+                self.statusBar().showMessage(warning)
+            return
+        # Never open StreamInlet or query its metadata from the GUI thread.
+        # Display provisional channel names until asynchronous lookup finishes.
+        self.channel_selectors[kind].set_channels(
+            [f'Ch{i+1} (loading labels)' for i in range(info.channel_count())]
+        )
+        if identifier not in self._metadata_requests:
+            self._metadata_requests[identifier] = self.queue_lsl_task('metadata', info)
 
     def toggle_stream(self, kind):
         worker = self.workers.get(kind)
