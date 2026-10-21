@@ -139,6 +139,52 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertIs(self.window.metric_history, old_metrics)
         self.assertIs(self.window.workers, old_receivers)
 
+    def test_metric_gpu_backend_preserves_values_controls_and_fallback(self):
+        from PySide6.QtWidgets import QWidget
+
+        class FakeMetricGpu:
+            def __init__(self, keys):
+                self.widget = QWidget()
+                self.data = {}
+                self.bounds = None
+                self.keys = keys
+
+            def set_series(self, key, x, y, mx, my, **options):
+                self.data[key] = (np.asarray(x), np.asarray(y),
+                                  np.asarray(mx), np.asarray(my), options)
+
+            def set_xrange(self, left, right):
+                self.bounds = (left, right)
+
+            def refresh_axes(self):
+                pass
+
+            def close(self):
+                pass
+
+        original_history = self.window.metric_history
+        key = ('EEG', 'AWI')
+        current = time.monotonic()
+        self.window.metric_history[key].extend([
+            (current - 1., .2), (current - .5, .4), (current, .6)
+        ])
+        with patch('physiolab.gui.VisPyMetricPlot', FakeMetricGpu):
+            self.window.metric_renderer_choice.setCurrentIndex(1)
+            self.assertEqual(self.window.metric_renderer_mode, 'vispy')
+            self.assertEqual(self.window.metric_plot_stack.currentIndex(), 1)
+            self.window.refresh_metric_plot()
+            gpu = self.window.vispy_metric_plot
+            self.assertEqual(len(gpu.data[key][2]), 3)
+            self.window.metric_checks[key].setChecked(False)
+            self.assertFalse(gpu.data[key][4]['visible'])
+            self.window.metric_checks[key].setChecked(True)
+            self.window.zoom_metric_plot(.5)
+            self.assertIsNotNone(gpu.bounds)
+            self.window.metric_renderer_choice.setCurrentIndex(0)
+            self.assertEqual(self.window.metric_plot_stack.currentIndex(), 0)
+            self.assertIs(self.window.metric_history, original_history)
+            self.assertAlmostEqual(self.window.metric_history[key][-1][1], .6)
+
     def test_raw_scroll_event_does_not_force_synchronous_plotting(self):
         self.window.raw_view_scrolled()
         self.assertGreater(self.window.raw_interacting_until, time.monotonic())
