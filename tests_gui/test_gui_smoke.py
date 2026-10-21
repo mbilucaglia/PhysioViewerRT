@@ -237,6 +237,33 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertIsInstance(self.window.centralWidget().findChild(
             QPushButton, 'rawPlotPause'), QPushButton)
 
+    def test_metrics_requires_two_real_baselines(self):
+        tabs = self.window.tabs
+        index = tabs.indexOf(self.window.metrics_page)
+        self.assertFalse(tabs.isTabVisible(index))
+        self.window.apply_calibration('EYC', {'analysis': {'iaf_hz': 10.5}})
+        self.assertFalse(tabs.isTabVisible(index))
+        self.window.apply_calibration('BSL', {'analysis': {
+            'metrics': {'EEG': {'BAR': {'mu': 1., 'sigma': 1.}}}
+        }})
+        self.assertTrue(tabs.isTabVisible(index))
+        self.window.clear_calibration('EYC')
+        self.assertFalse(tabs.isTabVisible(index))
+        self.window.apply_calibration('EYC', {'analysis': {'iaf_hz': 10.5}})
+        self.assertTrue(tabs.isTabVisible(index))
+        self.window.clear_calibration('BSL')
+        self.assertFalse(tabs.isTabVisible(index))
+
+    def test_preprocessing_settings_and_display_count(self):
+        self.assertEqual(self.window.filter_choices['EEG'].currentData(), 'default')
+        self.assertTrue(self.window.filter_notches['EEG'].isChecked())
+        self.window.filter_choices['EEG'].setCurrentIndex(1)
+        self.assertEqual(self.window.filter_choices['EEG'].currentData(), 'wide')
+        self.assertEqual(self.window.eeg_display_count.value(), 8)
+        self.window.eeg_display_count.setValue(12)
+        self.assertEqual(self.window.eeg_display_count.value(), 12)
+        self.assertNotIn('EEG', self.window.raw_scale)
+
     def test_designer_tab_reordering_keeps_correct_display_handlers(self):
         tabs = self.window.tabs
         original = tabs.indexOf(self.window.raw_page)
@@ -248,6 +275,9 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.raw_dirty = False
         self.window.tab_changed(tabs.currentIndex())
         self.assertTrue(self.window.raw_dirty)
+        self.window.loaded_eyc = {'analysis': {'iaf_hz': 10.}}
+        self.window.loaded_bsl = {'analysis': {'metrics': {'EEG': {'AWI': {'mu': 0.}}}}}
+        self.window.update_metrics_availability()
         tabs.setCurrentWidget(self.window.metrics_page)
         self.window.metric_dirty = False
         self.window.tab_changed(tabs.currentIndex())
