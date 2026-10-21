@@ -240,7 +240,12 @@ class MainWindow(QMainWindow):
         visibility.addWidget(QLabel('Waveform renderer'))
         self.raw_renderer_choice = QComboBox()
         self.raw_renderer_choice.addItem('pyqtgraph (original)', 'pyqtgraph')
-        self.raw_renderer_choice.addItem('VisPy / OpenGL (experimental)', 'vispy')
+        try:
+            import vispy  # noqa: F401 - optional dependency
+        except ImportError:
+            pass
+        else:
+            self.raw_renderer_choice.addItem('VisPy / OpenGL (experimental)', 'vispy')
         self.raw_renderer_choice.currentIndexChanged.connect(self.set_raw_renderer)
         visibility.addWidget(self.raw_renderer_choice)
         visibility.addStretch()
@@ -832,13 +837,19 @@ class MainWindow(QMainWindow):
         if mode == self.raw_renderer_mode:
             return
         if mode == 'vispy':
+            created = []
             try:
                 for kind, stack in self.raw_plot_stacks.items():
                     if kind not in self.raw_vispy_plots:
                         renderer = VisPyRawPlot(kind)
                         self.raw_vispy_plots[kind] = renderer
                         stack.addWidget(renderer.widget)
+                        created.append(kind)
             except Exception as exc:
+                for kind in created:
+                    renderer = self.raw_vispy_plots.pop(kind)
+                    self.raw_plot_stacks[kind].removeWidget(renderer.widget)
+                    renderer.close()
                 self.raw_renderer_choice.blockSignals(True)
                 self.raw_renderer_choice.setCurrentIndex(0)
                 self.raw_renderer_choice.blockSignals(False)
@@ -851,6 +862,8 @@ class MainWindow(QMainWindow):
         # Manual GPU panning is excluded from this first A/B experiment.
         if mode == 'vispy':
             self.resume_raw_live()
+        self.raw_frame_epoch += 1
+        self.raw_inflight_ticket = None
         self.raw_dirty = True
         self.statusBar().showMessage(
             'Raw Data renderer: ' + ('VisPy / OpenGL (experimental)'
