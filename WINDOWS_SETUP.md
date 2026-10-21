@@ -71,6 +71,10 @@ the 30 FPS GUI timer drains these mailboxes in batches. A circular history
 buffer avoids repeatedly copying 20 seconds of filtered signals per chunk.
 The background raw renderer prepares at most one in-flight frame; painting
 always remains on the GUI thread, and off-screen Raw Data panels are skipped.
+Menus and active scroll movements take priority over visualization updates;
+when interaction ends, GUI ingestion catches up in bounded batches.
+EYC/BSL captures reject buffered LSL samples timestamped before recording
+started, keeping baseline data independent of temporary GUI delays.
 Receiver stop is asynchronous so stream changes do not block the interface.
 LSL sample timestamps, metric algorithms and 5-minute plot history are retained.
 
