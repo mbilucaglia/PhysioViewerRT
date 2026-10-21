@@ -150,7 +150,7 @@ def _incremental_visual_class():
                     axis=0)
                 self._buffer.set_subdata(
                     np.ascontiguousarray(data),
-                    offset=first*self.vertices_per_slot*2*4)
+                    offset=first*self.vertices_per_slot)
             self.update()
 
     return create_visual_node(PartialLineVisual)
