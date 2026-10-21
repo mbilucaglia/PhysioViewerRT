@@ -1,3 +1,4 @@
+import time
 from PySide6.QtCore import QThread, Signal
 from pylsl import StreamInlet, resolve_streams
 from .processing import Processor
@@ -41,10 +42,11 @@ class Receiver(QThread):
                 proc.iaf_hz = self.iaf_hz
                 selected = select_chunk(samples, self.selected_indices)
                 metric = proc.push(selected)
+                computed_at = time.monotonic()
                 self.mailbox.put((
                     selected.copy(),
                     proc.last_filtered_chunk.copy(),
-                    names, metric, float(fs), timestamps,
+                    names, metric, float(fs), timestamps, computed_at,
                 ))
         except Exception as exc:
             self.failure.emit(f'{self.kind}: {exc}')
