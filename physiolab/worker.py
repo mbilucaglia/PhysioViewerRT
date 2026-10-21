@@ -19,6 +19,7 @@ class Receiver(QThread):
         self.active = True
         self.iaf_hz = 10.0
         self.inlet = None
+        self.latest_source_timestamp = None
         self.mailbox = ChunkMailbox(info.nominal_srate())
 
     def run(self):
@@ -36,6 +37,7 @@ class Receiver(QThread):
                 samples, timestamps = inlet.pull_chunk(timeout=.2, max_samples=1024)
                 if not samples:
                     continue
+                self.latest_source_timestamp = float(timestamps[-1])
                 proc.iaf_hz = self.iaf_hz
                 selected = select_chunk(samples, self.selected_indices)
                 metric = proc.push(selected)
