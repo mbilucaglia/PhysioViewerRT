@@ -1,13 +1,13 @@
-"""Independent GUI hang detector for opt-in performance diagnostics.
+"""Native-timer Qt event-loop hang diagnostics.
 
-A daemon monitor observes a heartbeat maintained by Qt's timer. On a long
-stall it writes Python stacks of all threads, independently of the GUI timer.
-This is diagnostic: native Qt/C++ stacks require separate OS-level tools.
+The original Python watchdog could itself be starved when the UI was
+unresponsive. faulthandler.dump_traceback_later instead uses a native
+watchdog thread; refreshing its deadline from the Qt event loop means
+a Python thread starvation is captured without relying on the GIL.
 """
 import faulthandler
 import os
 from pathlib import Path
-import threading
 import time
 
 
@@ -17,45 +17,41 @@ class GuiHangWatchdog:
                         if enabled is None else bool(enabled))
         self.path = Path(path) if path else Path.home() / 'PhysioViewerRT-hangs.log'
         self.timeout = float(timeout)
-        self.poll_interval = float(poll_interval)
-        self._heartbeat = time.monotonic()
-        self._halt = threading.Event()
-        self._thread = None
-        self._reported = False
+        # Rate-limit native timer refresh, even when Qt renders at 30 FPS.
+        self.poll_interval = max(.01, min(float(poll_interval), self.timeout / 3))
+        self._last_arm = 0.0
+        self._file = None
+        self._running = False
+
+    def _arm(self):
+        if self._file is None:
+            return
+        faulthandler.dump_traceback_later(
+            self.timeout, repeat=False, file=self._file, exit=False
+        )
+        self._last_arm = time.monotonic()
 
     def beat(self):
-        self._heartbeat = time.monotonic()
-        self._reported = False
+        if self._running and time.monotonic() - self._last_arm >= self.poll_interval:
+            self._arm()
 
     def start(self):
-        if not self.enabled or self._thread is not None:
+        if not self.enabled or self._running:
             return
-        self._thread = threading.Thread(
-            target=self._monitor, name='PhysioViewerRT-GUI-watchdog',
-            daemon=True,
-        )
-        self._thread.start()
+        try:
+            # Keep this file descriptor open until the native timer is cancelled.
+            # Create early to expose configuration errors before the hang.
+            self._file = self.path.open('a', encoding='utf-8')
+        except OSError:
+            self.enabled = False
+            return
+        self._running = True
+        self._arm()
 
     def stop(self):
-        self._halt.set()
-        if self._thread is not None:
-            self._thread.join(timeout=1.)
-
-    def _monitor(self):
-        while not self._halt.wait(self.poll_interval):
-            age = time.monotonic() - self._heartbeat
-            if age < self.timeout or self._reported:
-                continue
-            self._reported = True
-            try:
-                with self.path.open('a', encoding='utf-8') as log:
-                    log.write(
-                        f'\nGUI HEARTBEAT STALLED for {age:.2f}s; '
-                        f'wall_time={time.strftime("%Y-%m-%d %H:%M:%S")}\n'
-                    )
-                    log.flush()
-                    faulthandler.dump_traceback(file=log, all_threads=True)
-                    log.flush()
-            except OSError:
-                # Logging failures must not interfere with acquisition.
-                pass
+        if not self._running:
+            return
+        faulthandler.cancel_dump_traceback_later()
+        self._running = False
+        self._file.close()
+        self._file = None
