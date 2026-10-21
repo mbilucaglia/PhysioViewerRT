@@ -24,3 +24,17 @@ jobs:
         run: python -m compileall -q main.py simulate.py physiolab tests
       - name: Run synthetic calibration tests
         run: python -m unittest discover -s tests -v
+
+  gui_smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install full Windows GUI dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run offscreen stream and raw-plot interaction tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -s tests_gui -v
