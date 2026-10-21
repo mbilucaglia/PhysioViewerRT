@@ -126,3 +126,39 @@ All LSL stream types are available in each modality's stream menu. Assign the ap
 ## Research prototype limitations
 
 Not a medical device. Do not use for clinical decisions. Missing automated artifact detection, channel-quality gating, reference selection, inter-stream timestamp alignment, general recording/replay, SCR detection, sophisticated calibration artifact rejection, and closed-loop neurofeedback. The PPG peak detector is heuristic; the AWI and BAR estimates from one second are noisy. Simulated signals validate the software path only, not biological accuracy. Confirm montage, units, sampling rates, and signal quality with real hardware. The application has not undergone an end-to-end hardware/Windows integration test. Packaging as a standalone EXE is not yet provided.
+
+## Experimental GPU Raw Data renderer (VisPy/OpenGL)
+
+An optional A/B comparison of Raw Data visualization is available on branch
+`experiment/vispy-raw-renderer`. It is inspired by the **LineVis**
+OpenGL multi-channel rendering approach of Intheon's StreamViewer
+(https://github.com/intheon/stream_viewer, MIT licensed), but is an
+independent, lightweight renderer. No StreamViewer code is copied.
+
+On Windows PowerShell, after switching to this branch and with the virtual
+environment already installed:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements-vispy.txt
+.\start_windows.cmd
+```
+
+In the **Raw Data** tab, select the new **Waveform renderer** dropdown:
+**pyqtgraph (original)** or **VisPy / OpenGL (experimental)**.
+You can switch while synthetic LSL streams are playing. All processing,
+Metrics, EYC/BSL and acquired timestamps still use the existing pipelines.
+
+The OpenGL prototype batches multiple channels into one GPU line visual
+per modality and trace layer (raw and filtered). It provides fixed channel
+offsets, time-window and zoom buttons, live follow, show/hide raw and
+filtered, and vertical page scrolling. **GPU mode currently omits the
+pyqtgraph axis context menus and mouse-based plot panning.** Return to
+pyqtgraph mode for those features; this is intentional so we can isolate
+renderer performance before investing in alternative axis controls.
+
+VisPy requires usable OpenGL drivers and may not work on all remote desktop
+sessions. If OpenGL initialization fails, the app shows an error and retains
+pyqtgraph. This experiment does not establish that the freeze is fixed.
+Run the synthetic EEG+EDA+PPG workload for at least ten minutes with each
+backend, and compare the optional performance JSONL profiles. Switching
+renderers only affects Raw Data, not the Metrics tab.
