@@ -107,6 +107,112 @@ class GuiSmokeTests(unittest.TestCase):
             self.assertEqual(self.window.channel_selectors['EDA'].names, ['EDA'])
             self.assertTrue(self.window.stream_buttons['EDA'].isEnabled())
 
+    def test_switch_raw_renderer_without_changing_metrics_or_receivers(self):
+        from PySide6.QtWidgets import QWidget
+
+        class FakeGpuPlot:
+            def __init__(self, kind):
+                self.widget = QWidget()
+                self.frames = []
+
+            def set_frame(self, frame, left, right, **options):
+                self.frames.append((left, right, options))
+
+            def reset(self):
+                pass
+
+            def close(self):
+                pass
+
+        old_metrics = self.window.metric_history
+        old_receivers = self.window.workers
+        with patch('physiolab.gui.VisPyRawPlot', FakeGpuPlot):
+            self.window.raw_renderer_choice.setCurrentIndex(1)
+            self.assertEqual(self.window.raw_renderer_mode, 'vispy')
+            self.assertEqual(len(self.window.raw_vispy_plots), 3)
+            for stack in self.window.raw_plot_stacks.values():
+                self.assertEqual(stack.currentIndex(), 1)
+            self.window.raw_renderer_choice.setCurrentIndex(0)
+            self.assertEqual(self.window.raw_renderer_mode, 'pyqtgraph')
+            for stack in self.window.raw_plot_stacks.values():
+                self.assertEqual(stack.currentIndex(), 0)
+        self.assertIs(self.window.metric_history, old_metrics)
+        self.assertIs(self.window.workers, old_receivers)
+
+    def test_metric_gpu_backend_preserves_values_controls_and_fallback(self):
+        from PySide6.QtWidgets import QWidget
+
+        class FakeMetricGpu:
+            def __init__(self, keys):
+                self.widget = QWidget()
+                self.data = {}
+                self.bounds = None
+                self.keys = keys
+
+            def set_series(self, key, x, y, mx, my, **options):
+                self.data[key] = (np.asarray(x), np.asarray(y),
+                                  np.asarray(mx), np.asarray(my), options)
+
+            def set_xrange(self, left, right):
+                self.bounds = (left, right)
+
+            def refresh_axes(self):
+                pass
+
+            def close(self):
+                pass
+
+        original_history = self.window.metric_history
+        key = ('EEG', 'AWI')
+        current = time.monotonic()
+        self.window.metric_history[key].extend([
+            (current - 1., .2), (current - .5, .4), (current, .6)
+        ])
+        with patch('physiolab.gui.VisPyMetricPlot', FakeMetricGpu):
+            self.window.metric_renderer_choice.setCurrentIndex(1)
+            self.assertEqual(self.window.metric_renderer_mode, 'vispy')
+            self.assertEqual(self.window.metric_plot_stack.currentIndex(), 1)
+            self.window.refresh_metric_plot()
+            gpu = self.window.vispy_metric_plot
+            self.assertEqual(len(gpu.data[key][2]), 3)
+            self.window.metric_checks[key].setChecked(False)
+            self.assertFalse(gpu.data[key][4]['visible'])
+            self.window.metric_checks[key].setChecked(True)
+            self.window.zoom_metric_plot(.5)
+            self.assertIsNotNone(gpu.bounds)
+            self.window.metric_renderer_choice.setCurrentIndex(0)
+            self.assertEqual(self.window.metric_plot_stack.currentIndex(), 0)
+            self.assertIs(self.window.metric_history, original_history)
+            self.assertAlmostEqual(self.window.metric_history[key][-1][1], .6)
+
+    def test_mockup_tabs_sources_and_resizable_raw_panels(self):
+        from PySide6.QtWidgets import QSplitter, QDoubleSpinBox
+        self.assertEqual(
+            [self.window.tabs.tabText(i) for i in range(self.window.tabs.count())],
+            ['Raw Data', 'Metrics', 'Sources']
+        )
+        self.assertIsInstance(self.window.raw_plot_splitter, QSplitter)
+        self.assertEqual(self.window.raw_plot_splitter.count(), 3)
+        self.assertEqual(
+            self.window.raw_scroll.verticalScrollBarPolicy(),
+            __import__('PySide6.QtCore', fromlist=['Qt']).Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.window.tabs.setCurrentIndex(2)
+        self.assertTrue(self.window.selectors['EEG'].isVisible())
+        original_workers = self.window.workers
+        self.window.tabs.setCurrentIndex(0)
+        gain = self.window.raw_vertical_gains['EEG']
+        self.assertIsInstance(gain, QDoubleSpinBox)
+        self.assertEqual(gain.value(), 1.)
+        self.window.adjust_raw_vertical_gain('EEG', 1.2)
+        self.assertAlmostEqual(gain.value(), 1.2)
+        self.assertEqual(self.window.raw_vertical_gains['EDA'].value(), 1.)
+        self.assertIs(self.window.workers, original_workers)
+        self.window.raw_time_window.setCurrentIndex(
+            self.window.raw_time_window.findData(8)
+        )
+        self.assertEqual(self.window.raw_view_seconds, 8.)
+
     def test_raw_scroll_event_does_not_force_synchronous_plotting(self):
         self.window.raw_view_scrolled()
         self.assertGreater(self.window.raw_interacting_until, time.monotonic())

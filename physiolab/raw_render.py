@@ -9,7 +9,8 @@ from .raw_timing import visible_chunk
 
 
 def prepare_raw_window(chunks, left, right, origin, reference=None,
-                       max_points=2500, max_channels=8):
+                       max_points=2500, max_channels=8,
+                       decimation_span=None):
     """Return time and display-scaled traces for a raw modality.
 
     A result is (time, raw_traces, filtered_traces, centers, scales,
@@ -38,8 +39,28 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
     t = np.concatenate(times)
     x = np.concatenate(raws)
     y = np.concatenate(filters)
-    stride = max(1, int(np.ceil(len(t) / max_points)))
-    t, x, y = t[::stride], x[::stride], y[::stride]
+    # Anchor decimation to the stream's sample clock rather than the first
+    # sample in the moving viewport. The previous t[::stride] scheme changed
+    # which historical points were retained whenever the viewport moved by
+    # one sample, making the *already drawn* sweep visibly shimmer.
+    fs = float(chunks[-1][4])
+    if not np.isfinite(fs) or fs <= 0:
+        fs = max(1., len(t) / max(right-left, 1e-6))
+    # For incremental sweeps the cropped tail may be only 100ms, but
+    # its fixed decimation must match the original full sweep window.
+    decimation_seconds = (
+        float(decimation_span) if decimation_span is not None else right-left)
+    if decimation_seconds <= 0:
+        raise ValueError('Decimation window must be positive')
+    stride = max(1, int(np.ceil(fs * decimation_seconds / max_points)))
+    if stride > 1:
+        # Using origin-relative nominal sample indices fixes the phase across
+        # frames without requiring sample-index counters in the LSL reader.
+        index = np.rint((t - origin) * fs).astype(np.int64)
+        keep = index % stride == 0
+        t, x, y = t[keep], x[keep], y[keep]
+        if not len(t):
+            return None
     n = min(x.shape[1], max_channels)
     x, y = x[:, :n], y[:, :n]
     if reference is None:
