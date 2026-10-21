@@ -42,6 +42,14 @@ class VisPyPlotEngine:
         self.sweep_cursor = self.line('#1769e0', width=2)
         self.sweep_cursor.visible = False
         self._y_bounds = (0., 1.)
+        # Restrained in-scene axes, no heavy AxisWidget margins.
+        self.axis_x = self.line('#d0d7df', width=1)
+        self.axis_y = self.line('#d0d7df', width=1)
+        self._axis_x_labels = [self.text(color='#607386', size=9) for _ in range(3)]
+        self._axis_y_labels = [self.text(color='#607386', size=9) for _ in range(3)]
+        self._axis_duration = None
+        self._axis_range = None
+        self.set_axis_labels(duration=5., bounds=(0., 1.))
 
     def line(self, color='black', width=1):
         return self.scene.visuals.Line(
@@ -63,6 +71,31 @@ class VisPyPlotEngine:
         # Never introspect the bounds of empty VisPy Markers.
         self.view.camera.rect = (float(left), float(bottom),
                                  float(right-left), float(top-bottom))
+        self.canvas.update()
+
+    def set_axis_labels(self, duration=None, bounds=None):
+        """Minimal time and vertical-value labels, with no tick marks."""
+        if duration is not None and duration > 0 and duration != self._axis_duration:
+            self._axis_duration = float(duration)
+            for label, phase in zip(self._axis_x_labels, (.1, .5, .9)):
+                label.text = f'{phase * duration:g} s'
+                label.pos = (phase, self._y_bounds[0] +
+                             .03*(self._y_bounds[1]-self._y_bounds[0]))
+        if bounds is not None:
+            bottom, top = float(bounds[0]), float(bounds[1])
+            if top > bottom and (bottom, top) != self._axis_range:
+                self._axis_range = (bottom, top)
+                self.axis_x.set_data(pos=np.array(
+                    [[.025, bottom+.09*(top-bottom)], [.985, bottom+.09*(top-bottom)]],
+                    dtype=np.float32))
+                self.axis_y.set_data(pos=np.array(
+                    [[.025, bottom+.09*(top-bottom)], [.025, bottom+.97*(top-bottom)]],
+                    dtype=np.float32))
+                for label, phase in zip(self._axis_y_labels, (.25, .5, .75)):
+                    label.text = f'{bottom + phase*(top-bottom):.2g}'
+                    label.pos = (.04, bottom + phase*(top-bottom))
+                for label, phase in zip(self._axis_x_labels, (.1, .5, .9)):
+                    label.pos = (phase, bottom+.035*(top-bottom))
         self.canvas.update()
 
     def set_sweep_cursor(self, phase):
