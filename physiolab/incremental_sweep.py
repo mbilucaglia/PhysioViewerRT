@@ -63,6 +63,8 @@ class SweepRing:
                 self.last_time = float(when)
                 continue
             slot = identity % self.capacity
+            # Equal-age bins can contain multiple samples. The most recent
+            # value is retained without changing unrelated GPU vertices.
             self.stamps[slot] = when
             self.values[slot] = value
             self.identities[slot] = identity
@@ -81,6 +83,7 @@ class SweepRing:
 def _incremental_visual_class():
     """Import VisPy only when the actual OpenGL backend is selected."""
     from vispy import gloo
+    from vispy.color import Color
     from vispy.visuals import Visual
     from vispy.scene.visuals import create_visual_node
 
@@ -110,7 +113,7 @@ def _incremental_visual_class():
                         -10., dtype=np.float32))
             Visual.__init__(self, vcode=self.VERT, fcode=self.FRAG)
             self.shared_program.vert['a_position'] = self._buffer
-            self.shared_program['u_color'] = color
+            self.shared_program['u_color'] = Color(color).rgba
             self.shared_program['u_point_size'] = float(point_size)
             self._draw_mode = mode
             self.set_gl_state('translucent', depth_test=False)
@@ -169,11 +172,11 @@ class IncrementalSweepLayer:
                 (slot, np.asarray([[
                     float(self.ring.stamps[slot] % self.ring.duration
                           / self.ring.duration),
-                    float(self.ring.values[slot])]],
-                    dtype=np.float32))
+                    float(self.ring.values[slot])]], dtype=np.float32)
+                 if self.ring.identities[slot] != np.iinfo(np.int64).min
+                 and np.isfinite(self.ring.values[slot])
+                 else np.array([[-10., -10.]], dtype=np.float32))
                 for slot, _ in updates
-                if self.ring.identities[slot] != np.iinfo(np.int64).min
-                and np.isfinite(self.ring.values[slot])
             ]
         self.visual.patch(updates)
         return len(updates)
