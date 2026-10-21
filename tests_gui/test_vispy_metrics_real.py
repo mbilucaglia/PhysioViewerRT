@@ -41,6 +41,20 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
         finally:
             plot.close()
 
+    def test_raw_blue_cursor_never_leads_real_samples(self):
+        plot = VisPyRawPlot('EEG')
+        try:
+            samples = np.array([5., 5.1, 5.2, 5.3])
+            data = np.sin(samples)[:, None]
+            frame = (samples, data, data, None, None, ('F3',))
+            # Simulate viewport clock running 80 ms ahead of acquisition.
+            plot.set_frame(frame, 0., 5., sweep_head=5.38)
+            np.testing.assert_allclose(
+                plot.engine.sweep_cursor._pos[:, 0], [.06, .06], atol=1e-5
+            )
+        finally:
+            plot.close()
+
     def test_raw_uses_same_engine_with_labels_and_gain(self):
         plot = VisPyRawPlot('EEG')
         try:
