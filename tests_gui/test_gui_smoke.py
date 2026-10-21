@@ -185,6 +185,34 @@ class GuiSmokeTests(unittest.TestCase):
             self.assertIs(self.window.metric_history, original_history)
             self.assertAlmostEqual(self.window.metric_history[key][-1][1], .6)
 
+    def test_mockup_tabs_sources_and_resizable_raw_panels(self):
+        from PySide6.QtWidgets import QSplitter, QDoubleSpinBox
+        self.assertEqual(
+            [self.window.tabs.tabText(i) for i in range(self.window.tabs.count())],
+            ['Raw Data', 'Metrics', 'Sources']
+        )
+        self.assertIsInstance(self.window.raw_plot_splitter, QSplitter)
+        self.assertEqual(self.window.raw_plot_splitter.count(), 3)
+        self.assertEqual(
+            self.window.raw_scroll.verticalScrollBarPolicy(),
+            __import__('PySide6.QtCore', fromlist=['Qt']).Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.window.tabs.setCurrentIndex(2)
+        self.assertTrue(self.window.selectors['EEG'].isVisible())
+        original_workers = self.window.workers
+        self.window.tabs.setCurrentIndex(0)
+        gain = self.window.raw_vertical_gains['EEG']
+        self.assertIsInstance(gain, QDoubleSpinBox)
+        self.assertEqual(gain.value(), 1.)
+        self.window.adjust_raw_vertical_gain('EEG', 1.2)
+        self.assertAlmostEqual(gain.value(), 1.2)
+        self.assertEqual(self.window.raw_vertical_gains['EDA'].value(), 1.)
+        self.assertIs(self.window.workers, original_workers)
+        self.window.raw_time_window.setCurrentIndex(
+            self.window.raw_time_window.findData(8)
+        )
+        self.assertEqual(self.window.raw_view_seconds, 8.)
+
     def test_raw_scroll_event_does_not_force_synchronous_plotting(self):
         self.window.raw_view_scrolled()
         self.assertGreater(self.window.raw_interacting_until, time.monotonic())
