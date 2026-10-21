@@ -336,8 +336,11 @@ class MainWindow(QMainWindow):
         metric_visibility = QHBoxLayout()
         metric_visibility.addWidget(QLabel('Plot metrics:'))
         self.metric_checks = {}
-        for key in self.metric_keys:
+        for key, color in zip(self.metric_keys, (
+            '#e69f00', '#56b4e9', '#009e73', '#cc79a7', '#d55e00'
+        )):
             checkbox = QCheckBox(key[1])
+            checkbox.setStyleSheet(f'QCheckBox {{ color: {color}; }}')
             checkbox.setChecked(True)
             checkbox.toggled.connect(self.refresh_metric_plot)
             self.metric_checks[key] = checkbox
