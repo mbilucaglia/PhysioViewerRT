@@ -251,7 +251,8 @@ class GuiSmokeTests(unittest.TestCase):
         tabs.setCurrentWidget(self.window.metrics_page)
         self.window.metric_dirty = False
         self.window.tab_changed(tabs.currentIndex())
-        self.assertTrue(self.window.metric_dirty)
+        # Opening Metrics refreshes the plot synchronously and consumes dirty.
+        self.assertFalse(self.window.metric_dirty)
 
     def test_plot_pause_does_not_stop_lsl_ingress(self):
         from PySide6.QtWidgets import QPushButton
