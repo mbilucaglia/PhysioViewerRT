@@ -168,6 +168,7 @@ class VisPyRawPlot:
             if i < n:
                 label.text = str(names[i]) if i < len(names) else f'Ch {i+1}'
                 label.pos = (.012, (6.*i + 1.) / max(6.*n+3., 6.))
+        self.engine.set_sweep_cursor((sweep_head % duration) / duration)
         self.canvas.update()
 
     def close(self):
