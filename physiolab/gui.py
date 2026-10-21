@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QScrollArea, QSizePolicy, QApplication, QStackedWidget, QSplitter, QDoubleSpinBox, QFrame, QStatusBar, QSpinBox
 )
 from .worker import Receiver, discover
+from .processing import validate_preprocessing
 from .channel_selection import channel_labels, validated_indices
 from .lsl_tasks import LSLTask
 from .emotion import BaselineEmotionalIndex
@@ -211,6 +212,7 @@ class MainWindow(QMainWindow):
         self._configure_calibration_menu()
         self._load_designer_layout()
         self._connect_designer_controls()
+        self.update_metrics_availability()
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
         # package is installed. Offscreen CI retains the original backend.
@@ -271,6 +273,7 @@ class MainWindow(QMainWindow):
 
     def _connect_designer_controls(self):
         """Wire the live application to named Designer widgets, not a mockup."""
+        self.filter_choices, self.filter_notches = {}, {}
         for kind in ('EEG', 'EDA', 'PPG'):
             combo = self._required_ui(f'{kind}StreamSelector', QComboBox)
             combo.clear()
@@ -288,7 +291,27 @@ class MainWindow(QMainWindow):
             action.setToolTip(f'Start/stop local {kind} LSL reception')
             self._required_ui(f'{kind}Refresh', QPushButton).clicked.connect(self.refresh)
             self._required_ui(f'{kind}ChooseChannels', QPushButton).setVisible(False)
+            choices = self._required_ui(f'{kind}FilterPreset', QComboBox)
+            configurations = {
+                'EEG': [('Default 1–40 Hz', 'default'), ('Wide', 'wide'),
+                        ('Focused', 'focused'), ('Off', 'off')],
+                'PPG': [('Default 0.5–8 Hz', 'default'), ('Pulse', 'pulse'),
+                        ('Wide', 'wide'), ('Off', 'off')],
+                'EDA': [('Default', 'default'), ('Low-pass 1 Hz', 'smooth_1hz'),
+                        ('Low-pass 2 Hz', 'smooth_2hz')],
+            }
+            self._fill_combo(choices, configurations[kind])
+            self.filter_choices[kind] = choices
+            notch = self._required_ui(f'{kind}Notch', QCheckBox)
+            notch.setChecked(True)
+            self.filter_notches[kind] = notch
+            choices.setToolTip('Used on next stream start, not mid-capture')
+            notch.setToolTip('Used on next stream start, not mid-capture')
         self._required_ui('refreshAllStreams', QPushButton).clicked.connect(self.refresh)
+        self.eeg_display_count = self._required_ui('eegDisplayChannelCount', QSpinBox)
+        self.eeg_display_count.setRange(1, 64)
+        self.eeg_display_count.setValue(8)
+        self.eeg_display_count.valueChanged.connect(self.change_eeg_display_count)
         self.calibration_file_labels = {}
         for kind in ('EYC', 'BSL'):
             self.calibration_file_labels[kind] = self._required_ui(f'{kind}Status', QLabel)
@@ -688,7 +711,12 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, 'Receiver active',
                                     f'Stop {kind} before starting another stream.')
                 return
-            worker = Receiver(info, kind, indices, self.channel_selectors[kind].names)
+            settings = validate_preprocessing(kind,
+                preset=self.filter_choices[kind].currentData(),
+                notch=self.filter_notches[kind].isChecked())
+            worker = Receiver(info, kind, indices,
+                              self.channel_selectors[kind].names,
+                              preprocessing=settings)
         except (ValueError, RuntimeError) as exc:
             QMessageBox.warning(self, f'{kind} channel selection', str(exc))
             return
