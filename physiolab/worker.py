@@ -39,10 +39,9 @@ class Receiver(QThread):
                 proc.iaf_hz = self.iaf_hz
                 selected = select_chunk(samples, self.selected_indices)
                 metric = proc.push(selected)
-                count_plot = len(selected)
                 self.mailbox.put((
                     selected.copy(),
-                    proc.filtered[-count_plot:].copy(),
+                    proc.last_filtered_chunk.copy(),
                     names, metric, float(fs), timestamps,
                 ))
         except Exception as exc:
