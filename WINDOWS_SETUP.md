@@ -325,3 +325,41 @@ The follow-up clinical-workflow changes (preprocessing preset semantics,
 EEG display count, calibration-gated Metrics, and subtle plot axes)
 are a separate stage; they are **not implied** by visual placeholders.
 Do not merge draft PR #26 until a test on the target Windows GPU passes.
+
+## Sources presets, calibration gate, EEG display limit and axis presentation
+
+The editable **Sources** page configures each signal before connection:
+- EEG: Default 1–40 Hz, Wide 0.5–45 Hz, Focused 2–30 Hz, or no
+  band-pass; an independent 50/100 Hz notch toggle.
+- PPG: Default 0.5–8 Hz, Pulse 0.5–5 Hz, Wide 0.5–10 Hz, or no
+  band-pass; an independent notch toggle.
+- SC/EDA: Default (no low-pass), or low-pass at 1 Hz / 2 Hz; an
+  independent notch toggle (only feasible below Nyquist).
+
+All settings are *latched when a stream starts*. Changing a preset while
+receiving does not replace active filter coefficients mid-signal; Stop
+then Play to apply it. Original defaults preserve the earlier filter
+coefficient chains. The full channel selection still drives processing
+and calibration, including EEG AWI and BAR.
+
+**Display channels** in Sources limits only the count drawn in EEG's
+Raw Data plot, from 1 to 64. It does not discard acquisition channels
+or narrow the EEG metric-calculation channel set. Changing this setting
+rebuilds only the display scale and sweep-ring layers.
+
+The **Metrics** tab is hidden until both a real EYC (valid IAF) and a
+BSL (metric reference summaries) are active. In Sources, each baseline
+has New (60-second acquisition), Load an existing .npz, or Default/none.
+New EYC/BSL becomes active only when saved or loaded. Using Default/none
+clears the corresponding reference, reverts EYC IAF to the uncalibrated
+10 Hz fallback, and hides Metrics again. Acquiring raw waveforms remains
+possible without any baselines.
+
+Shared VisPy plots use sparse, pale axis lines and three small time and
+value annotations without heavy tick widgets or gridlines. On Raw Data
+the vertical values are **normalized display coordinates**, not
+physical microvolts or scientific amplitude units. The incremental
+partial-GPU-write sweep and thin blue cursor remain unchanged.
+
+Designer controls are still the authoritative placement and styling
+source. Their stable objectName values must be preserved.
