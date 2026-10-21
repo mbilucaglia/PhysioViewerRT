@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, QPoint
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
@@ -14,13 +14,16 @@ from PySide6.QtWidgets import (
     QScrollArea, QSizePolicy, QApplication
 )
 from .worker import Receiver, discover
-from .channel_selection import channel_labels, full_channel_labels, validated_indices
+from .channel_selection import channel_labels, validated_indices
+from .lsl_tasks import LSLTask
 from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
 from .raw_timing import clean_lsl_chunk, SmoothViewportClock
 from .raw_render_worker import RawRenderWorker
+from .performance import PerformanceMonitor
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
+    samples_after_timestamp,
     DURATION_SECONDS,
 )
 
@@ -155,6 +158,13 @@ class MainWindow(QMainWindow):
         self.selectors, self.channel_selectors, self.workers = {}, {}, {}
         self.stream_buttons = {}
         self.channel_metadata_cache = {}
+        self.lsl_tasks = {}
+        self._metadata_requests = {}
+        self.lsl_task_serial = 0
+        self.discovery_serial = 0
+        self._closing = False
+        self.performance = PerformanceMonitor()
+        self._last_gui_tick = time.monotonic()
         self.plots, self.curves = {}, {}
         self.raw_history = {k: deque() for k in ('EEG', 'EDA', 'PPG')}
         self.raw_view_seconds = 5.0
@@ -169,6 +179,9 @@ class MainWindow(QMainWindow):
         self.metric_dirty = True
         self.raw_last_render_time = 0.0
         self.raw_frame_epoch = 0
+        self.raw_frame_ticket = 0
+        self.raw_inflight_ticket = None
+        self.raw_interacting_until = 0.0
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -262,6 +275,8 @@ class MainWindow(QMainWindow):
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         signals_scroll.setWidget(signals_page)
+        self.raw_scroll = signals_scroll
+        self.raw_scroll.verticalScrollBar().valueChanged.connect(self.raw_view_scrolled)
         self.tabs.addTab(signals_scroll, 'Raw Data')
 
         metrics_page = QWidget()
@@ -440,10 +455,35 @@ class MainWindow(QMainWindow):
         self.timer.start(33)
         self.refresh()
 
+    def queue_lsl_task(self, operation, info=None):
+        """Run blocking LSL APIs outside the Qt GUI event loop."""
+        self.lsl_task_serial += 1
+        token = self.lsl_task_serial
+        task = LSLTask(token, operation, info, self)
+        self.lsl_tasks[token] = task
+        task.completed.connect(self.lsl_task_completed)
+        task.finished.connect(lambda n=token, w=task: self.lsl_task_finished(n, w))
+        task.start()
+        return token
+
+    def lsl_task_finished(self, token, task):
+        self.lsl_tasks.pop(token, None)
+        task.deleteLater()
+
     def refresh(self):
-        try:
-            streams = discover()
-            self.channel_metadata_cache.clear()
+        if self._closing:
+            return
+        self.discovery_serial = self.queue_lsl_task('discover')
+        self.statusBar().showMessage('Discovering LSL sources…')
+
+    def lsl_task_completed(self, token, result, error):
+        if self._closing:
+            return
+        if token == self.discovery_serial:
+            if error:
+                self.statusBar().showMessage(f'LSL discovery failed: {error}')
+                return
+            streams = result
             for kind, combo in self.selectors.items():
                 old = combo.currentData()
                 uid = old.uid() if old is not None else None
@@ -463,8 +503,32 @@ class MainWindow(QMainWindow):
                 combo.blockSignals(False)
                 self.stream_selection_changed(kind)
             self.statusBar().showMessage(f'Found {len(streams)} LSL streams')
-        except Exception as exc:
-            self.statusBar().showMessage(str(exc))
+            return
+        # Only the currently selected stream is permitted to change its
+        # channel controls; delayed metadata from previous selections is stale.
+        for identifier, pending in list(self._metadata_requests.items()):
+            if pending == token:
+                self._metadata_requests.pop(identifier, None)
+                if error:
+                    self.statusBar().showMessage(f'LSL metadata failed: {error}')
+                    return
+                self.channel_metadata_cache[identifier] = result
+                names, warning = result
+                for kind, combo in self.selectors.items():
+                    info = combo.currentData()
+                    if info is not None and info.uid() == identifier:
+                        # Preserve checked channel indices when names arrive.
+                        chosen = self.channel_selectors[kind].selected_indices()
+                        self.channel_selectors[kind].set_channels(names)
+                        for i, action in enumerate(self.channel_selectors[kind].actions):
+                            action.setChecked(i in chosen)
+                        self.channel_selectors[kind].update_label()
+                        if kind not in self.workers:
+                            self.stream_buttons[kind].setEnabled(True)
+                            self.stream_buttons[kind].setToolTip('Start selected LSL stream')
+                if warning:
+                    self.statusBar().showMessage(warning)
+                return
 
     def stream_selection_changed(self, kind):
         info = self.selectors[kind].currentData()
@@ -472,18 +536,22 @@ class MainWindow(QMainWindow):
             self.channel_selectors[kind].set_channels([])
             return
         identifier = info.uid()
-        if identifier not in self.channel_metadata_cache:
-            try:
-                self.channel_metadata_cache[identifier] = full_channel_labels(info)
-            except Exception as exc:
-                self.channel_metadata_cache[identifier] = (
-                    channel_labels(info),
-                    f'Unable to fetch full LSL channel metadata: {exc}',
-                )
-        labels, warning = self.channel_metadata_cache[identifier]
-        self.channel_selectors[kind].set_channels(labels)
-        if warning:
-            self.statusBar().showMessage(warning)
+        if identifier in self.channel_metadata_cache:
+            names, warning = self.channel_metadata_cache[identifier]
+            self.channel_selectors[kind].set_channels(names)
+            if warning:
+                self.statusBar().showMessage(warning)
+            return
+        # Never open StreamInlet or query its metadata from the GUI thread.
+        # Display provisional channel names until asynchronous lookup finishes.
+        self.channel_selectors[kind].set_channels(
+            [f'Ch{i+1} (loading labels)' for i in range(info.channel_count())]
+        )
+        if kind not in self.workers:
+            self.stream_buttons[kind].setEnabled(False)
+            self.stream_buttons[kind].setToolTip('Waiting for channel metadata…')
+        if identifier not in self._metadata_requests:
+            self._metadata_requests[identifier] = self.queue_lsl_task('metadata', info)
 
     def toggle_stream(self, kind):
         worker = self.workers.get(kind)
@@ -528,17 +596,8 @@ class MainWindow(QMainWindow):
             return
         self.stream_buttons[kind].setEnabled(False)
         self.stream_buttons[kind].setText('Stopping…')
-        stopped = worker.stop()
-        if stopped:
-            self.workers.pop(kind, None)
-            self.stream_buttons[kind].setEnabled(True)
-            self.stream_buttons[kind].setText('▶ Play')
-            self.reset_stream_display(kind)
-            self.statusBar().showMessage(
-                f'{kind} reception stopped (LSL source is still transmitting)'
-            )
-        else:
-            self.statusBar().showMessage(f'{kind}: waiting for receiver to stop')
+        worker.request_stop()
+        self.statusBar().showMessage(f'{kind}: stopping receiver asynchronously…')
 
     def receiver_finished(self, kind, worker):
         if self.workers.get(kind) is not worker:
@@ -576,8 +635,6 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, f'{kind} channel selection', str(exc))
             return
         self.reset_stream_display(kind)
-        worker.updated.connect(self.receive)
-        worker.samples_received.connect(self.capture_samples)
         worker.stream_ready.connect(self.ready_stream)
         worker.iaf_hz = self.iaf_hz
         worker.failure.connect(self.statusBar().showMessage)
@@ -587,11 +644,11 @@ class MainWindow(QMainWindow):
         worker.start()
         self.statusBar().showMessage(f'{kind}: starting selected LSL stream reception')
 
-    def receive(self, kind, raw, processed, names, metric, fs, timestamps):
+    def receive(self, kind, raw, processed, names, metric, fs, timestamps, metric_at=None):
         self.append_raw_chunk(kind, raw, processed, names, fs, timestamps)
         if metric is None:
             return
-        now = time.monotonic()
+        now = time.monotonic() if metric_at is None else float(metric_at)
         self.latest_metrics[kind] = metric
         for modality, name in self.metric_keys:
             if modality == kind:
@@ -797,6 +854,17 @@ class MainWindow(QMainWindow):
                     plot.setXRange(low, high, padding=0)
         self.draw()
 
+    def raw_view_scrolled(self, *_):
+        # Let the user drag the scroll bar without competing with plot paints.
+        self.raw_interacting_until = time.monotonic() + .16
+        self.raw_dirty = True
+
+    def raw_plot_visible(self, kind):
+        plot = self.plots[kind]
+        viewport = self.raw_scroll.viewport()
+        top = plot.mapTo(viewport, QPoint(0, 0)).y()
+        return top < viewport.height() and top + plot.height() > 0
+
     def update_raw_xranges(self):
         if not self.raw_follow_live or self.raw_plot_origin is None:
             return
@@ -804,8 +872,9 @@ class MainWindow(QMainWindow):
         if head is None:
             return
         end = head - self.raw_plot_origin
-        for plot in self.plots.values():
-            plot.setXRange(end - self.raw_view_seconds, end, padding=0)
+        for kind, plot in self.plots.items():
+            if self.raw_plot_visible(kind):
+                plot.setXRange(end - self.raw_view_seconds, end, padding=0)
 
     def tab_changed(self, index):
         if index == 0:
@@ -814,31 +883,61 @@ class MainWindow(QMainWindow):
             self.metric_dirty = True
             self.refresh_metric_plot()
 
+    def poll_receivers(self):
+        """Consume bounded LSL chunks on the GUI timer, not per sample event."""
+        started = time.perf_counter()
+        incoming = []
+        for kind, worker in tuple(self.workers.items()):
+            for chunk in worker.mailbox.drain(max_chunks=32):
+                incoming.append((chunk[-1], kind, chunk))
+        # Chronological ingestion matters for EI when EDA/PPG arrive on
+        # separate threads; the GUI must not re-time buffered observations.
+        incoming.sort(key=lambda entry: entry[0])
+        for acquired_at, kind, chunk in incoming:
+            raw, filtered, names, metric, fs, timestamps, _ = chunk
+            if self.capture is not None:
+                self.capture_samples(kind, raw, timestamps, names, fs)
+            self.receive(kind, raw, filtered, names, metric, fs, timestamps,
+                         metric_at=acquired_at)
+        self.performance.measure('ingress_gui', time.perf_counter() - started)
+
     def render_frame(self):
-        # Keep native axis menus responsive in their nested Qt event loops.
-        if QApplication.activePopupWidget() is not None:
-            return
-        # Animation is independent of data acquisition and analysis cadence.
-        if self.tabs.currentIndex() == 0:
-            self.update_raw_xranges()
-            if self.raw_dirty and time.monotonic() - self.raw_last_render_time >= 0.10:
-                self.draw()
-        elif self.tabs.currentIndex() == 1:
-            self.update_metric_xrange()
-            if self.metric_dirty:
-                self.refresh_metric_plot()
+        started = time.perf_counter()
+        now = time.monotonic()
+        self.performance.measure('tick_delay', max(0., now - self._last_gui_tick - .033))
+        self._last_gui_tick = now
+        if not self._closing:
+            # No GUI sample draining or rendering while a menu is open.
+            # Source threads keep collecting into bounded mailboxes instead.
+            if QApplication.activePopupWidget() is None:
+                self.poll_receivers()
+                if self.tabs.currentIndex() == 0:
+                    if now >= self.raw_interacting_until:
+                        self.update_raw_xranges()
+                        if self.raw_dirty and now - self.raw_last_render_time >= .10:
+                            self.draw()
+                elif self.tabs.currentIndex() == 1:
+                    self.update_metric_xrange()
+                    if self.metric_dirty:
+                        self.refresh_metric_plot()
+        self.performance.measure('gui_timer_total', time.perf_counter() - started)
+        if self.performance.enabled:
+            self.performance.maybe_flush({
+                kind: worker.mailbox.stats()
+                for kind, worker in self.workers.items()
+            })
 
     def draw(self):
         """Submit a lightweight snapshot; never reduce data on the GUI thread."""
         if self.tabs.currentIndex() != 0 or self.raw_plot_origin is None:
             return
-        if QApplication.activePopupWidget() is not None:
+        if QApplication.activePopupWidget() is not None or self.raw_inflight_ticket is not None:
             return
         self.raw_dirty = False
         self.raw_last_render_time = time.monotonic()
         sources = {}
         for kind, chunks in self.raw_history.items():
-            if not chunks:
+            if not chunks or not self.raw_plot_visible(kind):
                 continue
             low, high = self.plots[kind].viewRange()[0]
             minimum = self.raw_plot_origin + low
@@ -855,20 +954,29 @@ class MainWindow(QMainWindow):
                 sources[kind] = (tuple(reversed(recent)), low, high,
                                  self.raw_plot_origin, self.raw_scale.get(kind))
         if sources:
+            self.raw_frame_ticket += 1
+            self.raw_inflight_ticket = self.raw_frame_ticket
             self.raw_render_worker.submit({
+                'ticket': self.raw_frame_ticket,
                 'version': self.raw_frame_epoch,
                 'sources': sources,
             })
 
     def apply_raw_frame(self, response):
-        """Paint ready-to-display arrays on Qt's GUI thread only."""
+        """Accept at most one completed raw frame; no Qt signal backlog."""
+        started = time.perf_counter()
+        self.performance.measure('raw_prepare', response.get('prepare_ms', 0.) / 1000.)
+        if response['ticket'] != self.raw_inflight_ticket:
+            return
+        self.raw_inflight_ticket = None
         if response['version'] != self.raw_frame_epoch:
             return
-        if self.tabs.currentIndex() != 0 or QApplication.activePopupWidget() is not None:
+        if (self.tabs.currentIndex() != 0 or QApplication.activePopupWidget() is not None
+                or time.monotonic() < self.raw_interacting_until):
             self.raw_dirty = True
             return
         for kind, frame in response['frames'].items():
-            if frame is None:
+            if not self.raw_plot_visible(kind) or frame is None:
                 continue
             timestamps, raw, filtered, centers, spreads, names = frame
             plot = self.plots[kind]
@@ -898,6 +1006,7 @@ class MainWindow(QMainWindow):
                     self.curves[kind][2*i+1].setData(timestamps, filtered[:, i])
                 else:
                     self.curves[kind][2*i+1].clear()
+        self.performance.measure('raw_qt_paint', time.perf_counter() - started)
 
     def _configure_calibration_menu(self):
         menu = self.menuBar().addMenu('Calibration')
@@ -923,6 +1032,14 @@ class MainWindow(QMainWindow):
         item = session['streams'][kind]
         if item['channels'] != list(channels) or item['fs'] != float(fs):
             session['errors'].append(f'{kind} stream metadata changed')
+            return
+        # Receiver mailboxes may contain buffered pre-calibration chunks after
+        # prolonged GUI interaction. Use LSL source time, not GUI receipt time,
+        # to ensure the saved EYC/BSL recording begins at capture start.
+        arr, ts = samples_after_timestamp(
+            arr, ts, item.get('start_lsl_timestamp')
+        )
+        if not len(ts):
             return
         item['chunks'].append(arr.copy())
         item['times'].append(ts.copy())
@@ -953,6 +1070,7 @@ class MainWindow(QMainWindow):
             meta[modality] = {
                 'fs': float(info.nominal_srate()), 'channels': channels,
                 'chunks': [], 'times': [],
+                'start_lsl_timestamp': worker.latest_source_timestamp,
             }
         screen = CalibrationScreen(kind, self)
         self.capture = {
@@ -1112,7 +1230,10 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
 
     def closeEvent(self, event):
+        self._closing = True
         self.timer.stop()
+        for task in list(self.lsl_tasks.values()):
+            task.wait(3000)
         self.raw_render_worker.stop()
         for worker in self.workers.values():
             worker.stop()

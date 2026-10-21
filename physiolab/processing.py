@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.signal import butter, sosfilt, welch, find_peaks, iirnotch, tf2sos
+from .signal_buffer import SampleRing
 
 
 DEFAULT_IAF_HZ = 10.0
@@ -28,9 +29,10 @@ class Processor:
         if sections:
             self.sos = np.vstack(sections)
         self.zi = np.zeros((self.sos.shape[0], 2, channels)) if self.sos is not None else None
-        self.raw = np.empty((0, channels))
-        self.filtered = np.empty((0, channels))
         self.max_samples = max(int(self.fs * 20), int(self.fs) + 2)
+        self._raw_history = SampleRing(self.max_samples, channels)
+        self._filtered_history = SampleRing(self.max_samples, channels)
+        self.last_filtered_chunk = np.empty((0, channels))
         self.since_metric = 0
         self.last_metric = {}
 
@@ -42,18 +44,27 @@ class Processor:
             y, self.zi = sosfilt(self.sos, x, axis=0, zi=self.zi)
         else:
             y = x.copy()
-        self.raw = np.concatenate((self.raw, x))[-self.max_samples:]
-        self.filtered = np.concatenate((self.filtered, y))[-self.max_samples:]
+        self._raw_history.append(x)
+        self._filtered_history.append(y)
+        self.last_filtered_chunk = y
         self.since_metric += len(x)
         hop = max(1, round(self.fs * .5))
-        if self.since_metric >= hop and len(self.filtered) >= round(self.fs):
+        if self.since_metric >= hop and len(self._filtered_history) >= round(self.fs):
             self.since_metric %= hop
             self.last_metric = self.metrics()
             return self.last_metric
         return None
 
+    @property
+    def raw(self):
+        return self._raw_history.tail(self.max_samples)
+
+    @property
+    def filtered(self):
+        return self._filtered_history.tail(self.max_samples)
+
     def metrics(self):
-        w = self.filtered[-round(self.fs):]
+        w = self._filtered_history.tail(round(self.fs))
         if self.kind == 'EEG':
             # One-second Hann-windowed PSD, updated at 2 Hz.
             labels = [str(label).strip().lower() for label in self.names]
@@ -82,7 +93,7 @@ class Processor:
             return {'SCL': float(np.median(w[:, 0])), 'unit': 'source units'}
         if self.kind == 'PPG':
             # Keep a longer history to calculate HR; a 1-second window alone is insufficient.
-            history = self.filtered[-round(self.fs * 10):, 0]
+            history = self._filtered_history.tail(round(self.fs * 10))[:, 0]
             peaks, _ = find_peaks(history, distance=max(1, int(self.fs * .35)),
                                   prominence=max(np.std(history) * .45, 1e-10))
             if len(peaks) < 3:

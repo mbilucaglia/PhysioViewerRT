@@ -7,6 +7,7 @@ import numpy as np
 
 from physiolab.calibration import (
     analyze_eyc, analyze_bsl, normalize, save_calibration, load_calibration,
+    samples_after_timestamp,
 )
 
 
@@ -52,6 +53,26 @@ class CalibrationTests(unittest.TestCase):
         self.assertAlmostEqual(normalize(5., reference, 'zmad'), 2/1.4826)
         self.assertAlmostEqual(normalize(5., reference, 'minmax'), 1.)
         self.assertIsNone(normalize(5., {**reference, 'sigma': 0.}, 'zscore'))
+
+    def test_queued_samples_before_start_do_not_enter_calibration(self):
+        data = np.arange(6., dtype=float)[:, None]
+        timestamps = np.array([100., 100.1, 100.2, 100.3, 100.4, 100.5])
+        kept, stamps = samples_after_timestamp(data, timestamps, 100.25)
+        np.testing.assert_array_equal(stamps, timestamps[3:])
+        np.testing.assert_array_equal(kept[:, 0], [3., 4., 5.])
+        empty, empty_times = samples_after_timestamp(data, timestamps, 101.)
+        self.assertEqual(empty.shape, (0, 1))
+        self.assertEqual(len(empty_times), 0)
+
+    def test_calibration_boundary_rejects_invalid_timestamp(self):
+        data = np.arange(4., dtype=float)[:, None]
+        out, stamps = samples_after_timestamp(
+            data, [np.nan, 10., 10.5, np.inf], 10.
+        )
+        np.testing.assert_array_equal(stamps, [10.5])
+        np.testing.assert_array_equal(out[:, 0], [2.])
+        with self.assertRaises(ValueError):
+            samples_after_timestamp(data, [10.], 9.)
 
     def test_roundtrip(self):
         fs = 128

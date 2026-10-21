@@ -4,6 +4,7 @@ The worker operates exclusively on immutable NumPy chunk snapshots.
 Only the Qt GUI thread creates/updates pyqtgraph items.
 """
 import threading
+import time
 from PySide6.QtCore import QThread, Signal
 
 from .raw_render import prepare_raw_window
@@ -42,6 +43,7 @@ class RawRenderWorker(QThread):
                     return
                 request = self._pending
                 self._pending = None
+            started = time.perf_counter()
             frames = {}
             for kind, (chunks, left, right, origin, reference) in request['sources'].items():
                 try:
@@ -51,6 +53,8 @@ class RawRenderWorker(QThread):
                 except (ValueError, IndexError) as exc:
                     frames[kind] = None
             self.frame_ready.emit({
+                'ticket': request['ticket'],
+                'prepare_ms': (time.perf_counter() - started) * 1000.,
                 'version': request['version'],
                 'frames': frames,
             })

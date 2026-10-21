@@ -58,6 +58,43 @@ Use **Calibration** in the application menu:
 
 **Limits:** The EYC spectral center of gravity is not equivalent to a clear alpha peak or a validation of calibration signal quality. Current prototype does not implement dedicated artifact rejection for calibration windows or stream clock drift correction. Use the same montage, units, and signal-processing setup when reusing BSL references. IAF/BSL compatibility is not yet enforced by the UI. Subject-specific physiological metric validity must be verified before neurofeedback.
 
+## Responsive LSL and rendering architecture
+
+The GUI never waits for LSL source discovery or expanded channel metadata:
+background control tasks resolve the stream descriptions and update the
+selectors when ready. While metadata is loading, the selected modality's
+**Play** button is disabled; playing streams in other modalities continue.
+
+Each Receiver maintains a bounded, thread-safe mailbox of raw/filtered samples
+and accompanying metric outputs. Instead of posting a GUI signal per LSL chunk,
+the 30 FPS GUI timer drains these mailboxes in batches. A circular history
+buffer avoids repeatedly copying 20 seconds of filtered signals per chunk.
+The background raw renderer prepares at most one in-flight frame; painting
+always remains on the GUI thread, and off-screen Raw Data panels are skipped.
+Menus and active scroll movements take priority over visualization updates;
+when interaction ends, GUI ingestion catches up in bounded batches.
+EYC/BSL captures reject buffered LSL samples timestamped before recording
+started, keeping baseline data independent of temporary GUI delays.
+Receiver stop is asynchronous so stream changes do not block the interface.
+LSL sample timestamps, metric algorithms and 5-minute plot history are retained.
+
+### Optional performance report (Windows)
+
+Open Command Prompt in the project folder and run:
+
+```cmd
+set PHYSIOLAB_PROFILE=1
+start_windows.cmd
+```
+
+The application writes five-second summaries to
+`%USERPROFILE%\\PhysioViewerRT-performance.jsonl`. The report includes
+GUI timer delays, raw frame preparation/painting durations, and queue depths/
+dropped-sample counts. It **does not record biosignal data or participant
+information**. Reproduce scrolling and selector interactions for a few minutes,
+then share the resulting JSONL log to diagnose any remaining stalls.
+Unsetting `PHYSIOLAB_PROFILE` disables logging.
+
 ## Application tabs
 
 - **Raw Data**: A vertically scrollable tab with enlarged waveform plots (EEG minimum 350 px high, EDA and PPG 300 px each); the lower plots and controls remain accessible by scrolling rather than being compressed. EEG, EDA/GSR, and PPG waveforms with independently switchable raw (solid) and filtered/processed (dashed) traces. The default view is **5 seconds**, with buffered history for **5 minutes**. Select 5 s / 10 s / 30 s / 1 min / 5 min, use **Zoom + / Zoom −**, or zoom and pan with the mouse to inspect the traces. Mouse-wheel time zoom keeps the newest samples visible in live-follow mode. Deliberately dragging/panning the time axis pauses following; the button changes to **Resume live (paused)** to make that state clear. The time axes of all three panels use a common LSL timestamp origin; trace rendering is downsampled for long windows to protect responsiveness. Incoming raw/filtered samples retain their original LSL timestamps instead of being re-timed on GUI arrival; duplicate or backward timestamps are rejected to prevent traces doubling back. A precise **30 FPS display timer** moves the live viewport between LSL deliveries without modifying recorded sample times. A monotone, jitter-resistant presentation clock advances the axes continuously and smoothly corrects LSL chunk arrival timing; it pauses when the publisher stops. Raw waveform cropping, decimation, and channel normalization now run on a **dedicated latest-only background thread**; Qt draws the prepared curves in the main thread. The GUI does not wait for older queued frames, and plotting is suspended while an axis context menu is open. The renderer scans only chunks overlapping the visible time range (not the full five-minute buffer) and freezes each channel's display scale after acquiring enough initial samples, to prevent vertical jumps. Waveform curves redraw on fresh samples or relevant display changes. Acquisition and metrics continue while the Metrics tab is open.
