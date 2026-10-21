@@ -141,8 +141,17 @@ class VisPyRawPlot:
         times, raw, filtered, _, _, names = frame
         duration = float(right - left)
         self.sweep_duration = duration
-        if sweep_head is None:
-            sweep_head = float(times[-1]) if len(times) else 0.
+        # The presentation clock may run slightly ahead of LSL data and
+        # rendering is decimated. If the blue cursor advances ahead of the
+        # newest available sample, the previous pass is erased before the new
+        # trace exists, producing a conspicuous blank stripe behind the cursor.
+        # Anchor the sweep to real samples; never fabricate a connecting line.
+        if len(times):
+            latest_sample = float(times[-1])
+            sweep_head = (latest_sample if sweep_head is None
+                          else min(float(sweep_head), latest_sample))
+        else:
+            sweep_head = 0. if sweep_head is None else float(sweep_head)
         n = raw.shape[1]
         self.engine.set_view(0., 1., 0., 1.)
         for layer, enabled, data, color in (
