@@ -237,6 +237,22 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertIsInstance(self.window.centralWidget().findChild(
             QPushButton, 'rawPlotPause'), QPushButton)
 
+    def test_designer_tab_reordering_keeps_correct_display_handlers(self):
+        tabs = self.window.tabs
+        original = tabs.indexOf(self.window.raw_page)
+        self.assertEqual(original, 1)
+        tabs.tabBar().moveTab(original, 0)
+        self.assertEqual(tabs.indexOf(self.window.raw_page), 0)
+        tabs.setCurrentWidget(self.window.raw_page)
+        self.assertTrue(self.window.raw_plot_visible('EEG'))
+        self.window.raw_dirty = False
+        self.window.tab_changed(tabs.currentIndex())
+        self.assertTrue(self.window.raw_dirty)
+        tabs.setCurrentWidget(self.window.metrics_page)
+        self.window.metric_dirty = False
+        self.window.tab_changed(tabs.currentIndex())
+        self.assertTrue(self.window.metric_dirty)
+
     def test_plot_pause_does_not_stop_lsl_ingress(self):
         from PySide6.QtWidgets import QPushButton
         self.window.tabs.setCurrentIndex(1)
