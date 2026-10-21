@@ -288,3 +288,40 @@ This is a renderer experiment, not a claim that Intel/OpenGL behavior is
 validated. Observe the Raw and Metrics tabs for at least 10 minutes while
 all three LSL streams play, and inspect the regions before and after the
 blue cursor for any retained holes or cross-boundary connections.
+
+## Edit the actual GUI using Qt Designer (experimental PR #26)
+
+The running application loads `designer/PhysioViewerRT_ClinicalLayout.ui`
+on every launch, via PySide6 `QUiLoader`. Unlike the earlier mockup,
+**this file is now the authoritative source of widget placement, top-level
+tab order, plot hosts, main toolbar controls, font and stylesheet**.
+The Python controller `physiolab/gui.py` finds widgets by `objectName`
+and attaches the existing LSL receivers, metric processors and VisPy
+incremental GPU canvases at runtime.
+
+To edit it on Windows:
+
+1. Switch to `experiment/clinical-ui-controls` and pull.
+2. Open `designer/PhysioViewerRT_ClinicalLayout.ui` with Qt Designer.
+3. Drag/rearrange widgets, change stylesheet properties or reorder tabs.
+4. Save the same file and restart PhysioViewerRT.
+
+Plot placeholders (`EEGPlotHost`, `PPGPlotHost`, `EDAPlotHost`,
+`metricsPlotHost`) are ordinary editable Qt `QFrame` containers.
+At runtime the controller inserts its QStackedWidget containing pyqtgraph
+and the existing VisPy `SceneCanvas.native` into each host. Resizing those
+containers in Designer therefore resizes the real waveform panels; the
+single vertical `rawPlotSplitter` can also be dragged during a session.
+
+**Keep objectName properties unchanged** for connected controls and plot
+hosts, since they form the contract between Designer and Python.
+Changing labels, size policies, layouts, tab order, fonts or colors is safe.
+The application reports the missing widget's name if the contract breaks.
+
+The initial integration retains the existing calibration and processing
+algorithms. Source-selection controls, baseline New/Load/Default entry
+points, renderer switches and plot-only pause controls are connected.
+The follow-up clinical-workflow changes (preprocessing preset semantics,
+EEG display count, calibration-gated Metrics, and subtle plot axes)
+are a separate stage; they are **not implied** by visual placeholders.
+Do not merge draft PR #26 until a test on the target Windows GPU passes.
