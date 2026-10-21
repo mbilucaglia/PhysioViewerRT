@@ -105,7 +105,7 @@ def sweep_segments(times, values, duration, head, scale=1.0):
 
 
 class VisPyRawPlot:
-    """Multi-channel GPU sweep adapter powered by the shared plot engine."""
+    """Incremental EEG/EDA/PPG GPU sweep using the common circular renderer."""
 
     def __init__(self, kind):
         from .vispy_plot_engine import VisPyPlotEngine
@@ -117,59 +117,94 @@ class VisPyRawPlot:
         self.canvas = self.engine.canvas
         self.widget = self.engine.widget
         self.view = self.engine.view
-        self.raw_line = self.engine.line(color='red', width=1)
-        self.filtered_line = self.engine.line(color='black', width=1)
         self.labels = []
         self.vertical_gain = 1.
         self.sweep_duration = 5.
+        self.layers = {'raw': [], 'filtered': []}
+        self._configuration = None
+        self._latest = -np.inf
+        # Keep the public layer attributes for widget smoke tests.
+        self.raw_line = self.filtered_line = None
+
+    def _drop_layers(self):
+        for group in self.layers.values():
+            for layer in group:
+                layer.close()
+        self.layers = {'raw': [], 'filtered': []}
+        self.raw_line = self.filtered_line = None
+        self._configuration = None
+        self._latest = -np.inf
 
     def set_vertical_gain(self, gain):
         gain = float(gain)
         if not np.isfinite(gain) or gain <= 0:
             raise ValueError('Vertical gain must be finite and positive')
-        self.vertical_gain = gain
+        if gain != self.vertical_gain:
+            self.vertical_gain = gain
+            self._drop_layers()
 
     def reset(self):
-        self.raw_line.visible = False
-        self.filtered_line.visible = False
+        self._drop_layers()
         for label in self.labels:
             label.visible = False
+        self.engine.sweep_cursor.visible = False
         self.canvas.update()
+
+    def _ensure_layers(self, count, duration, rate):
+        from .incremental_sweep import IncrementalSweepLayer
+        config = (count, float(duration), float(rate))
+        if self._configuration == config:
+            return
+        self._drop_layers()
+        self._configuration = config
+        for i in range(count):
+            self.layers['raw'].append(IncrementalSweepLayer(
+                self.view.scene, duration, rate, '#db3232'))
+            self.layers['filtered'].append(IncrementalSweepLayer(
+                self.view.scene, duration, rate, '#171717'))
+        if count:
+            self.raw_line = self.layers['raw'][0].visual
+            self.filtered_line = self.layers['filtered'][0].visual
 
     def set_frame(self, frame, left, right, show_raw=True, show_filtered=True,
                   sweep_head=None):
         times, raw, filtered, _, _, names = frame
-        duration = float(right - left)
+        duration = float(right-left)
+        if duration <= 0:
+            return
         self.sweep_duration = duration
-        # The presentation clock may run slightly ahead of LSL data and
-        # rendering is decimated. If the blue cursor advances ahead of the
-        # newest available sample, the previous pass is erased before the new
-        # trace exists, producing a conspicuous blank stripe behind the cursor.
-        # Anchor the sweep to real samples; never fabricate a connecting line.
-        if len(times):
-            latest_sample = float(times[-1])
-            sweep_head = (latest_sample if sweep_head is None
-                          else min(float(sweep_head), latest_sample))
-        else:
-            sweep_head = 0. if sweep_head is None else float(sweep_head)
         n = raw.shape[1]
         self.engine.set_view(0., 1., 0., 1.)
-        for layer, enabled, data, color in (
-            (self.raw_line, show_raw, raw, (1., 0., 0., 1.)),
-            (self.filtered_line, show_filtered, filtered, (0., 0., 0., 1.)),
+        if not len(times) or not n:
+            return
+        # The preparation worker uses fixed-clock decimation. Capture the
+        # effective sample rate once per duration and preserve its bin phase.
+        diffs = np.diff(times)
+        diffs = diffs[np.isfinite(diffs) & (diffs > 0)]
+        if len(diffs):
+            rate = float(max(1., round(1. / np.median(diffs), 3)))
+        else:
+            rate = self._configuration[2] if self._configuration else 1.
+        if self._configuration and self._configuration[:2] == (n, duration):
+            rate = self._configuration[2]
+        self._ensure_layers(n, duration, rate)
+        # Only the new tail is processed. Previous samples supplied by the
+        # worker are ignored in each ring after their first insertion.
+        lower, upper = -3., max(6.*n, 3.)
+        offsets = 6. * np.arange(n)
+        for layer_name, values, enabled in (
+            ('raw', raw, show_raw), ('filtered', filtered, show_filtered)
         ):
-            if not enabled:
-                layer.visible = False
-                continue
-            vertices, colors = sweep_segments(
-                times, data, duration, sweep_head, self.vertical_gain
-            )
-            layer.visible = len(vertices) > 0
-            if len(vertices):
-                colors[:] = color
-                layer.set_data(pos=vertices, color=colors, connect='segments')
-        # Stable channel labels on the left, one visual per channel only
-        # (updated with waveform frames, not with individual LSL samples).
+            for i, layer in enumerate(self.layers[layer_name]):
+                layer.visual.visible = bool(enabled)
+                if enabled:
+                    normalized = ((offsets[i] + self.vertical_gain *
+                                   (values[:, i] - offsets[i])) - lower) / (upper-lower)
+                    layer.append(times, normalized)
+        # Both the cursor and the erase boundary use the latest real sample.
+        latest = float(times[-1])
+        self._latest = max(self._latest, latest)
+        self.engine.set_sweep_cursor((self._latest % duration)/duration)
         while len(self.labels) < n:
             self.labels.append(self.engine.text())
         for i, label in enumerate(self.labels):
@@ -177,8 +212,8 @@ class VisPyRawPlot:
             if i < n:
                 label.text = str(names[i]) if i < len(names) else f'Ch {i+1}'
                 label.pos = (.012, (6.*i + 1.) / max(6.*n+3., 6.))
-        self.engine.set_sweep_cursor((sweep_head % duration) / duration)
         self.canvas.update()
 
     def close(self):
+        self._drop_layers()
         self.engine.close()
