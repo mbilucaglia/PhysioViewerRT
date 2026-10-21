@@ -2,30 +2,45 @@ import numpy as np
 from scipy.signal import butter, sosfilt, welch, find_peaks, iirnotch, tf2sos
 from .signal_buffer import SampleRing
 
+FILTER_PRESETS = {
+    'EEG': {'default': (1., 40.), 'wide': (.5, 45.), 'focused': (2., 30.), 'off': None},
+    'PPG': {'default': (.5, 8.), 'pulse': (.5, 5.), 'wide': (.5, 10.), 'off': None},
+    'EDA': {'default': None, 'smooth_1hz': (None, 1.), 'smooth_2hz': (None, 2.)},
+}
+
+def validate_preprocessing(kind, preset='default', notch=True):
+    if kind not in FILTER_PRESETS or preset not in FILTER_PRESETS[kind]:
+        raise ValueError('Unsupported preprocessing preset')
+    return {'preset': preset, 'notch': bool(notch)}
+
+
 
 DEFAULT_IAF_HZ = 10.0
 ALPHA_HALF_WIDTH_HZ = 2.0
 
 
 class Processor:
-    def __init__(self, kind, fs, channels, names, iaf_hz=DEFAULT_IAF_HZ):
+    def __init__(self, kind, fs, channels, names, iaf_hz=DEFAULT_IAF_HZ, preprocessing=None):
         self.kind, self.fs, self.channels, self.names = kind, float(fs), channels, names
         self.iaf_hz = float(iaf_hz)
-        # Reject 50/100 Hz mains noise causally, only below Nyquist.
+        config = validate_preprocessing(kind, **(preprocessing or {}))
+        self.preprocessing = config
         sections = []
         self.notch_frequencies = []
-        for frequency in (50.0, 100.0):
+        for frequency in ((50.0, 100.0) if config['notch'] else ()):
             if frequency < self.fs / 2:
                 b, a = iirnotch(frequency, Q=30.0, fs=self.fs)
                 sections.append(tf2sos(b, a))
                 self.notch_frequencies.append(frequency)
         self.sos = None
-        if kind in ('EEG', 'PPG'):
-            low, high = (1., 40.) if kind == 'EEG' else (0.5, 8.)
+        band = FILTER_PRESETS[kind][config['preset']]
+        if band is not None:
+            low, high = band
             high = min(high, self.fs * 0.45)
-            if low < high:
-                sections.append(butter(3, [low, high], btype='bandpass',
-                                       fs=self.fs, output='sos'))
+            if low is None:
+                sections.append(butter(3, high, btype='lowpass', fs=self.fs, output='sos'))
+            elif low < high:
+                sections.append(butter(3, [low, high], btype='bandpass', fs=self.fs, output='sos'))
         if sections:
             self.sos = np.vstack(sections)
         self.zi = np.zeros((self.sos.shape[0], 2, channels)) if self.sos is not None else None
