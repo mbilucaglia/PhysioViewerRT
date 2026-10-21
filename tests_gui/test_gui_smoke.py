@@ -83,7 +83,7 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertEqual(self.window.latest_metrics['EEG']['BAR'], 1.4)
         self.assertIn('0.200', self.window.metric_labels[('EEG', 'AWI')].text())
         self.window.render_frame()
-        self.window.tabs.setCurrentIndex(1)
+        self.window.tabs.setCurrentIndex(2)
         self.window.render_frame()
         self.assertEqual(self.window.metric_history[('EEG', 'AWI')][-1][1], .2)
 
@@ -189,7 +189,7 @@ class GuiSmokeTests(unittest.TestCase):
         from PySide6.QtWidgets import QSplitter, QDoubleSpinBox
         self.assertEqual(
             [self.window.tabs.tabText(i) for i in range(self.window.tabs.count())],
-            ['Raw Data', 'Metrics', 'Sources']
+            ['Sources', 'Raw Data', 'Metrics']
         )
         self.assertIsInstance(self.window.raw_plot_splitter, QSplitter)
         self.assertEqual(self.window.raw_plot_splitter.count(), 3)
@@ -197,10 +197,10 @@ class GuiSmokeTests(unittest.TestCase):
             self.window.raw_scroll.verticalScrollBarPolicy(),
             __import__('PySide6.QtCore', fromlist=['Qt']).Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.window.tabs.setCurrentIndex(2)
+        self.window.tabs.setCurrentIndex(0)
         self.assertTrue(self.window.selectors['EEG'].isVisible())
         original_workers = self.window.workers
-        self.window.tabs.setCurrentIndex(0)
+        self.window.tabs.setCurrentIndex(1)
         gain = self.window.raw_vertical_gains['EEG']
         self.assertIsInstance(gain, QDoubleSpinBox)
         self.assertEqual(gain.value(), 1.)
@@ -212,6 +212,52 @@ class GuiSmokeTests(unittest.TestCase):
             self.window.raw_time_window.findData(8)
         )
         self.assertEqual(self.window.raw_view_seconds, 8.)
+
+    def test_editable_designer_file_is_live_ui_with_real_controls(self):
+        from PySide6.QtWidgets import QWidget, QPushButton
+        from pathlib import Path
+        path = Path(__file__).resolve().parent.parent / (
+            'designer/PhysioViewerRT_ClinicalLayout.ui')
+        self.assertTrue(path.exists())
+        self.assertEqual(self.window.tabs.objectName(), 'mainTabs')
+        self.assertIs(self.window.centralWidget().findChild(
+            QWidget, 'sourcesTab'), self.window.tabs.widget(0))
+        self.assertIs(self.window.centralWidget().findChild(
+            QWidget, 'rawDataTab'), self.window.tabs.widget(1))
+        self.assertIs(self.window.centralWidget().findChild(
+            QWidget, 'metricsTab'), self.window.tabs.widget(2))
+        self.assertEqual(self.window.raw_plot_splitter.objectName(),
+                         'rawPlotSplitter')
+        self.assertIs(self.window.selectors['EEG'],
+                      self.window.centralWidget().findChild(
+                          QWidget, 'EEGStreamSelector'))
+        self.assertIs(self.window.raw_vertical_gains['PPG'],
+                      self.window.centralWidget().findChild(
+                          QWidget, 'PPGAmplitude'))
+        self.assertIsInstance(self.window.centralWidget().findChild(
+            QPushButton, 'rawPlotPause'), QPushButton)
+
+    def test_plot_pause_does_not_stop_lsl_ingress(self):
+        from PySide6.QtWidgets import QPushButton
+        self.window.tabs.setCurrentIndex(1)
+        self.window.set_plot_paused('raw', True)
+        self.assertTrue(self.window.raw_plot_paused)
+        button = self.window.centralWidget().findChild(
+            QPushButton, 'rawPlotPause')
+        self.assertIn('Resume', button.text())
+        n = 256
+        stamps = 100. + np.arange(n) / 256.
+        wave = np.sin(np.arange(n)/25.)[:, None]
+        worker = FakeReceiver(256.)
+        self.window.workers['EEG'] = worker
+        self.window.receive('EEG', wave, wave, ['F3'], None, 256., stamps)
+        self.assertTrue(self.window.raw_dirty)
+        self.assertEqual(len(self.window.raw_history['EEG']), 1)
+        self.window.render_frame()
+        self.assertIsNone(self.window.raw_inflight_ticket)
+        self.assertTrue(worker.active)
+        self.window.set_plot_paused('raw', False)
+        self.assertFalse(self.window.raw_plot_paused)
 
     def test_raw_scroll_event_does_not_force_synchronous_plotting(self):
         self.window.raw_view_scrolled()
