@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
     QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu,
-    QScrollArea, QSizePolicy, QApplication, QStackedWidget
+    QScrollArea, QSizePolicy, QApplication, QStackedWidget, QSplitter, QDoubleSpinBox
 )
 from .worker import Receiver, discover
 from .channel_selection import channel_labels, validated_indices
@@ -152,13 +152,16 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('PhysioViewerRT — local LSL monitor')
-        self.resize(1250, 900)
+        self.resize(1450, 940)
         root = QWidget()
         self.setCentralWidget(root)
         layout = QVBoxLayout(root)
 
-        controls = QHBoxLayout()
-        layout.addLayout(controls)
+        controls = QVBoxLayout()
+        sources_page = QWidget()
+        sources_layout = QVBoxLayout(sources_page)
+        sources_layout.addLayout(controls)
+        sources_layout.addStretch()
         self.selectors, self.channel_selectors, self.workers = {}, {}, {}
         self.stream_buttons = {}
         self.channel_metadata_cache = {}
@@ -212,27 +215,30 @@ class MainWindow(QMainWindow):
         self._configure_calibration_menu()
 
         for kind in ('EEG', 'EDA', 'PPG'):
-            controls.addWidget(QLabel(kind))
+            source_row = QHBoxLayout()
+            controls.addLayout(source_row)
+            source_row.addWidget(QLabel(kind))
             combo = QComboBox()
             combo.setMinimumWidth(160)
             self.selectors[kind] = combo
-            controls.addWidget(combo)
+            source_row.addWidget(combo)
             picker = CheckChannelDropdown(kind)
             self.channel_selectors[kind] = picker
-            controls.addWidget(picker)
+            source_row.addWidget(picker)
             combo.currentIndexChanged.connect(lambda _, k=kind: self.stream_selection_changed(k))
             button = QPushButton('▶ Play')
             button.setToolTip(f'Start/stop local {kind} LSL reception (not the publisher)')
             button.clicked.connect(lambda _, k=kind: self.toggle_stream(k))
             self.stream_buttons[kind] = button
-            controls.addWidget(button)
+            source_row.addWidget(button)
         refresh = QPushButton('Refresh LSL')
         refresh.clicked.connect(self.refresh)
-        controls.addWidget(refresh)
+        sources_layout.addWidget(refresh)
 
         self.tabs = QTabWidget()
         self.tabs.currentChanged.connect(self.tab_changed)
         layout.addWidget(self.tabs)
+        self.setStyleSheet('QTabBar::tab { padding: 10px 22px; }')
 
         signals_page = QWidget()
         signals_layout = QVBoxLayout(signals_page)
@@ -242,16 +248,15 @@ class MainWindow(QMainWindow):
         self.show_raw.setChecked(True)
         self.show_processed = QCheckBox('Filtered / processed')
         self.show_processed.setChecked(True)
-        visibility.addWidget(self.show_raw)
-        visibility.addWidget(self.show_processed)
-        visibility.addWidget(QLabel('Waveform renderer'))
+        visibility.addWidget(QLabel('Sweep (s)'))
+        visibility.addWidget(QLabel('Renderer'))
         self.raw_renderer_choice = QComboBox()
         self.raw_renderer_choice.addItem('pyqtgraph (original)', 'pyqtgraph')
         self.raw_renderer_choice.addItem('VisPy / OpenGL (experimental)', 'vispy')
         self.raw_renderer_choice.currentIndexChanged.connect(self.set_raw_renderer)
         visibility.addWidget(self.raw_renderer_choice)
         visibility.addStretch()
-        visibility.addWidget(QLabel('Time window'))
+        visibility.addWidget(QLabel(''))
         self.raw_time_window = QComboBox()
         for label, seconds in (
             ('5 s', 5), ('8 s', 8), ('10 s', 10), ('15 s', 15),
@@ -260,21 +265,23 @@ class MainWindow(QMainWindow):
             self.raw_time_window.addItem(label, seconds)
         self.raw_time_window.currentIndexChanged.connect(self.set_raw_time_window)
         visibility.addWidget(self.raw_time_window)
-        raw_zoom_in = QPushButton('Zoom +')
+        raw_zoom_in = QPushButton('−')
         raw_zoom_in.clicked.connect(lambda: self.zoom_raw_plots(0.5))
         visibility.addWidget(raw_zoom_in)
-        raw_zoom_out = QPushButton('Zoom −')
+        raw_zoom_out = QPushButton('+')
         raw_zoom_out.clicked.connect(lambda: self.zoom_raw_plots(2.0))
         visibility.addWidget(raw_zoom_out)
+        visibility.addWidget(self.show_raw)
+        visibility.addWidget(self.show_processed)
         self.raw_live_button = QPushButton('● LIVE — following')
         self.raw_live_button.clicked.connect(self.resume_raw_live)
         self.raw_live_button.setEnabled(False)
         self.raw_live_button.setToolTip('Live samples stay at the right edge; dragging the plot pauses following')
         visibility.addWidget(self.raw_live_button)
-        signals_layout.addWidget(QLabel(
-            'VisPy sweep: raw red, filtered black; channel labels at left. '
-            'Adjust the sweep window and vertical gain independently.'
-        ))
+        self.raw_plot_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.raw_plot_splitter.setChildrenCollapsible(False)
+        self.raw_plot_splitter.setHandleWidth(9)
+        signals_layout.addWidget(self.raw_plot_splitter, stretch=1)
         for kind in ('EEG', 'EDA', 'PPG'):
             plot = pg.PlotWidget(title=f'{kind} — 5 s view, 5 min history')
             plot.showGrid(x=True, y=True, alpha=0.2)
@@ -283,34 +290,58 @@ class MainWindow(QMainWindow):
                 lambda *args, k=kind: self.raw_view_changed_manually(k)
             )
             plot.setXRange(-5, 0, padding=0)
-            plot.setMinimumHeight(350 if kind == 'EEG' else 300)
-            plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            plot.setMinimumHeight(80)
+            plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             stack = QStackedWidget()
             stack.addWidget(plot)
-            stack.setMinimumHeight(350 if kind == 'EEG' else 300)
-            stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            stack.setMinimumHeight(75)
+            stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            panel = QWidget()
+            panel_layout = QVBoxLayout(panel)
+            panel_layout.setContentsMargins(5, 2, 5, 2)
+            panel_layout.setSpacing(2)
             header = QHBoxLayout()
-            header.addWidget(QLabel(f'{kind} — vertical amplitude'))
-            gain = QComboBox()
-            for label, factor in (
-                ('0.25×', .25), ('0.5×', .5), ('1×', 1.),
-                ('2×', 2.), ('4×', 4.), ('8×', 8.)
-            ):
-                gain.addItem(label, factor)
-            gain.setCurrentIndex(2)
-            gain.currentIndexChanged.connect(
+            title = QLabel('SC' if kind == 'EDA' else kind)
+            title.setStyleSheet('font-weight: 700;')
+            header.addWidget(title)
+            header.addStretch()
+            header.addWidget(QLabel('Amplitude'))
+            gain = QDoubleSpinBox()
+            gain.setDecimals(2)
+            gain.setRange(.05, 50.)
+            gain.setSingleStep(.1)
+            gain.setSuffix('×')
+            gain.setValue(1.)
+            gain.setFixedWidth(95)
+            gain.valueChanged.connect(
                 lambda _, k=kind: self.set_raw_vertical_gain(k)
             )
             self.raw_vertical_gains[kind] = gain
-            header.addWidget(gain)
-            header.addStretch()
-            signals_layout.addLayout(header)
-            signals_layout.addWidget(stack)
+            decrease = QPushButton('−')
+            increase = QPushButton('+')
+            decrease.setFixedWidth(30)
+            increase.setFixedWidth(30)
+            decrease.clicked.connect(
+                lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/1.2)
+            )
+            increase.clicked.connect(
+                lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1.2)
+            )
+            header.addWidget(decrease)
+            header.addWidget(increase)
+            panel_layout.addLayout(header)
+            panel_layout.addWidget(stack, stretch=1)
+            self.raw_plot_splitter.addWidget(panel)
             self.raw_plot_stacks[kind] = stack
             self.plots[kind] = plot
             self.curves[kind] = []
+        self.raw_plot_splitter.setStretchFactor(0, 3)
+        self.raw_plot_splitter.setStretchFactor(1, 1)
+        self.raw_plot_splitter.setStretchFactor(2, 1)
+        self.raw_plot_splitter.setSizes([560, 190, 190])
         signals_scroll = QScrollArea()
         signals_scroll.setWidgetResizable(True)
+        signals_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         signals_scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
@@ -497,6 +528,7 @@ class MainWindow(QMainWindow):
         )
         metrics_scroll.setWidget(metrics_page)
         self.tabs.addTab(metrics_scroll, 'Metrics')
+        self.tabs.addTab(sources_page, 'Sources')
 
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
@@ -957,9 +989,13 @@ class MainWindow(QMainWindow):
         """Independent per-modality gain; one uniform gain for all EEG leads."""
         if kind in self.raw_vispy_plots:
             self.raw_vispy_plots[kind].set_vertical_gain(
-                self.raw_vertical_gains[kind].currentData()
+                self.raw_vertical_gains[kind].value()
             )
         self.raw_dirty = True
+
+    def adjust_raw_vertical_gain(self, kind, multiplier):
+        control = self.raw_vertical_gains[kind]
+        control.setValue(float(np.clip(control.value() * multiplier, .05, 50.)))
 
     def set_raw_time_window(self, *_):
         seconds = self.raw_time_window.currentData()
@@ -1014,9 +1050,7 @@ class MainWindow(QMainWindow):
 
     def raw_plot_visible(self, kind):
         widget = self.raw_plot_stacks[kind]
-        viewport = self.raw_scroll.viewport()
-        top = widget.mapTo(viewport, QPoint(0, 0)).y()
-        return top < viewport.height() and top + widget.height() > 0
+        return self.tabs.currentIndex() == 0 and widget.isVisible()
 
     def update_raw_xranges(self):
         if not self.raw_follow_live or self.raw_plot_origin is None:
