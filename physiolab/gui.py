@@ -20,6 +20,7 @@ from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
 from .raw_timing import clean_lsl_chunk, SmoothViewportClock
 from .raw_render_worker import RawRenderWorker
+from .performance import PerformanceMonitor
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     DURATION_SECONDS,
@@ -161,6 +162,8 @@ class MainWindow(QMainWindow):
         self.lsl_task_serial = 0
         self.discovery_serial = 0
         self._closing = False
+        self.performance = PerformanceMonitor()
+        self._last_gui_tick = time.monotonic()
         self.plots, self.curves = {}, {}
         self.raw_history = {k: deque() for k in ('EEG', 'EDA', 'PPG')}
         self.raw_view_seconds = 5.0
@@ -878,30 +881,39 @@ class MainWindow(QMainWindow):
             self.refresh_metric_plot()
 
     def poll_receivers(self):
-        """Drain LSL mailbox batches independently of raw plot frame rate."""
+        """Consume bounded LSL chunks on the GUI timer, not per sample event."""
+        started = time.perf_counter()
         for kind, worker in tuple(self.workers.items()):
             for raw, filtered, names, metric, fs, timestamps in worker.mailbox.drain():
                 if self.capture is not None:
                     self.capture_samples(kind, raw, timestamps, names, fs)
                 self.receive(kind, raw, filtered, names, metric, fs, timestamps)
+        self.performance.measure('ingress_gui', time.perf_counter() - started)
 
     def render_frame(self):
-        # Do not run the GUI receive path once per LSL push_chunk().
-        # This bounded poll also processes all modalities on the Metrics tab.
+        started = time.perf_counter()
+        now = time.monotonic()
+        self.performance.measure('tick_delay', max(0., now - self._last_gui_tick - .033))
+        self._last_gui_tick = now
         if not self._closing:
             self.poll_receivers()
-        # Keep native axis menus responsive in their nested Qt event loops.
-        if QApplication.activePopupWidget() is not None:
-            return
-        # Animation is independent of data acquisition and analysis cadence.
-        if self.tabs.currentIndex() == 0:
-            self.update_raw_xranges()
-            if self.raw_dirty and time.monotonic() - self.raw_last_render_time >= 0.10:
-                self.draw()
-        elif self.tabs.currentIndex() == 1:
-            self.update_metric_xrange()
-            if self.metric_dirty:
-                self.refresh_metric_plot()
+            # Qt popup menus and vertical scrolling take priority over
+            # repainting waveforms; acquisition buffers remain independent.
+            if QApplication.activePopupWidget() is None:
+                if self.tabs.currentIndex() == 0:
+                    self.update_raw_xranges()
+                    if self.raw_dirty and now - self.raw_last_render_time >= .10:
+                        self.draw()
+                elif self.tabs.currentIndex() == 1:
+                    self.update_metric_xrange()
+                    if self.metric_dirty:
+                        self.refresh_metric_plot()
+        self.performance.measure('gui_timer_total', time.perf_counter() - started)
+        if self.performance.enabled:
+            self.performance.maybe_flush({
+                kind: worker.mailbox.stats()
+                for kind, worker in self.workers.items()
+            })
 
     def draw(self):
         """Submit a lightweight snapshot; never reduce data on the GUI thread."""
@@ -940,6 +952,8 @@ class MainWindow(QMainWindow):
 
     def apply_raw_frame(self, response):
         """Accept at most one completed raw frame; no Qt signal backlog."""
+        started = time.perf_counter()
+        self.performance.measure('raw_prepare', response.get('prepare_ms', 0.) / 1000.)
         if response['ticket'] != self.raw_inflight_ticket:
             return
         self.raw_inflight_ticket = None
@@ -979,6 +993,7 @@ class MainWindow(QMainWindow):
                     self.curves[kind][2*i+1].setData(timestamps, filtered[:, i])
                 else:
                     self.curves[kind][2*i+1].clear()
+        self.performance.measure('raw_qt_paint', time.perf_counter() - started)
 
     def _configure_calibration_menu(self):
         menu = self.menuBar().addMenu('Calibration')
@@ -1195,6 +1210,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         self._closing = True
         self.timer.stop()
+        for task in list(self.lsl_tasks.values()):
+            task.wait(3000)
         self.raw_render_worker.stop()
         for worker in self.workers.values():
             worker.stop()
