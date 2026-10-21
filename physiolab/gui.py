@@ -875,6 +875,11 @@ class MainWindow(QMainWindow):
         interpolation = self.metric_interpolation.currentData()
         show_markers = self.metric_sample_markers.isChecked()
         gpu = self.vispy_metric_plot if self.metric_renderer_mode == 'vispy' else None
+        if gpu and hasattr(gpu, 'set_presentation_signature'):
+            gpu.set_presentation_signature((
+                self.normalization.currentData(), method, float(duration),
+                interpolation, bool(show_markers),
+            ))
         for (kind, name), curve in self.metric_curves.items():
             key = (kind, name)
             visible = self.metric_checks[key].isChecked()
