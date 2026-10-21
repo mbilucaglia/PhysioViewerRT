@@ -80,8 +80,10 @@ class SweepRing:
         return result
 
 
+@__import__('functools').lru_cache(maxsize=1)
 def _incremental_visual_class():
     """Import VisPy only when the actual OpenGL backend is selected."""
+    from functools import lru_cache
     from vispy import gloo
     from vispy.color import Color
     from vispy.visuals import Visual
@@ -112,7 +114,7 @@ def _incremental_visual_class():
                 np.full((self.capacity*self.vertices_per_slot, 2),
                         -10., dtype=np.float32))
             Visual.__init__(self, vcode=self.VERT, fcode=self.FRAG)
-            self.shared_program.vert['a_position'] = self._buffer
+            self.shared_program['a_position'] = self._buffer
             self.shared_program['u_color'] = Color(color).rgba
             self.shared_program['u_point_size'] = float(point_size)
             self._draw_mode = mode
