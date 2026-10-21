@@ -282,7 +282,8 @@ class MainWindow(QMainWindow):
         self.raw_plot_splitter.setChildrenCollapsible(False)
         self.raw_plot_splitter.setHandleWidth(9)
         signals_layout.addWidget(self.raw_plot_splitter, stretch=1)
-        for kind in ('EEG', 'EDA', 'PPG'):
+        # Clinical monitoring order: EEG, pulse, then skin conductance.
+        for kind in ('EEG', 'PPG', 'EDA'):
             plot = pg.PlotWidget(title=f'{kind} — 5 s view, 5 min history')
             plot.showGrid(x=True, y=True, alpha=0.2)
             plot.setLabel('bottom', 'Elapsed session time', 's')
