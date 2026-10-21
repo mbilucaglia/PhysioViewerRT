@@ -88,9 +88,11 @@ def _incremental_visual_class():
         VERT = """
         attribute vec2 a_position;
         uniform vec4 u_color;
+        uniform float u_point_size;
         varying vec4 v_color;
         void main() {
             gl_Position = $transform(vec4(a_position, 0., 1.));
+            gl_PointSize = u_point_size;
             v_color = u_color;
         }
         """
@@ -99,14 +101,18 @@ def _incremental_visual_class():
         void main() { gl_FragColor = v_color; }
         """
 
-        def __init__(self, capacity, color):
+        def __init__(self, capacity, color, mode='lines', point_size=5.):
             self.capacity = int(capacity)
+            self.mode = mode
+            self.vertices_per_slot = 1 if mode == 'points' else 2
             self._buffer = gloo.VertexBuffer(
-                np.full((self.capacity * 2, 2), -10., dtype=np.float32))
+                np.full((self.capacity*self.vertices_per_slot, 2),
+                        -10., dtype=np.float32))
             Visual.__init__(self, vcode=self.VERT, fcode=self.FRAG)
             self.shared_program.vert['a_position'] = self._buffer
             self.shared_program['u_color'] = color
-            self._draw_mode = 'lines'
+            self.shared_program['u_point_size'] = float(point_size)
+            self._draw_mode = mode
             self.set_gl_state('translucent', depth_test=False)
 
         def _prepare_transforms(self, view):
@@ -119,12 +125,28 @@ def _incremental_visual_class():
             return (0., 1.)
 
         def patch(self, updates):
-            for slot, vertices in updates:
+            if not updates:
+                return
+            # Merge consecutive ring slots into a single partial GPU write.
+            slots = sorted(int(slot) for slot, _ in updates)
+            start = previous = slots[0]
+            by_slot = {int(slot): vertices for slot, vertices in updates}
+            groups = []
+            for slot in slots[1:]:
+                if slot != previous + 1:
+                    groups.append((start, previous + 1))
+                    start = slot
+                previous = slot
+            groups.append((start, previous + 1))
+            for first, end in groups:
+                data = np.concatenate(
+                    [np.asarray(by_slot[i], dtype=np.float32).reshape(
+                        self.vertices_per_slot, 2) for i in range(first, end)],
+                    axis=0)
                 self._buffer.set_subdata(
-                    np.ascontiguousarray(vertices, dtype=np.float32),
-                    offset=slot*2*2*4)
-            if updates:
-                self.update()
+                    np.ascontiguousarray(data),
+                    offset=first*self.vertices_per_slot*2*4)
+            self.update()
 
     return create_visual_node(PartialLineVisual)
 
@@ -132,13 +154,27 @@ def _incremental_visual_class():
 class IncrementalSweepLayer:
     """One per-channel GL line node, with partial vertex uploads only."""
 
-    def __init__(self, parent, duration, rate, color, max_gap=None):
+    def __init__(self, parent, duration, rate, color, max_gap=None,
+                 mode='lines'):
         self.ring = SweepRing(duration, rate, max_gap)
+        self.mode = mode
         VisualClass = _incremental_visual_class()
-        self.visual = VisualClass(self.ring.capacity, color, parent=parent)
+        self.visual = VisualClass(self.ring.capacity, color, mode=mode,
+                                  parent=parent)
 
     def append(self, times, values):
         updates = self.ring.append(times, values)
+        if self.mode == 'points':
+            updates = [
+                (slot, np.asarray([[
+                    float(self.ring.stamps[slot] % self.ring.duration
+                          / self.ring.duration),
+                    float(self.ring.values[slot])]],
+                    dtype=np.float32))
+                for slot, _ in updates
+                if self.ring.identities[slot] != np.iinfo(np.int64).min
+                and np.isfinite(self.ring.values[slot])
+            ]
         self.visual.patch(updates)
         return len(updates)
 
