@@ -175,6 +175,7 @@ class MainWindow(QMainWindow):
         self.raw_renderer_mode = 'pyqtgraph'
         self.raw_gl_bounds = (-5., 0.)
         self.raw_history = {k: deque() for k in ('EEG', 'EDA', 'PPG')}
+        self.raw_vertical_gains = {}
         self.raw_view_seconds = 5.0
         self.raw_follow_live = True
         self.raw_plot_origin = None
@@ -253,8 +254,8 @@ class MainWindow(QMainWindow):
         visibility.addWidget(QLabel('Time window'))
         self.raw_time_window = QComboBox()
         for label, seconds in (
-            ('5 s', 5), ('10 s', 10), ('30 s', 30),
-            ('1 min', 60), ('5 min', 300),
+            ('5 s', 5), ('8 s', 8), ('10 s', 10), ('15 s', 15),
+            ('30 s', 30), ('1 min', 60), ('5 min', 300),
         ):
             self.raw_time_window.addItem(label, seconds)
         self.raw_time_window.currentIndexChanged.connect(self.set_raw_time_window)
@@ -271,7 +272,8 @@ class MainWindow(QMainWindow):
         self.raw_live_button.setToolTip('Live samples stay at the right edge; dragging the plot pauses following')
         visibility.addWidget(self.raw_live_button)
         signals_layout.addWidget(QLabel(
-            'Solid = raw; dashed = processed. Both use the same per-channel display scaling.'
+            'VisPy sweep: raw red, filtered black; channel labels at left. '
+            'Adjust the sweep window and vertical gain independently.'
         ))
         for kind in ('EEG', 'EDA', 'PPG'):
             plot = pg.PlotWidget(title=f'{kind} — 5 s view, 5 min history')
@@ -287,6 +289,22 @@ class MainWindow(QMainWindow):
             stack.addWidget(plot)
             stack.setMinimumHeight(350 if kind == 'EEG' else 300)
             stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            header = QHBoxLayout()
+            header.addWidget(QLabel(f'{kind} — vertical amplitude'))
+            gain = QComboBox()
+            for label, factor in (
+                ('0.25×', .25), ('0.5×', .5), ('1×', 1.),
+                ('2×', 2.), ('4×', 4.), ('8×', 8.)
+            ):
+                gain.addItem(label, factor)
+            gain.setCurrentIndex(2)
+            gain.currentIndexChanged.connect(
+                lambda _, k=kind: self.set_raw_vertical_gain(k)
+            )
+            self.raw_vertical_gains[kind] = gain
+            header.addWidget(gain)
+            header.addStretch()
+            signals_layout.addLayout(header)
             signals_layout.addWidget(stack)
             self.raw_plot_stacks[kind] = stack
             self.plots[kind] = plot
@@ -935,6 +953,14 @@ class MainWindow(QMainWindow):
                                     if mode == 'vispy' else 'pyqtgraph')
         )
 
+    def set_raw_vertical_gain(self, kind):
+        """Independent per-modality gain; one uniform gain for all EEG leads."""
+        if kind in self.raw_vispy_plots:
+            self.raw_vispy_plots[kind].set_vertical_gain(
+                self.raw_vertical_gains[kind].currentData()
+            )
+        self.raw_dirty = True
+
     def set_raw_time_window(self, *_):
         seconds = self.raw_time_window.currentData()
         if seconds is not None:
@@ -1069,7 +1095,10 @@ class MainWindow(QMainWindow):
             if not chunks or not self.raw_plot_visible(kind):
                 continue
             if self.raw_renderer_mode == 'vispy':
-                low, high = self.raw_gl_bounds
+                # Two consecutive sweep cycles are needed: the completed
+                # cycle remains visible to the right of the advancing head.
+                _, high = self.raw_gl_bounds
+                low = high - 2. * self.raw_view_seconds
             else:
                 low, high = self.plots[kind].viewRange()[0]
             minimum = self.raw_plot_origin + low
@@ -1116,10 +1145,14 @@ class MainWindow(QMainWindow):
             if kind not in self.raw_scale:
                 self.raw_scale[kind] = (centers, spreads)
             if self.raw_renderer_mode == 'vispy':
+                self.raw_vispy_plots[kind].set_vertical_gain(
+                    self.raw_vertical_gains[kind].currentData()
+                )
                 self.raw_vispy_plots[kind].set_frame(
-                    frame, *self.raw_gl_bounds,
+                    frame, 0., self.raw_view_seconds,
                     show_raw=self.show_raw.isChecked(),
                     show_filtered=self.show_processed.isChecked(),
+                    sweep_head=self.raw_gl_bounds[1],
                 )
                 continue
             if len(self.curves[kind]) != 2 * n:
