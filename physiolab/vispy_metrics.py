@@ -130,7 +130,9 @@ class VisPyMetricPlot:
             return
         self._ylimits = metric_y_limits(self._data, left, right)
         low, high = self._ylimits
-        self.view.camera.set_range(x=(left, right), y=(low, high), margin=0)
+        # Assign the explicit viewport; set_range() queries bounds of empty
+        # Markers visuals on startup and raises before any metrics arrive.
+        self.view.camera.rect = (left, low, right - left, high - low)
         self.canvas.update()
 
     def refresh_axes(self):
