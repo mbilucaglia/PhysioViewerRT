@@ -213,6 +213,7 @@ class MainWindow(QMainWindow):
         self._load_designer_layout()
         self._connect_designer_controls()
         self.update_metrics_availability()
+        self.update_metrics_availability()
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
         # package is installed. Offscreen CI retains the original backend.
@@ -515,7 +516,33 @@ class MainWindow(QMainWindow):
         self.calibration_state.setText(
             f'EYC: {self.iaf_hz:.2f} Hz'
             f" | BSL: {'loaded' if self.loaded_bsl else 'none'}")
+        self.update_metrics_availability()
         self.refresh_metrics()
+
+    def update_metrics_availability(self):
+        """Require a real EYC and BSL before showing Metrics."""
+        eyc = self.loaded_eyc or {}
+        bsl = self.loaded_bsl or {}
+        iaf = (eyc.get('analysis') or {}).get('iaf_hz')
+        refs = (bsl.get('analysis') or {}).get('metrics')
+        ready = iaf is not None and np.isfinite(float(iaf)) and bool(refs)
+        index = self.tabs.indexOf(self.metrics_page)
+        if index >= 0:
+            self.tabs.setTabVisible(index, bool(ready))
+            self.tabs.setTabToolTip(index,
+                'Metrics available' if ready else
+                'Record or load EYC and BSL in Sources to enable Metrics')
+        return bool(ready)
+
+    def change_eeg_display_count(self, *_):
+        """Only limit waveform channels; do not change LSL processing."""
+        self.raw_scale.pop('EEG', None)
+        self.raw_frame_epoch += 1
+        self.raw_dirty = True
+        if 'EEG' in self.raw_vispy_plots:
+            self.raw_vispy_plots['EEG'].reset()
+        self.curves['EEG'] = []
+        self.plots['EEG'].clear()
 
     def set_plot_paused(self, scope, paused):
         if scope == 'raw':
@@ -1160,6 +1187,8 @@ class MainWindow(QMainWindow):
                     # Keep the same clock-anchored decimation stride even
                     # when cropping just a 100ms incremental tail.
                     source += (2. * self.raw_view_seconds,)
+                if kind == 'EEG':
+                    source += (self.eeg_display_count.value(),)
                 sources[kind] = source
         if sources:
             self.raw_frame_ticket += 1
@@ -1425,6 +1454,7 @@ class MainWindow(QMainWindow):
             f"EYC: {self.iaf_hz:.2f} Hz"
             f" | BSL: {'loaded' if self.loaded_bsl else 'none'}"
         )
+        self.update_metrics_availability()
         self.refresh_metrics()
 
     def load_existing(self, kind):
