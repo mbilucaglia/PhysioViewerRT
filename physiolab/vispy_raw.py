@@ -86,9 +86,9 @@ def sweep_segments(times, values, duration, head, scale=1.0):
     pairs = (valid_samples[:-1] & valid_samples[1:]
              & (cycle[:-1] == cycle[1:])
              & (np.diff(times) <= max(.5, duration / 3.)))
-    a = np.stack((x[:-1]/duration + np.zeros_like(normalized_y[:-1]),
+    a = np.stack((x[:-1, None]/duration + np.zeros_like(normalized_y[:-1]),
                   normalized_y[:-1]), axis=-1)
-    b = np.stack((x[1:]/duration + np.zeros_like(normalized_y[1:]),
+    b = np.stack((x[1:, None]/duration + np.zeros_like(normalized_y[1:]),
                   normalized_y[1:]), axis=-1)
     valid = (pairs[:, None]
              & np.isfinite(a).all(axis=2)
