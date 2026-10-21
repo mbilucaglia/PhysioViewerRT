@@ -514,6 +514,9 @@ class MainWindow(QMainWindow):
                         for i, action in enumerate(self.channel_selectors[kind].actions):
                             action.setChecked(i in chosen)
                         self.channel_selectors[kind].update_label()
+                        if kind not in self.workers:
+                            self.stream_buttons[kind].setEnabled(True)
+                            self.stream_buttons[kind].setToolTip('Start selected LSL stream')
                 if warning:
                     self.statusBar().showMessage(warning)
                 return
@@ -535,6 +538,9 @@ class MainWindow(QMainWindow):
         self.channel_selectors[kind].set_channels(
             [f'Ch{i+1} (loading labels)' for i in range(info.channel_count())]
         )
+        if kind not in self.workers:
+            self.stream_buttons[kind].setEnabled(False)
+            self.stream_buttons[kind].setToolTip('Waiting for channel metadata…')
         if identifier not in self._metadata_requests:
             self._metadata_requests[identifier] = self.queue_lsl_task('metadata', info)
 
@@ -581,17 +587,8 @@ class MainWindow(QMainWindow):
             return
         self.stream_buttons[kind].setEnabled(False)
         self.stream_buttons[kind].setText('Stopping…')
-        stopped = worker.stop()
-        if stopped:
-            self.workers.pop(kind, None)
-            self.stream_buttons[kind].setEnabled(True)
-            self.stream_buttons[kind].setText('▶ Play')
-            self.reset_stream_display(kind)
-            self.statusBar().showMessage(
-                f'{kind} reception stopped (LSL source is still transmitting)'
-            )
-        else:
-            self.statusBar().showMessage(f'{kind}: waiting for receiver to stop')
+        worker.request_stop()
+        self.statusBar().showMessage(f'{kind}: stopping receiver asynchronously…')
 
     def receiver_finished(self, kind, worker):
         if self.workers.get(kind) is not worker:
@@ -629,8 +626,6 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, f'{kind} channel selection', str(exc))
             return
         self.reset_stream_display(kind)
-        worker.updated.connect(self.receive)
-        worker.samples_received.connect(self.capture_samples)
         worker.stream_ready.connect(self.ready_stream)
         worker.iaf_hz = self.iaf_hz
         worker.failure.connect(self.statusBar().showMessage)
@@ -867,7 +862,19 @@ class MainWindow(QMainWindow):
             self.metric_dirty = True
             self.refresh_metric_plot()
 
+    def poll_receivers(self):
+        """Drain LSL mailbox batches independently of raw plot frame rate."""
+        for kind, worker in tuple(self.workers.items()):
+            for raw, filtered, names, metric, fs, timestamps in worker.mailbox.drain():
+                if self.capture is not None:
+                    self.capture_samples(kind, raw, timestamps, names, fs)
+                self.receive(kind, raw, filtered, names, metric, fs, timestamps)
+
     def render_frame(self):
+        # Do not run the GUI receive path once per LSL push_chunk().
+        # This bounded poll also processes all modalities on the Metrics tab.
+        if not self._closing:
+            self.poll_receivers()
         # Keep native axis menus responsive in their nested Qt event loops.
         if QApplication.activePopupWidget() is not None:
             return
@@ -1165,6 +1172,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
 
     def closeEvent(self, event):
+        self._closing = True
         self.timer.stop()
         self.raw_render_worker.stop()
         for worker in self.workers.values():
