@@ -1,4 +1,4 @@
-"""Hang watchdog regression tests without Qt or a real LSL source."""
+"""Regression coverage for native timer GUI hang diagnostics."""
 import tempfile
 import time
 import unittest
@@ -8,7 +8,7 @@ from physiolab.hang_watchdog import GuiHangWatchdog
 
 
 class GuiWatchdogTests(unittest.TestCase):
-    def test_disabled_watchdog_never_creates_file(self):
+    def test_disabled_watchdog_creates_no_file(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'hangs.log'
             watchdog = GuiHangWatchdog(enabled=False, path=path, timeout=.1,
@@ -18,36 +18,44 @@ class GuiWatchdogTests(unittest.TestCase):
             watchdog.stop()
             self.assertFalse(path.exists())
 
-    def test_stall_writes_thread_stacks_without_gui_thread(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / 'hangs.log'
-            watchdog = GuiHangWatchdog(enabled=True, path=path, timeout=.12,
-                                       poll_interval=.025)
-            watchdog.start()
-            try:
-                deadline = time.monotonic() + 2.0
-                while not path.exists() and time.monotonic() < deadline:
-                    time.sleep(.025)
-            finally:
-                watchdog.stop()
-            self.assertTrue(path.exists())
-            text = path.read_text(encoding='utf-8')
-            self.assertIn('GUI HEARTBEAT STALLED', text)
-            self.assertIn('test_stall_writes_thread_stacks_without_gui_thread', text)
-
-    def test_heartbeat_prevents_short_false_alarm(self):
+    def test_native_timer_records_stalled_gui(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'hangs.log'
             watchdog = GuiHangWatchdog(enabled=True, path=path, timeout=.2,
-                                       poll_interval=.02)
+                                       poll_interval=.025)
             watchdog.start()
             try:
-                for _ in range(5):
-                    watchdog.beat()
-                    time.sleep(.025)
+                # No GUI beats; native fault handler must fire without Python
+                # monitor thread or the Qt event loop making progress.
+                time.sleep(.45)
             finally:
                 watchdog.stop()
-            self.assertFalse(path.exists())
+            data = path.read_text(encoding='utf-8')
+            self.assertIn('Timeout (0:00:00.200000)', data)
+            self.assertIn('test_native_timer_records_stalled_gui', data)
+
+    def test_regular_heartbeat_prevents_stack_dump(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'hangs.log'
+            watchdog = GuiHangWatchdog(enabled=True, path=path, timeout=.25,
+                                       poll_interval=.04)
+            watchdog.start()
+            try:
+                for _ in range(9):
+                    watchdog.beat()
+                    time.sleep(.035)
+            finally:
+                watchdog.stop()
+            self.assertNotIn('Timeout', path.read_text(encoding='utf-8'))
+
+    def test_start_stop_idempotence(self):
+        with tempfile.TemporaryDirectory() as folder:
+            watchdog = GuiHangWatchdog(enabled=True, path=Path(folder)/'hangs.log',
+                                       timeout=.2, poll_interval=.02)
+            watchdog.start()
+            watchdog.start()
+            watchdog.stop()
+            watchdog.stop()
 
 
 if __name__ == '__main__':
