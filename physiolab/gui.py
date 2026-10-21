@@ -1141,6 +1141,15 @@ class MainWindow(QMainWindow):
                 low = high - 2. * self.raw_view_seconds
             else:
                 low, high = self.plots[kind].viewRange()[0]
+            if self.raw_renderer_mode == 'vispy':
+                renderer = self.raw_vispy_plots.get(kind)
+                if (renderer is not None
+                        and renderer.sweep_duration == self.raw_view_seconds
+                        and np.isfinite(renderer._latest)
+                        and kind in self.raw_scale):
+                    # Feed only new samples. Small overlap absorbs UI
+                    # scheduling jitter without modifying already drawn bins.
+                    low = max(low, renderer._latest - .1)
             minimum = self.raw_plot_origin + low
             maximum = self.raw_plot_origin + high
             # Snapshot references to existing immutable chunks; don't copy the
@@ -1152,8 +1161,13 @@ class MainWindow(QMainWindow):
                 if item[0][0] <= maximum:
                     recent.append(item)
             if recent:
-                sources[kind] = (tuple(reversed(recent)), low, high,
-                                 self.raw_plot_origin, self.raw_scale.get(kind))
+                source = (tuple(reversed(recent)), low, high,
+                          self.raw_plot_origin, self.raw_scale.get(kind))
+                if self.raw_renderer_mode == 'vispy':
+                    # Keep the same clock-anchored decimation stride even
+                    # when cropping just a 100ms incremental tail.
+                    source += (2. * self.raw_view_seconds,)
+                sources[kind] = source
         if sources:
             self.raw_frame_ticket += 1
             self.raw_inflight_ticket = self.raw_frame_ticket
