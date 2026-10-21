@@ -180,6 +180,7 @@ class MainWindow(QMainWindow):
         self.raw_frame_epoch = 0
         self.raw_frame_ticket = 0
         self.raw_inflight_ticket = None
+        self.raw_interacting_until = 0.0
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -853,7 +854,8 @@ class MainWindow(QMainWindow):
         self.draw()
 
     def raw_view_scrolled(self, *_):
-        # Newly visible plots need a fresh frame; no synchronous plotting.
+        # Let the user drag the scroll bar without competing with plot paints.
+        self.raw_interacting_until = time.monotonic() + .16
         self.raw_dirty = True
 
     def raw_plot_visible(self, kind):
@@ -884,7 +886,7 @@ class MainWindow(QMainWindow):
         """Consume bounded LSL chunks on the GUI timer, not per sample event."""
         started = time.perf_counter()
         for kind, worker in tuple(self.workers.items()):
-            for raw, filtered, names, metric, fs, timestamps in worker.mailbox.drain():
+            for raw, filtered, names, metric, fs, timestamps in worker.mailbox.drain(max_chunks=32):
                 if self.capture is not None:
                     self.capture_samples(kind, raw, timestamps, names, fs)
                 self.receive(kind, raw, filtered, names, metric, fs, timestamps)
@@ -896,14 +898,15 @@ class MainWindow(QMainWindow):
         self.performance.measure('tick_delay', max(0., now - self._last_gui_tick - .033))
         self._last_gui_tick = now
         if not self._closing:
-            self.poll_receivers()
-            # Qt popup menus and vertical scrolling take priority over
-            # repainting waveforms; acquisition buffers remain independent.
+            # No GUI sample draining or rendering while a menu is open.
+            # Source threads keep collecting into bounded mailboxes instead.
             if QApplication.activePopupWidget() is None:
+                self.poll_receivers()
                 if self.tabs.currentIndex() == 0:
-                    self.update_raw_xranges()
-                    if self.raw_dirty and now - self.raw_last_render_time >= .10:
-                        self.draw()
+                    if now >= self.raw_interacting_until:
+                        self.update_raw_xranges()
+                        if self.raw_dirty and now - self.raw_last_render_time >= .10:
+                            self.draw()
                 elif self.tabs.currentIndex() == 1:
                     self.update_metric_xrange()
                     if self.metric_dirty:
@@ -959,7 +962,8 @@ class MainWindow(QMainWindow):
         self.raw_inflight_ticket = None
         if response['version'] != self.raw_frame_epoch:
             return
-        if self.tabs.currentIndex() != 0 or QApplication.activePopupWidget() is not None:
+        if (self.tabs.currentIndex() != 0 or QApplication.activePopupWidget() is not None
+                or time.monotonic() < self.raw_interacting_until):
             self.raw_dirty = True
             return
         for kind, frame in response['frames'].items():
