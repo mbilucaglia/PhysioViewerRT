@@ -45,10 +45,13 @@ class RawRenderWorker(QThread):
                 self._pending = None
             started = time.perf_counter()
             frames = {}
-            for kind, (chunks, left, right, origin, reference) in request['sources'].items():
+            for kind, source in request['sources'].items():
+                chunks, left, right, origin, reference = source[:5]
+                decimation_span = source[5] if len(source) > 5 else None
                 try:
                     frames[kind] = prepare_raw_window(
-                        chunks, left, right, origin, reference
+                        chunks, left, right, origin, reference,
+                        decimation_span=decimation_span
                     )
                 except (ValueError, IndexError) as exc:
                     frames[kind] = None
