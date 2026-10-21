@@ -55,56 +55,24 @@ class VisPyMetricPlot:
     """One axes-equipped VisPy canvas with five independent metric series."""
 
     def __init__(self, keys):
-        from vispy import scene
+        from .vispy_plot_engine import VisPyPlotEngine
         self.keys = tuple(keys)
-        self.canvas = scene.SceneCanvas(
-            keys=None, show=False, bgcolor='#15191f',
-            size=(1000, 520), app='pyside6',
+        self.engine = VisPyPlotEngine(
+            x_label='Elapsed session time (s)', y_label='Metric value',
+            size=(1000, 520),
         )
-        self.widget = self.canvas.native
-        grid = self.canvas.central_widget.add_grid(margin=6, spacing=4)
-        self.yaxis = scene.AxisWidget(
-            orientation='left', axis_label='Metric value',
-            text_color='#d6dce2', axis_color='#78838d',
-            tick_color='#78838d',
-        )
-        self.xaxis = scene.AxisWidget(
-            orientation='bottom', axis_label='Elapsed session time (s)',
-            text_color='#d6dce2', axis_color='#78838d',
-            tick_color='#78838d',
-        )
-        grid.add_widget(self.yaxis, row=0, col=0)
-        grid.add_widget(self.xaxis, row=1, col=1)
-        self.view = grid.add_view(row=0, col=1, border_color='#454f57')
-        # AxisWidget forwards constructor keywords to AxisVisual, which does
-        # not accept width_max or height_max. Apply sizing to the *widgets*
-        # after construction. Without these limits VisPy's grid distributes
-        # ~half of the canvas to the axis columns/rows.
-        self.yaxis.width_max = 80
-        self.xaxis.height_max = 65
-        self.view.camera = scene.PanZoomCamera(
-            rect=(0, -1, 5, 2), aspect=None,
-        )
-        # Preserve existing live/zoom-button semantics. Manual pan/zoom
-        # can be integrated once backend performance has been validated.
-        self.view.camera.interactive = False
-        self.xaxis.link_view(self.view)
-        self.yaxis.link_view(self.view)
-        self.gridlines = scene.visuals.GridLines(
-            parent=self.view.scene, color=(.4, .45, .5, .16),
-        )
+        self.canvas = self.engine.canvas
+        self.widget = self.engine.widget
+        self.view = self.engine.view
+        self.xaxis = self.engine.xaxis
+        self.yaxis = self.engine.yaxis
+        self.gridlines = self.engine.gridlines
         self.lines = {}
         self.points = {}
         self._data = {}
         for key, color in zip(self.keys, METRIC_COLORS):
-            self.lines[key] = scene.visuals.Line(
-                parent=self.view.scene, color=color,
-                connect='segments', method='gl', width=2,
-                antialias=False,
-            )
-            self.points[key] = scene.visuals.Markers(
-                parent=self.view.scene,
-            )
+            self.lines[key] = self.engine.line(color=color, width=2)
+            self.points[key] = self.engine.markers()
             self.lines[key].visible = False
             self.points[key].visible = False
         self._bounds = (-5., 0.)
@@ -138,11 +106,10 @@ class VisPyMetricPlot:
         low, high = self._ylimits
         # Assign the explicit viewport; set_range() queries bounds of empty
         # Markers visuals on startup and raises before any metrics arrive.
-        self.view.camera.rect = (left, low, right - left, high - low)
-        self.canvas.update()
+        self.engine.set_view(left, right, low, high)
 
     def refresh_axes(self):
         self._update_camera()
 
     def close(self):
-        self.canvas.close()
+        self.engine.close()
