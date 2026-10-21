@@ -191,3 +191,30 @@ Compare the same EEG, EDA and PPG synthetic session for at least ten minutes
 with both tabs on VisPy, then switch Metrics alone back to pyqtgraph and verify
 there are no changes to AWI, BAR, SCL, HR or EI values. These experiments do
 not change calibration, samples, filters, numerical algorithms, or recordings.
+
+## Shared VisPy engine and GPU sweep behavior
+
+Raw Data and Metrics now reuse `physiolab/vispy_plot_engine.py` for the
+white OpenGL background, viewport, axes, grid, scene and lifecycle.
+The raw waveform renderer adds a **left-to-right sweep**: a completed pass
+stays on the display while the following pass replaces it progressively.
+The trace is split at sweep boundaries so the end of one pass is never
+joined diagonally to the start of the next. This change is purely visual;
+LSL timestamps, recording, processing and Metrics are not changed.
+
+The default sweep window is **5 seconds**. The Raw Data **Time window**
+selector offers 5, 8, 10, 15 and 30 seconds, and 1 or 5 minutes. Zoom
+buttons adjust the same duration. Each modality has its own **vertical
+amplitude** selector (0.25×, 0.5×, 1×, 2×, 4×, 8×); for EEG a single
+factor applies consistently to all displayed EEG channels. Vertical
+amplitude uses existing per-channel display normalization, and is **not**
+a fixed ±100 µV scale or a physical calibration. Channel names are drawn
+on the left of each GPU plot. All raw waveforms are red; processed
+waveforms are black. The GPU canvas background is white in both tabs.
+
+The two-pass sweep needs twice the selected time window in history. Existing
+raw sample history is limited to five minutes, so at very long sweep
+durations a full previous cycle cannot persist. The short 5–30s settings
+are recommended for real-time viewing and stable two-cycle persistence.
+
+Legacy pyqtgraph remains available as an independent fallback.
