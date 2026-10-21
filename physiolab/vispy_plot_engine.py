@@ -98,6 +98,21 @@ class VisPyPlotEngine:
                     label.pos = (phase, bottom+.035*(top-bottom))
         self.canvas.update()
 
+    def set_channel_labels(self, names):
+        """Update labels used by raw EEG/PPG/EDA; safe during stream reset."""
+        names = tuple(str(name) for name in names)
+        if not hasattr(self, '_channel_labels'):
+            self._channel_labels = []
+        while len(self._channel_labels) < len(names):
+            self._channel_labels.append(self.text(color='#526272', size=9))
+        for index, label in enumerate(self._channel_labels):
+            label.visible = index < len(names)
+            if index < len(names):
+                label.text = names[index]
+                label.pos = (.002, (6.*index+1.) /
+                             max(6.*len(names)+3., 6.))
+        self.canvas.update()
+
     def set_sweep_cursor(self, phase):
         """Thin blue line; no white erase band is drawn."""
         phase = float(phase)
