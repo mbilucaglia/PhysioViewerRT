@@ -1,0 +1,3 @@
+# Optional experimental GPU renderer; not required for default pyqtgraph mode.
+vispy>=0.14,<1
+PyOpenGL>=3.1
