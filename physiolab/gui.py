@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, QPoint
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
@@ -175,6 +175,8 @@ class MainWindow(QMainWindow):
         self.metric_dirty = True
         self.raw_last_render_time = 0.0
         self.raw_frame_epoch = 0
+        self.raw_frame_ticket = 0
+        self.raw_inflight_ticket = None
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -268,6 +270,8 @@ class MainWindow(QMainWindow):
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         signals_scroll.setWidget(signals_page)
+        self.raw_scroll = signals_scroll
+        self.raw_scroll.verticalScrollBar().valueChanged.connect(self.raw_view_scrolled)
         self.tabs.addTab(signals_scroll, 'Raw Data')
 
         metrics_page = QWidget()
@@ -845,6 +849,16 @@ class MainWindow(QMainWindow):
                     plot.setXRange(low, high, padding=0)
         self.draw()
 
+    def raw_view_scrolled(self, *_):
+        # Newly visible plots need a fresh frame; no synchronous plotting.
+        self.raw_dirty = True
+
+    def raw_plot_visible(self, kind):
+        plot = self.plots[kind]
+        viewport = self.raw_scroll.viewport()
+        top = plot.mapTo(viewport, QPoint(0, 0)).y()
+        return top < viewport.height() and top + plot.height() > 0
+
     def update_raw_xranges(self):
         if not self.raw_follow_live or self.raw_plot_origin is None:
             return
@@ -852,8 +866,9 @@ class MainWindow(QMainWindow):
         if head is None:
             return
         end = head - self.raw_plot_origin
-        for plot in self.plots.values():
-            plot.setXRange(end - self.raw_view_seconds, end, padding=0)
+        for kind, plot in self.plots.items():
+            if self.raw_plot_visible(kind):
+                plot.setXRange(end - self.raw_view_seconds, end, padding=0)
 
     def tab_changed(self, index):
         if index == 0:
@@ -892,13 +907,13 @@ class MainWindow(QMainWindow):
         """Submit a lightweight snapshot; never reduce data on the GUI thread."""
         if self.tabs.currentIndex() != 0 or self.raw_plot_origin is None:
             return
-        if QApplication.activePopupWidget() is not None:
+        if QApplication.activePopupWidget() is not None or self.raw_inflight_ticket is not None:
             return
         self.raw_dirty = False
         self.raw_last_render_time = time.monotonic()
         sources = {}
         for kind, chunks in self.raw_history.items():
-            if not chunks:
+            if not chunks or not self.raw_plot_visible(kind):
                 continue
             low, high = self.plots[kind].viewRange()[0]
             minimum = self.raw_plot_origin + low
@@ -915,20 +930,26 @@ class MainWindow(QMainWindow):
                 sources[kind] = (tuple(reversed(recent)), low, high,
                                  self.raw_plot_origin, self.raw_scale.get(kind))
         if sources:
+            self.raw_frame_ticket += 1
+            self.raw_inflight_ticket = self.raw_frame_ticket
             self.raw_render_worker.submit({
+                'ticket': self.raw_frame_ticket,
                 'version': self.raw_frame_epoch,
                 'sources': sources,
             })
 
     def apply_raw_frame(self, response):
-        """Paint ready-to-display arrays on Qt's GUI thread only."""
+        """Accept at most one completed raw frame; no Qt signal backlog."""
+        if response['ticket'] != self.raw_inflight_ticket:
+            return
+        self.raw_inflight_ticket = None
         if response['version'] != self.raw_frame_epoch:
             return
         if self.tabs.currentIndex() != 0 or QApplication.activePopupWidget() is not None:
             self.raw_dirty = True
             return
         for kind, frame in response['frames'].items():
-            if frame is None:
+            if not self.raw_plot_visible(kind) or frame is None:
                 continue
             timestamps, raw, filtered, centers, spreads, names = frame
             plot = self.plots[kind]
