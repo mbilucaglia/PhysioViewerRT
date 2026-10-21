@@ -203,6 +203,7 @@ class VisPyMetricPlot:
                 if new_range != self._y_limits:
                     self._y_limits = new_range
                     self.engine.set_view(0., 1., *new_range)
+                    self.engine.set_axis_labels(bounds=new_range)
             points = np.asarray(sample_x, dtype=float)
             points = points[np.isfinite(points)]
             if len(points):
@@ -214,6 +215,7 @@ class VisPyMetricPlot:
         if duration <= 0:
             return
         self._bounds = (float(left), float(right))
+        self.engine.set_axis_labels(duration=duration)
         if not np.isclose(duration, self._duration):
             self._duration = duration
             self._configure_layers()
