@@ -33,7 +33,7 @@ class GuiWatchdogTests(unittest.TestCase):
             self.assertTrue(path.exists())
             text = path.read_text(encoding='utf-8')
             self.assertIn('GUI HEARTBEAT STALLED', text)
-            self.assertIn('GuiWatchdogTests', text)
+            self.assertIn('test_stall_writes_thread_stacks_without_gui_thread', text)
 
     def test_heartbeat_prevents_short_false_alarm(self):
         with tempfile.TemporaryDirectory() as folder:
