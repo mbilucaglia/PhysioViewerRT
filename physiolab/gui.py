@@ -9,11 +9,12 @@ from pathlib import Path
 import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import QTimer, Qt, QPoint
+from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
     QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton, QMenu,
-    QScrollArea, QSizePolicy, QApplication, QStackedWidget, QSplitter, QDoubleSpinBox
+    QScrollArea, QSizePolicy, QApplication, QStackedWidget, QSplitter, QDoubleSpinBox, QFrame, QStatusBar, QSpinBox
 )
 from .worker import Receiver, discover
 from .channel_selection import channel_labels, validated_indices
@@ -153,15 +154,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle('PhysioViewerRT — local LSL monitor')
         self.resize(1450, 940)
-        root = QWidget()
-        self.setCentralWidget(root)
-        layout = QVBoxLayout(root)
-
-        controls = QVBoxLayout()
-        sources_page = QWidget()
-        sources_layout = QVBoxLayout(sources_page)
-        sources_layout.addLayout(controls)
-        sources_layout.addStretch()
+        # All geometry, tabs, control placement and palette come from
+        # designer/PhysioViewerRT_ClinicalLayout.ui. Code below only attaches
+        # application state and live rendering widgets to named hosts.
         self.selectors, self.channel_selectors, self.workers = {}, {}, {}
         self.stream_buttons = {}
         self.channel_metadata_cache = {}
@@ -214,324 +209,8 @@ class MainWindow(QMainWindow):
         self.metric_follow_live = True
         self.iaf_hz = 10.0
         self._configure_calibration_menu()
-
-        for kind in ('EEG', 'EDA', 'PPG'):
-            source_row = QHBoxLayout()
-            controls.addLayout(source_row)
-            source_row.addWidget(QLabel(kind))
-            combo = QComboBox()
-            combo.setMinimumWidth(160)
-            self.selectors[kind] = combo
-            source_row.addWidget(combo)
-            picker = CheckChannelDropdown(kind)
-            self.channel_selectors[kind] = picker
-            source_row.addWidget(picker)
-            combo.currentIndexChanged.connect(lambda _, k=kind: self.stream_selection_changed(k))
-            button = QPushButton('▶ Play')
-            button.setToolTip(f'Start/stop local {kind} LSL reception (not the publisher)')
-            button.clicked.connect(lambda _, k=kind: self.toggle_stream(k))
-            self.stream_buttons[kind] = button
-            source_row.addWidget(button)
-        refresh = QPushButton('Refresh LSL')
-        refresh.clicked.connect(self.refresh)
-        sources_layout.addWidget(refresh)
-
-        self.tabs = QTabWidget()
-        self.tabs.currentChanged.connect(self.tab_changed)
-        layout.addWidget(self.tabs)
-        self.setStyleSheet('QTabBar::tab { padding: 10px 22px; }')
-
-        signals_page = QWidget()
-        signals_layout = QVBoxLayout(signals_page)
-        visibility = QHBoxLayout()
-        signals_layout.addLayout(visibility)
-        self.show_raw = QCheckBox('Raw')
-        self.show_raw.setChecked(True)
-        self.show_processed = QCheckBox('Filtered / processed')
-        self.show_processed.setChecked(True)
-        visibility.addWidget(QLabel('Sweep (s)'))
-        visibility.addWidget(QLabel('Renderer'))
-        self.raw_renderer_choice = QComboBox()
-        self.raw_renderer_choice.addItem('pyqtgraph (original)', 'pyqtgraph')
-        self.raw_renderer_choice.addItem('VisPy / OpenGL (experimental)', 'vispy')
-        self.raw_renderer_choice.currentIndexChanged.connect(self.set_raw_renderer)
-        visibility.addWidget(self.raw_renderer_choice)
-        visibility.addStretch()
-        visibility.addWidget(QLabel(''))
-        self.raw_time_window = QComboBox()
-        for label, seconds in (
-            ('5 s', 5), ('8 s', 8), ('10 s', 10), ('15 s', 15),
-            ('30 s', 30), ('1 min', 60), ('5 min', 300),
-        ):
-            self.raw_time_window.addItem(label, seconds)
-        self.raw_time_window.currentIndexChanged.connect(self.set_raw_time_window)
-        visibility.addWidget(self.raw_time_window)
-        raw_zoom_in = QPushButton('−')
-        raw_zoom_in.clicked.connect(lambda: self.zoom_raw_plots(0.5))
-        visibility.addWidget(raw_zoom_in)
-        raw_zoom_out = QPushButton('+')
-        raw_zoom_out.clicked.connect(lambda: self.zoom_raw_plots(2.0))
-        visibility.addWidget(raw_zoom_out)
-        visibility.addWidget(self.show_raw)
-        visibility.addWidget(self.show_processed)
-        self.raw_live_button = QPushButton('● LIVE — following')
-        self.raw_live_button.clicked.connect(self.resume_raw_live)
-        self.raw_live_button.setEnabled(False)
-        self.raw_live_button.setToolTip('Live samples stay at the right edge; dragging the plot pauses following')
-        visibility.addWidget(self.raw_live_button)
-        self.raw_plot_splitter = QSplitter(Qt.Orientation.Vertical)
-        self.raw_plot_splitter.setChildrenCollapsible(False)
-        self.raw_plot_splitter.setHandleWidth(9)
-        signals_layout.addWidget(self.raw_plot_splitter, stretch=1)
-        # Clinical monitoring order: EEG, pulse, then skin conductance.
-        for kind in ('EEG', 'PPG', 'EDA'):
-            plot = pg.PlotWidget(title=f'{kind} — 5 s view, 5 min history')
-            plot.showGrid(x=True, y=True, alpha=0.2)
-            plot.setLabel('bottom', 'Elapsed session time', 's')
-            plot.getViewBox().sigRangeChangedManually.connect(
-                lambda *args, k=kind: self.raw_view_changed_manually(k)
-            )
-            plot.setXRange(-5, 0, padding=0)
-            plot.setMinimumHeight(80)
-            plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-            stack = QStackedWidget()
-            stack.addWidget(plot)
-            stack.setMinimumHeight(75)
-            stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-            panel = QWidget()
-            panel_layout = QVBoxLayout(panel)
-            panel_layout.setContentsMargins(5, 2, 5, 2)
-            panel_layout.setSpacing(2)
-            header = QHBoxLayout()
-            title = QLabel('SC' if kind == 'EDA' else kind)
-            title.setStyleSheet('font-weight: 700;')
-            header.addWidget(title)
-            header.addStretch()
-            header.addWidget(QLabel('Amplitude'))
-            gain = QDoubleSpinBox()
-            gain.setDecimals(2)
-            gain.setRange(.05, 50.)
-            gain.setSingleStep(.1)
-            gain.setSuffix('×')
-            gain.setValue(1.)
-            gain.setFixedWidth(95)
-            gain.valueChanged.connect(
-                lambda _, k=kind: self.set_raw_vertical_gain(k)
-            )
-            self.raw_vertical_gains[kind] = gain
-            decrease = QPushButton('−')
-            increase = QPushButton('+')
-            decrease.setFixedWidth(30)
-            increase.setFixedWidth(30)
-            decrease.clicked.connect(
-                lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/1.2)
-            )
-            increase.clicked.connect(
-                lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1.2)
-            )
-            header.addWidget(decrease)
-            header.addWidget(increase)
-            panel_layout.addLayout(header)
-            panel_layout.addWidget(stack, stretch=1)
-            self.raw_plot_splitter.addWidget(panel)
-            self.raw_plot_stacks[kind] = stack
-            self.plots[kind] = plot
-            self.curves[kind] = []
-        self.raw_plot_splitter.setStretchFactor(0, 3)
-        self.raw_plot_splitter.setStretchFactor(1, 1)
-        self.raw_plot_splitter.setStretchFactor(2, 1)
-        self.raw_plot_splitter.setSizes([560, 190, 190])
-        signals_scroll = QScrollArea()
-        signals_scroll.setWidgetResizable(True)
-        signals_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        signals_scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        signals_scroll.setWidget(signals_page)
-        self.raw_scroll = signals_scroll
-        self.raw_scroll.verticalScrollBar().valueChanged.connect(self.raw_view_scrolled)
-        self.tabs.addTab(signals_scroll, 'Raw Data')
-
-        metrics_page = QWidget()
-        metrics_layout = QVBoxLayout(metrics_page)
-        normalize_row = QHBoxLayout()
-        normalize_row.addWidget(QLabel('Normalization'))
-        self.normalization = QComboBox()
-        for name, value in [('Original (identity)', 'identity'),
-                            ('z-score (BSL)', 'zscore'),
-                            ('robust z-MAD (BSL)', 'zmad'),
-                            ('robust IQR (BSL)', 'robust_iqr'),
-                            ('fixed min-max (BSL)', 'minmax')]:
-            self.normalization.addItem(name, value)
-        self.normalization.currentIndexChanged.connect(self.refresh_metrics)
-        normalize_row.addWidget(self.normalization)
-        normalize_row.addStretch()
-        metrics_layout.addLayout(normalize_row)
-        calibration_row = QHBoxLayout()
-        calibration_row.addWidget(QLabel('Calibration files:'))
-        self.calibration_file_labels = {}
-        for calibration_kind in ('EYC', 'BSL'):
-            select_file = QPushButton(f'Load {calibration_kind}…')
-            select_file.clicked.connect(
-                lambda _, k=calibration_kind: self.load_existing(k)
-            )
-            calibration_row.addWidget(select_file)
-            file_label = QLabel('None selected')
-            file_label.setToolTip(f'No {calibration_kind} file loaded')
-            calibration_row.addWidget(file_label)
-            self.calibration_file_labels[calibration_kind] = file_label
-        calibration_row.addStretch()
-        metrics_layout.addLayout(calibration_row)
-        self.calibration_state = QLabel('EYC: none (default IAF 10 Hz) | BSL: none')
-        metrics_layout.addWidget(self.calibration_state)
-        metric_visibility = QHBoxLayout()
-        metric_visibility.addWidget(QLabel('Plot metrics:'))
-        self.metric_checks = {}
-        for key, color in zip(self.metric_keys, (
-            '#e69f00', '#56b4e9', '#009e73', '#cc79a7', '#d55e00'
-        )):
-            checkbox = QCheckBox(key[1])
-            checkbox.setStyleSheet(f'QCheckBox {{ color: {color}; }}')
-            checkbox.setChecked(True)
-            checkbox.toggled.connect(self.refresh_metric_plot)
-            self.metric_checks[key] = checkbox
-            metric_visibility.addWidget(checkbox)
-        metric_visibility.addStretch()
-        metric_visibility.addWidget(QLabel('Metrics renderer'))
-        self.metric_renderer_choice = QComboBox()
-        self.metric_renderer_choice.addItem('pyqtgraph (original)', 'pyqtgraph')
-        self.metric_renderer_choice.addItem('VisPy / OpenGL', 'vispy')
-        self.metric_renderer_choice.currentIndexChanged.connect(self.set_metric_renderer)
-        metric_visibility.addWidget(self.metric_renderer_choice)
-        metrics_layout.addLayout(metric_visibility)
-        zoom_row = QHBoxLayout()
-        zoom_row.addWidget(QLabel('Time window'))
-        self.metric_time_window = QComboBox()
-        for label, seconds in (
-            ('5 s', 5), ('10 s', 10), ('30 s', 30),
-            ('1 min', 60), ('5 min', 300),
-        ):
-            self.metric_time_window.addItem(label, seconds)
-        self.metric_time_window.currentIndexChanged.connect(self.set_metric_time_window)
-        zoom_row.addWidget(self.metric_time_window)
-        zoom_in = QPushButton('Zoom +')
-        zoom_in.clicked.connect(lambda: self.zoom_metric_plot(0.5))
-        zoom_row.addWidget(zoom_in)
-        zoom_out = QPushButton('Zoom −')
-        zoom_out.clicked.connect(lambda: self.zoom_metric_plot(2.0))
-        zoom_row.addWidget(zoom_out)
-        self.metric_live_button = QPushButton('● LIVE — following')
-        self.metric_live_button.clicked.connect(self.resume_metric_live)
-        zoom_row.addWidget(self.metric_live_button)
-        zoom_row.addStretch()
-        metrics_layout.addLayout(zoom_row)
-        processing_row = QHBoxLayout()
-        processing_row.addWidget(QLabel('Smoothing'))
-        self.metric_smoothing = QComboBox()
-        for label, value in (
-            ('None', 'none'), ('Moving average', 'mean'),
-            ('Exponential (EMA)', 'ema'), ('Moving median', 'median')
-        ):
-            self.metric_smoothing.addItem(label, value)
-        self.metric_smoothing.currentIndexChanged.connect(self.refresh_metric_plot)
-        processing_row.addWidget(self.metric_smoothing)
-        processing_row.addWidget(QLabel('Duration'))
-        self.metric_smoothing_duration = QComboBox()
-        for duration in (1, 2, 3, 5, 10):
-            self.metric_smoothing_duration.addItem(f'{duration} s', float(duration))
-        self.metric_smoothing_duration.setCurrentIndex(1)
-        self.metric_smoothing_duration.setEnabled(False)
-        self.metric_smoothing_duration.currentIndexChanged.connect(self.refresh_metric_plot)
-        processing_row.addWidget(self.metric_smoothing_duration)
-        self.metric_smoothing.currentIndexChanged.connect(
-            lambda: self.metric_smoothing_duration.setEnabled(
-                self.metric_smoothing.currentData() != 'none'
-            )
-        )
-        processing_row.addWidget(QLabel('Interpolation'))
-        self.metric_interpolation = QComboBox()
-        for label, value in (
-            ('None (points)', 'none'), ('Linear', 'linear'),
-            ('PCHIP', 'pchip'), ('Cubic spline', 'cubic')
-        ):
-            self.metric_interpolation.addItem(label, value)
-        self.metric_interpolation.setCurrentIndex(2)
-        self.metric_interpolation.currentIndexChanged.connect(self.refresh_metric_plot)
-        processing_row.addWidget(self.metric_interpolation)
-        self.metric_sample_markers = QCheckBox('Measured points')
-        self.metric_sample_markers.setChecked(True)
-        self.metric_sample_markers.toggled.connect(self.refresh_metric_plot)
-        processing_row.addWidget(self.metric_sample_markers)
-        processing_row.addStretch()
-        metrics_layout.addLayout(processing_row)
-        self.metric_plot = pg.PlotWidget(title='Combined live metrics — 5 s default, up to 5 min history')
-        self.metric_plot.setLabel('bottom', 'Elapsed session time', units='s')
-        self.metric_plot.showGrid(x=True, y=True, alpha=.2)
-        self.metric_plot.addLegend()
-        self.metric_plot.setMouseEnabled(x=True, y=True)
-        self.metric_plot.getViewBox().sigRangeChangedManually.connect(
-            self.metric_view_changed_manually
-        )
-        self.metric_curves = {}
-        self.metric_point_curves = {}
-        for key, color in zip(self.metric_keys, (
-            '#e69f00', '#56b4e9', '#009e73', '#cc79a7', '#d55e00'
-        )):
-            self.metric_curves[key] = self.metric_plot.plot(
-                name=f'{key[0]} / {key[1]}', pen=pg.mkPen(color, width=2),
-                connect='finite',
-            )
-            self.metric_point_curves[key] = self.metric_plot.plot(
-                pen=None, symbol='o', symbolSize=5,
-                symbolBrush=pg.mkBrush(color), symbolPen=None,
-            )
-        self.metric_plot.setMinimumHeight(520)
-        self.metric_plot.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.metric_plot_stack = QStackedWidget()
-        self.metric_plot_stack.setMinimumHeight(520)
-        self.metric_plot_stack.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.metric_plot_stack.addWidget(self.metric_plot)
-        metrics_layout.addWidget(self.metric_plot_stack)
-        metrics_layout.addWidget(QLabel(
-            'Original mode uses mixed units on one axis. Normalized modes '
-            'use stored BSL references; missing data appear as gaps.'
-        ))
-        metrics_grid = QGridLayout()
-        metrics_layout.addLayout(metrics_grid)
-        for row, (kind, keys) in enumerate((
-            ('EEG', ('IAF', 'AWI', 'BAR')),
-            ('EDA', ('SCL',)),
-            ('PPG', ('HR',)),
-            ('EI', ('EI',)),
-        )):
-            group = QVBoxLayout()
-            title = QLabel(f'<h2>{kind} metrics</h2>')
-            group.addWidget(title)
-            for key in keys:
-                label = QLabel(f'{key}: —')
-                label.setStyleSheet('font-size: 18px; padding: 7px;')
-                group.addWidget(label)
-                self.metric_labels[(kind, key)] = label
-            status = QLabel('Waiting for stream / valid window')
-            status.setWordWrap(True)
-            group.addWidget(status)
-            self.metric_status[kind] = status
-            group.addStretch()
-            metrics_grid.addLayout(group, row, 0)
-        metrics_grid.setRowStretch(3, 1)
-        metrics_scroll = QScrollArea()
-        metrics_scroll.setWidgetResizable(True)
-        metrics_scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        metrics_scroll.setWidget(metrics_page)
-        self.tabs.addTab(metrics_scroll, 'Metrics')
-        self.tabs.addTab(sources_page, 'Sources')
-
+        self._load_designer_layout()
+        self._connect_designer_controls()
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
         # package is installed. Offscreen CI retains the original backend.
@@ -550,6 +229,288 @@ class MainWindow(QMainWindow):
         self.timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.timer.start(33)
         self.refresh()
+
+
+    def _required_ui(self, name, widget_type):
+        widget = self.centralWidget().findChild(widget_type, name)
+        if widget is None:
+            raise RuntimeError(
+                f'Qt Designer layout is missing required {widget_type.__name__} '
+                f'widget "{name}". Restore its objectName in the .ui file.'
+            )
+        return widget
+
+    def _load_designer_layout(self):
+        """Load the saved Qt Designer design on every application startup."""
+        path = Path(__file__).resolve().parent.parent / 'designer' / 'PhysioViewerRT_ClinicalLayout.ui'
+        if not path.is_file():
+            raise FileNotFoundError(f'Editable Qt Designer interface not found: {path}')
+        self._ui_form = QUiLoader().load(str(path))
+        if self._ui_form is None:
+            raise RuntimeError(f'Qt Designer could not load {path}')
+        self.setCentralWidget(self._ui_form.takeCentralWidget())
+        self.setStatusBar(QStatusBar(self))
+        self.setStyleSheet(self._ui_form.styleSheet())
+        self.tabs = self._required_ui('mainTabs', QTabWidget)
+        self.sources_page = self._required_ui('sourcesTab', QWidget)
+        self.raw_page = self._required_ui('rawDataTab', QWidget)
+        self.metrics_page = self._required_ui('metricsTab', QWidget)
+        self.tabs.currentChanged.connect(self.tab_changed)
+        if [self.tabs.tabText(i) for i in range(3)] != ['Sources', 'Raw Data', 'Metrics']:
+            # QUiLoader may not preserve Designer tab titles unless each
+            # page provides title attributes; enforce the intended navigation.
+            self.tabs.setTabText(0, 'Sources')
+            self.tabs.setTabText(1, 'Raw Data')
+            self.tabs.setTabText(2, 'Metrics')
+
+    def _fill_combo(self, combo, options):
+        combo.blockSignals(True)
+        combo.clear()
+        for label, value in options:
+            combo.addItem(label, value)
+        combo.blockSignals(False)
+
+    def _connect_designer_controls(self):
+        """Wire the live application to named Designer widgets, not a mockup."""
+        for kind in ('EEG', 'EDA', 'PPG'):
+            combo = self._required_ui(f'{kind}StreamSelector', QComboBox)
+            combo.clear()
+            self.selectors[kind] = combo
+            combo.currentIndexChanged.connect(
+                lambda _, k=kind: self.stream_selection_changed(k))
+            picker = CheckChannelDropdown(kind)
+            self.channel_selectors[kind] = picker
+            row = self._required_ui(f'{kind}SourcePicker', QHBoxLayout)
+            row.insertWidget(2, picker)
+            action = self._required_ui(f'{kind}Play', QPushButton)
+            self.stream_buttons[kind] = action
+            action.setText('▶ Play')
+            action.clicked.connect(lambda _, k=kind: self.toggle_stream(k))
+            action.setToolTip(f'Start/stop local {kind} LSL reception')
+            self._required_ui(f'{kind}Refresh', QPushButton).clicked.connect(self.refresh)
+            self._required_ui(f'{kind}ChooseChannels', QPushButton).setVisible(False)
+        self._required_ui('refreshAllStreams', QPushButton).clicked.connect(self.refresh)
+        self.calibration_file_labels = {}
+        for kind in ('EYC', 'BSL'):
+            self.calibration_file_labels[kind] = self._required_ui(f'{kind}Status', QLabel)
+            self._required_ui(f'{kind}Execute', QPushButton).clicked.connect(
+                lambda _, k=kind: self._baseline_designer_action(k))
+        self.calibration_state = self._required_ui('baselineSummary', QLabel)
+        self.calibration_state.setText('EYC: none (default IAF 10 Hz) | BSL: none')
+
+        self.show_raw = self._required_ui('showRaw', QCheckBox)
+        self.show_processed = self._required_ui('showFiltered', QCheckBox)
+        self.show_raw.setChecked(True)
+        self.show_processed.setChecked(True)
+        self.raw_renderer_choice = self._required_ui('rawRendererChoice', QComboBox)
+        self._fill_combo(self.raw_renderer_choice, [
+            ('pyqtgraph (original)', 'pyqtgraph'),
+            ('VisPy / OpenGL (experimental)', 'vispy')])
+        self.raw_renderer_choice.currentIndexChanged.connect(self.set_raw_renderer)
+        self.raw_time_window = self._required_ui('rawSweepDuration', QComboBox)
+        self._fill_combo(self.raw_time_window, [
+            ('5 s', 5), ('8 s', 8), ('10 s', 10), ('15 s', 15),
+            ('30 s', 30), ('1 min', 60), ('5 min', 300)])
+        self.raw_time_window.currentIndexChanged.connect(self.set_raw_time_window)
+        self._required_ui('rawZoomMinus', QPushButton).clicked.connect(
+            lambda: self.zoom_raw_plots(.5))
+        self._required_ui('rawZoomPlus', QPushButton).clicked.connect(
+            lambda: self.zoom_raw_plots(2.))
+        self.raw_live_button = self._required_ui('rawFollowLive', QPushButton)
+        self.raw_live_button.setText('● LIVE — following')
+        self.raw_live_button.clicked.connect(self.resume_raw_live)
+        self.raw_live_button.setEnabled(False)
+        self.raw_plot_splitter = self._required_ui('rawPlotSplitter', QSplitter)
+        self.raw_plot_splitter.setChildrenCollapsible(False)
+        self.raw_plot_splitter.setHandleWidth(9)
+        for kind in ('EEG', 'PPG', 'EDA'):
+            plot = pg.PlotWidget(title=f'{kind} — 5 s view, 5 min history')
+            plot.showGrid(x=True, y=True, alpha=.2)
+            plot.setLabel('bottom', 'Elapsed session time', 's')
+            plot.getViewBox().sigRangeChangedManually.connect(
+                lambda *args, k=kind: self.raw_view_changed_manually(k))
+            plot.setXRange(-5., 0., padding=0)
+            plot.setMinimumHeight(75)
+            plot.setSizePolicy(QSizePolicy.Policy.Expanding,
+                               QSizePolicy.Policy.Expanding)
+            stack = QStackedWidget()
+            stack.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                QSizePolicy.Policy.Expanding)
+            stack.addWidget(plot)
+            host = self._required_ui(f'{kind}PlotHost', QFrame)
+            if host.layout() is None:
+                host_layout = QVBoxLayout(host)
+                host_layout.setContentsMargins(0, 0, 0, 0)
+            host.layout().addWidget(stack)
+            self.raw_plot_stacks[kind] = stack
+            self.plots[kind] = plot
+            self.curves[kind] = []
+            gain = self._required_ui(f'{kind}Amplitude', QDoubleSpinBox)
+            gain.setDecimals(2)
+            gain.setRange(.05, 50.)
+            gain.setSingleStep(.1)
+            gain.setSuffix('×')
+            gain.setValue(1.)
+            gain.valueChanged.connect(
+                lambda _, k=kind: self.set_raw_vertical_gain(k))
+            self.raw_vertical_gains[kind] = gain
+            self._required_ui(f'{kind}AmplitudeMinus', QPushButton).clicked.connect(
+                lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/1.2))
+            self._required_ui(f'{kind}AmplitudePlus', QPushButton).clicked.connect(
+                lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1.2))
+        self.raw_plot_splitter.setSizes([560, 190, 190])
+        # No scroll area: the splitter shares the available screen height.
+        self.raw_scroll = QScrollArea(self)
+        self.raw_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.raw_scroll.verticalScrollBar().valueChanged.connect(self.raw_view_scrolled)
+
+        self.normalization = self._required_ui('metricNormalization', QComboBox)
+        self._fill_combo(self.normalization, [
+            ('Original (identity)', 'identity'), ('z-score (BSL)', 'zscore'),
+            ('robust z-MAD (BSL)', 'zmad'),
+            ('robust IQR (BSL)', 'robust_iqr'),
+            ('fixed min-max (BSL)', 'minmax')])
+        self.normalization.currentIndexChanged.connect(self.refresh_metrics)
+        self.metric_renderer_choice = self._required_ui('metricsRendererChoice', QComboBox)
+        self._fill_combo(self.metric_renderer_choice, [
+            ('pyqtgraph (original)', 'pyqtgraph'),
+            ('VisPy / OpenGL', 'vispy')])
+        self.metric_renderer_choice.currentIndexChanged.connect(self.set_metric_renderer)
+        self.metric_time_window = self._required_ui('metricsSweepDuration', QComboBox)
+        self._fill_combo(self.metric_time_window, [
+            ('5 s', 5), ('10 s', 10), ('30 s', 30),
+            ('1 min', 60), ('5 min', 300)])
+        self.metric_time_window.currentIndexChanged.connect(self.set_metric_time_window)
+        self._required_ui('metricsZoomMinus', QPushButton).clicked.connect(
+            lambda: self.zoom_metric_plot(.5))
+        self._required_ui('metricsZoomPlus', QPushButton).clicked.connect(
+            lambda: self.zoom_metric_plot(2.))
+        self.metric_live_button = self._required_ui('metricsFollowLive', QPushButton)
+        self.metric_live_button.setText('● LIVE — following')
+        self.metric_live_button.clicked.connect(self.resume_metric_live)
+        self.metric_smoothing = self._required_ui('metricsSmoothing', QComboBox)
+        self._fill_combo(self.metric_smoothing, [
+            ('None', 'none'), ('Moving average', 'mean'),
+            ('Exponential (EMA)', 'ema'), ('Moving median', 'median')])
+        self.metric_smoothing.currentIndexChanged.connect(self.refresh_metric_plot)
+        self.metric_smoothing_duration = self._required_ui(
+            'metricsSmoothingDuration', QComboBox)
+        self._fill_combo(self.metric_smoothing_duration,
+                         [(f'{d} s', float(d)) for d in (1, 2, 3, 5, 10)])
+        self.metric_smoothing_duration.setCurrentIndex(1)
+        self.metric_smoothing_duration.setEnabled(False)
+        self.metric_smoothing_duration.currentIndexChanged.connect(
+            self.refresh_metric_plot)
+        self.metric_smoothing.currentIndexChanged.connect(
+            lambda: self.metric_smoothing_duration.setEnabled(
+                self.metric_smoothing.currentData() != 'none'))
+        self.metric_interpolation = self._required_ui('metricsInterpolation', QComboBox)
+        self._fill_combo(self.metric_interpolation, [
+            ('None (points)', 'none'), ('Linear', 'linear'),
+            ('PCHIP', 'pchip'), ('Cubic spline', 'cubic')])
+        self.metric_interpolation.setCurrentIndex(2)
+        self.metric_interpolation.currentIndexChanged.connect(self.refresh_metric_plot)
+        self.metric_sample_markers = self._required_ui('measuredPoints', QCheckBox)
+        self.metric_sample_markers.setChecked(True)
+        self.metric_sample_markers.toggled.connect(self.refresh_metric_plot)
+        self.metric_checks = {}
+        for key in self.metric_keys:
+            checkbox = self._required_ui(f'metricToggle{key[1]}', QCheckBox)
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(self.refresh_metric_plot)
+            self.metric_checks[key] = checkbox
+
+        self.metric_plot = pg.PlotWidget(
+            title='Combined live metrics — 5 s default, up to 5 min history')
+        self.metric_plot.setLabel('bottom', 'Elapsed session time', units='s')
+        self.metric_plot.showGrid(x=True, y=True, alpha=.2)
+        self.metric_plot.addLegend()
+        self.metric_plot.setMouseEnabled(x=True, y=True)
+        self.metric_plot.getViewBox().sigRangeChangedManually.connect(
+            self.metric_view_changed_manually)
+        self.metric_curves = {}
+        self.metric_point_curves = {}
+        for key, color in zip(self.metric_keys, (
+            '#e69f00', '#56b4e9', '#009e73', '#cc79a7', '#d55e00')):
+            self.metric_curves[key] = self.metric_plot.plot(
+                name=f'{key[0]} / {key[1]}',
+                pen=pg.mkPen(color, width=2), connect='finite')
+            self.metric_point_curves[key] = self.metric_plot.plot(
+                pen=None, symbol='o', symbolSize=5,
+                symbolBrush=pg.mkBrush(color), symbolPen=None)
+        self.metric_plot_stack = QStackedWidget()
+        self.metric_plot_stack.addWidget(self.metric_plot)
+        metrics_host = self._required_ui('metricsPlotHost', QFrame)
+        if metrics_host.layout() is None:
+            host_layout = QVBoxLayout(metrics_host)
+            host_layout.setContentsMargins(0, 0, 0, 0)
+        metrics_host.layout().addWidget(self.metric_plot_stack)
+        readouts = self._required_ui('metricsReadoutHost', QFrame)
+        readout_layout = QGridLayout(readouts)
+        self.metric_labels, self.metric_status = {}, {}
+        for row, (kind, keys) in enumerate((
+            ('EEG', ('IAF', 'AWI', 'BAR')), ('EDA', ('SCL',)),
+            ('PPG', ('HR',)), ('EI', ('EI',)))):
+            group = QVBoxLayout()
+            group.addWidget(QLabel(f'<b>{kind} metrics</b>'))
+            for key in keys:
+                label = QLabel(f'{key}: —')
+                self.metric_labels[(kind, key)] = label
+                group.addWidget(label)
+            status = QLabel('Waiting for stream / valid window')
+            self.metric_status[kind] = status
+            group.addWidget(status)
+            readout_layout.addLayout(group, row, 0)
+        self._required_ui('rawPlotPause', QPushButton).clicked.connect(
+            lambda: self.set_plot_paused('raw', not self.raw_plot_paused))
+        self._required_ui('metricsPlotPause', QPushButton).clicked.connect(
+            lambda: self.set_plot_paused('metrics', not self.metric_plot_paused))
+        self.raw_plot_paused = False
+        self.metric_plot_paused = False
+
+    def _baseline_designer_action(self, kind):
+        choice = self._required_ui(f'{kind}Mode', QComboBox).currentIndex()
+        if choice == 0:
+            self.record_calibration(kind)
+        elif choice == 1:
+            self.load_existing(kind)
+        else:
+            self.clear_calibration(kind)
+
+    def clear_calibration(self, kind):
+        if kind == 'EYC':
+            self.loaded_eyc = None
+            self.iaf_hz = 10.
+            for worker in self.workers.values():
+                if worker.kind == 'EEG':
+                    worker.iaf_hz = self.iaf_hz
+        else:
+            self.loaded_bsl = None
+            self.ei_estimator.set_references(None, None)
+        self.calibration_paths[kind] = None
+        self.calibration_file_labels[kind].setText('None selected')
+        self.calibration_state.setText(
+            f'EYC: {self.iaf_hz:.2f} Hz'
+            f" | BSL: {'loaded' if self.loaded_bsl else 'none'}")
+        self.refresh_metrics()
+
+    def set_plot_paused(self, scope, paused):
+        if scope == 'raw':
+            self.raw_plot_paused = bool(paused)
+            self._required_ui('rawPlotPause', QPushButton).setText(
+                '▶ Resume plotting' if paused else '⏸ Pause plotting')
+            if not paused:
+                for plot in self.raw_vispy_plots.values():
+                    plot.reset()
+                self.raw_dirty = True
+        else:
+            self.metric_plot_paused = bool(paused)
+            self._required_ui('metricsPlotPause', QPushButton).setText(
+                '▶ Resume plotting' if paused else '⏸ Pause plotting')
+            if not paused:
+                self.metric_presentation_epoch += 1
+                self.metric_dirty = True
 
     def queue_lsl_task(self, operation, info=None):
         """Run blocking LSL APIs outside the Qt GUI event loop."""
@@ -1061,7 +1022,7 @@ class MainWindow(QMainWindow):
 
     def raw_plot_visible(self, kind):
         widget = self.raw_plot_stacks[kind]
-        return self.tabs.currentIndex() == 0 and widget.isVisible()
+        return self.tabs.currentIndex() == 1 and widget.isVisible()
 
     def update_raw_xranges(self):
         if not self.raw_follow_live or self.raw_plot_origin is None:
@@ -1077,9 +1038,9 @@ class MainWindow(QMainWindow):
                     plot.setXRange(end - self.raw_view_seconds, end, padding=0)
 
     def tab_changed(self, index):
-        if index == 0:
+        if index == 1:
             self.raw_dirty = True
-        elif index == 1:
+        elif index == 2:
             self.metric_dirty = True
             self.refresh_metric_plot()
 
@@ -1111,12 +1072,12 @@ class MainWindow(QMainWindow):
             # Source threads keep collecting into bounded mailboxes instead.
             if QApplication.activePopupWidget() is None:
                 self.poll_receivers()
-                if self.tabs.currentIndex() == 0:
+                if self.tabs.currentIndex() == 1 and not self.raw_plot_paused:
                     if now >= self.raw_interacting_until:
                         self.update_raw_xranges()
                         if self.raw_dirty and now - self.raw_last_render_time >= .10:
                             self.draw()
-                elif self.tabs.currentIndex() == 1:
+                elif self.tabs.currentIndex() == 2 and not self.metric_plot_paused:
                     self.update_metric_xrange()
                     if self.metric_dirty:
                         self.refresh_metric_plot()
@@ -1129,7 +1090,7 @@ class MainWindow(QMainWindow):
 
     def draw(self):
         """Submit a lightweight snapshot; never reduce data on the GUI thread."""
-        if self.tabs.currentIndex() != 0 or self.raw_plot_origin is None:
+        if self.tabs.currentIndex() != 1 or self.raw_plot_origin is None:
             return
         if QApplication.activePopupWidget() is not None or self.raw_inflight_ticket is not None:
             return
@@ -1191,7 +1152,7 @@ class MainWindow(QMainWindow):
         self.raw_inflight_ticket = None
         if response['version'] != self.raw_frame_epoch:
             return
-        if (self.tabs.currentIndex() != 0 or QApplication.activePopupWidget() is not None
+        if (self.tabs.currentIndex() != 1 or self.raw_plot_paused or QApplication.activePopupWidget() is not None
                 or time.monotonic() < self.raw_interacting_until):
             self.raw_dirty = True
             return
