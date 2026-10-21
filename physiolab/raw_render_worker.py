@@ -51,6 +51,7 @@ class RawRenderWorker(QThread):
                 except (ValueError, IndexError) as exc:
                     frames[kind] = None
             self.frame_ready.emit({
+                'ticket': request['ticket'],
                 'version': request['version'],
                 'frames': frames,
             })
