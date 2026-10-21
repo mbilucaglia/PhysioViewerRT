@@ -218,3 +218,32 @@ durations a full previous cycle cannot persist. The short 5–30s settings
 are recommended for real-time viewing and stable two-cycle persistence.
 
 Legacy pyqtgraph remains available as an independent fallback.
+
+## Clinical three-tab UI and sweep controls (experimental)
+
+The app now has **Raw Data**, **Metrics**, and **Sources** tabs. Stream
+discovery, EEG/EDA/PPG source selectors, channel selectors and LSL Play/Stop
+controls are on **Sources**. Reception and recording do not pause when
+switching tabs.
+
+The Raw Data tab is modeled on the clean clinical layout: a white GPU
+plot for each EEG, PPG and skin conductance (EDA/SC) signal, with no axis
+ticks/grids, red raw traces, black filtered traces and a **thin blue
+sweep cursor**. There is no opaque white erase band. A draggable vertical
+Qt splitter shares the available display height among the three plots;
+dragging one divider enlarges one panel and reduces the adjacent panel.
+The Raw Data default view does not need a vertical scrollbar.
+
+**Amplitude** is adjusted independently for each of EEG, EDA/SC and
+PPG using +/− buttons or an editable numeric spin box (0.05–50×).
+The EEG amplitude multiplier applies equally to every displayed EEG
+channel, not to physical units or a fixed 100 µV scale.
+
+Both **Raw Data** and **Metrics** in VisPy use stable left-to-right
+sweeps with the previous cycle retained until the cursor overwrites it.
+Their default duration is 5 s and each tab retains its own time-window
+selector and zoom controls. pyqtgraph remains available for the original
+scrolling display. The plot cursor uses the shared VisPy scene engine,
+and physiological algorithms, timestamps, calibration and recordings
+are unchanged. Continuous gain and thin GPU cursor require the VisPy
+renderer; they do not alter the historical pyqtgraph presentation.
