@@ -117,7 +117,7 @@ class VisPyRawPlot:
         self.canvas = self.engine.canvas
         self.widget = self.engine.widget
         self.view = self.engine.view
-        self.labels = []
+        self.labels = []  # Legacy public attribute; channel names now live in Qt gutter.
         self.vertical_gain = 1.
         self.sweep_duration = 5.
         self.layers = {'raw': [], 'filtered': []}
@@ -145,8 +145,7 @@ class VisPyRawPlot:
 
     def reset(self):
         self._drop_layers()
-        for label in self.labels:
-            label.visible = False
+        self.engine.set_channel_labels(())
         self.engine.sweep_cursor.visible = False
         self.canvas.update()
 
@@ -207,13 +206,13 @@ class VisPyRawPlot:
         latest = float(times[-1])
         self._latest = max(self._latest, latest)
         self.engine.set_sweep_cursor((self._latest % duration)/duration)
-        while len(self.labels) < n:
-            self.labels.append(self.engine.text())
-        for i, label in enumerate(self.labels):
-            label.visible = i < n
-            if i < n:
-                label.text = str(names[i]) if i < len(names) else f'Ch {i+1}'
-                label.pos = (.012, (6.*i + 1.) / max(6.*n+3., 6.))
+        # Channel labels are rendered by a separate Qt gutter outside the
+        # OpenGL viewport. No overlay can obscure the first EEG samples.
+        channel_names = tuple(
+            str(names[i]) if i < len(names) else f'Ch {i+1}'
+            for i in range(n)
+        )
+        self.engine.set_channel_labels(channel_names)
         self.canvas.update()
 
     def close(self):
