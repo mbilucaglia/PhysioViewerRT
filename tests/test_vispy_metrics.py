@@ -67,7 +67,7 @@ class MetricGpuGeometryTests(unittest.TestCase):
         self.assertTrue(np.any(starts > .2))
         pts = metric_sweep_points(t, y, 5., 6.)
         self.assertTrue(np.all((pts[:, 0] >= 0.) & (pts[:, 0] <= 1.)))
-        self.assertEqual(len(pts), 12)
+        self.assertEqual(len(pts), 11)  # previous 1–4.5s and current 5–6s
         t_gap = np.array([4.8, 4.9, 5., 5.1])
         v_gap = np.array([1., 2., 3., 4.])
         segment = metric_sweep_segments(t_gap, v_gap, 5., 5.2)
