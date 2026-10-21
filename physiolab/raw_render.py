@@ -9,7 +9,8 @@ from .raw_timing import visible_chunk
 
 
 def prepare_raw_window(chunks, left, right, origin, reference=None,
-                       max_points=2500, max_channels=8):
+                       max_points=2500, max_channels=8,
+                       decimation_span=None):
     """Return time and display-scaled traces for a raw modality.
 
     A result is (time, raw_traces, filtered_traces, centers, scales,
@@ -45,7 +46,13 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
     fs = float(chunks[-1][4])
     if not np.isfinite(fs) or fs <= 0:
         fs = max(1., len(t) / max(right-left, 1e-6))
-    stride = max(1, int(np.ceil(fs * (right-left) / max_points)))
+    # For incremental sweeps the cropped tail may be only 100ms, but
+    # its fixed decimation must match the original full sweep window.
+    decimation_seconds = (
+        float(decimation_span) if decimation_span is not None else right-left)
+    if decimation_seconds <= 0:
+        raise ValueError('Decimation window must be positive')
+    stride = max(1, int(np.ceil(fs * decimation_seconds / max_points)))
     if stride > 1:
         # Using origin-relative nominal sample indices fixes the phase across
         # frames without requiring sample-index counters in the LSL reader.
