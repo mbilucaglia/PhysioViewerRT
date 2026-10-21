@@ -197,10 +197,11 @@ class VisPyRawPlot:
         ):
             for i, layer in enumerate(self.layers[layer_name]):
                 layer.visual.visible = bool(enabled)
-                if enabled:
-                    normalized = ((offsets[i] + self.vertical_gain *
-                                   (values[:, i] - offsets[i])) - lower) / (upper-lower)
-                    layer.append(times, normalized)
+                # Keep hidden layers current too: toggling Raw/Filtered back
+                # on must not expose missing sweep bins or require a rebuild.
+                normalized = ((offsets[i] + self.vertical_gain *
+                               (values[:, i] - offsets[i])) - lower) / (upper-lower)
+                layer.append(times, normalized)
         # Both the cursor and the erase boundary use the latest real sample.
         latest = float(times[-1])
         self._latest = max(self._latest, latest)
