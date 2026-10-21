@@ -256,12 +256,11 @@ class MainWindow(QMainWindow):
         self.raw_page = self._required_ui('rawDataTab', QWidget)
         self.metrics_page = self._required_ui('metricsTab', QWidget)
         self.tabs.currentChanged.connect(self.tab_changed)
-        if [self.tabs.tabText(i) for i in range(3)] != ['Sources', 'Raw Data', 'Metrics']:
-            # QUiLoader may not preserve Designer tab titles unless each
-            # page provides title attributes; enforce the intended navigation.
-            self.tabs.setTabText(0, 'Sources')
-            self.tabs.setTabText(1, 'Raw Data')
-            self.tabs.setTabText(2, 'Metrics')
+        # Never hard-code tab positions: Qt Designer may reorder the pages.
+        # Keep their titles and layout exactly as saved in the .ui file.
+        if any(self.tabs.indexOf(page) < 0 for page in
+               (self.sources_page, self.raw_page, self.metrics_page)):
+            raise RuntimeError('Qt Designer mainTabs must contain all three pages')
 
     def _fill_combo(self, combo, options):
         combo.blockSignals(True)
@@ -1022,7 +1021,7 @@ class MainWindow(QMainWindow):
 
     def raw_plot_visible(self, kind):
         widget = self.raw_plot_stacks[kind]
-        return self.tabs.currentIndex() == 1 and widget.isVisible()
+        return self.tabs.currentWidget() is self.raw_page and widget.isVisible()
 
     def update_raw_xranges(self):
         if not self.raw_follow_live or self.raw_plot_origin is None:
@@ -1038,9 +1037,9 @@ class MainWindow(QMainWindow):
                     plot.setXRange(end - self.raw_view_seconds, end, padding=0)
 
     def tab_changed(self, index):
-        if index == 1:
+        if self.tabs.widget(index) is self.raw_page:
             self.raw_dirty = True
-        elif index == 2:
+        elif self.tabs.widget(index) is self.metrics_page and not self.metric_plot_paused:
             self.metric_dirty = True
             self.refresh_metric_plot()
 
@@ -1072,12 +1071,12 @@ class MainWindow(QMainWindow):
             # Source threads keep collecting into bounded mailboxes instead.
             if QApplication.activePopupWidget() is None:
                 self.poll_receivers()
-                if self.tabs.currentIndex() == 1 and not self.raw_plot_paused:
+                if self.tabs.currentWidget() is self.raw_page and not self.raw_plot_paused:
                     if now >= self.raw_interacting_until:
                         self.update_raw_xranges()
                         if self.raw_dirty and now - self.raw_last_render_time >= .10:
                             self.draw()
-                elif self.tabs.currentIndex() == 2 and not self.metric_plot_paused:
+                elif self.tabs.currentWidget() is self.metrics_page and not self.metric_plot_paused:
                     self.update_metric_xrange()
                     if self.metric_dirty:
                         self.refresh_metric_plot()
@@ -1090,7 +1089,7 @@ class MainWindow(QMainWindow):
 
     def draw(self):
         """Submit a lightweight snapshot; never reduce data on the GUI thread."""
-        if self.tabs.currentIndex() != 1 or self.raw_plot_origin is None:
+        if self.tabs.currentWidget() is not self.raw_page or self.raw_plot_origin is None:
             return
         if QApplication.activePopupWidget() is not None or self.raw_inflight_ticket is not None:
             return
@@ -1152,7 +1151,7 @@ class MainWindow(QMainWindow):
         self.raw_inflight_ticket = None
         if response['version'] != self.raw_frame_epoch:
             return
-        if (self.tabs.currentIndex() != 1 or self.raw_plot_paused or QApplication.activePopupWidget() is not None
+        if (self.tabs.currentWidget() is not self.raw_page or self.raw_plot_paused or QApplication.activePopupWidget() is not None
                 or time.monotonic() < self.raw_interacting_until):
             self.raw_dirty = True
             return
