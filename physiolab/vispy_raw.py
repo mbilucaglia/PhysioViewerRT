@@ -54,54 +54,121 @@ def trace_segments(times, values, left, right, lower=-3.0, upper=50.0):
     return flat.reshape(-1, 2).astype(np.float32), colors
 
 
+def sweep_segments(times, values, duration, head, scale=1.0):
+    """Stable 2-pass left-to-right sweep geometry with previous-cycle persistence.
+
+    Previous-cycle samples remain on the right of the advancing sweep head;
+    current-cycle samples occupy the left. Segments may never cross a cycle
+    boundary or join the old and new sweeps. Input amplitudes already have
+    6-unit per-channel offsets applied by prepare_raw_window().
+    """
+    times = np.asarray(times, dtype=float)
+    values = np.asarray(values, dtype=float)
+    if duration <= 0 or scale <= 0:
+        raise ValueError('Sweep duration and vertical gain must be positive')
+    if values.ndim != 2 or times.ndim != 1 or len(times) != len(values):
+        raise ValueError('Mismatched sweep samples')
+    if len(times) < 2 or not values.shape[1]:
+        return (np.empty((0, 2), np.float32),
+                np.empty((0, 4), np.float32))
+    cycle = np.floor(times / duration).astype(np.int64)
+    current = int(np.floor(head / duration))
+    phase = float(head % duration)
+    x = np.mod(times, duration)
+    n = values.shape[1]
+    offsets = 6. * np.arange(n)
+    gain_values = offsets + scale * (values - offsets)
+    lower, upper = -3., max(6.*n, 3.)
+    normalized_y = (gain_values - lower) / (upper - lower)
+    valid_samples = ((cycle == current)
+                     | ((cycle == current - 1) & (x >= phase)))
+    valid_samples &= times <= head + 1e-6
+    pairs = (valid_samples[:-1] & valid_samples[1:]
+             & (cycle[:-1] == cycle[1:])
+             & (np.diff(times) <= max(.5, duration / 3.)))
+    a = np.stack((x[:-1]/duration + np.zeros_like(normalized_y[:-1]),
+                  normalized_y[:-1]), axis=-1)
+    b = np.stack((x[1:]/duration + np.zeros_like(normalized_y[1:]),
+                  normalized_y[1:]), axis=-1)
+    valid = (pairs[:, None]
+             & np.isfinite(a).all(axis=2)
+             & np.isfinite(b).all(axis=2))
+    segments = np.stack((a.transpose(1, 0, 2),
+                         b.transpose(1, 0, 2)), axis=2).reshape(-1, 2, 2)
+    keep = valid.T.ravel()
+    segments = segments[keep]
+    if not len(segments):
+        return (np.empty((0, 2), np.float32),
+                np.empty((0, 4), np.float32))
+    colors = np.ones((len(segments)*2, 4), np.float32)
+    return segments.reshape(-1, 2).astype(np.float32), colors
+
+
 class VisPyRawPlot:
-    """A GPU canvas for one raw modality; only accessed by the Qt GUI thread."""
+    """Multi-channel GPU sweep adapter powered by the shared plot engine."""
 
     def __init__(self, kind):
-        # Lazy import: pyqtgraph remains default, without mandatory OpenGL deps.
-        from vispy import scene
+        from .vispy_plot_engine import VisPyPlotEngine
         self.kind = kind
-        self.canvas = scene.SceneCanvas(
-            keys=None, show=False, bgcolor='#15191f', size=(900, 330),
-            app='pyside6',
+        self.engine = VisPyPlotEngine(
+            x_label='Sweep time (s)', y_label='Channels',
+            size=(900, 350 if kind == 'EEG' else 300),
         )
-        self.widget = self.canvas.native
-        self.view = self.canvas.central_widget.add_view()
-        self.view.camera = scene.PanZoomCamera(rect=(0, 0, 1, 1), aspect=None)
-        self.view.camera.interactive = False
-        # A single GL draw item per raw / filtered layer, not one Qt curve
-        # per channel. Acquisition and normalization stay in existing modules.
-        self.raw_line = scene.visuals.Line(
-            parent=self.view.scene, method='gl', connect='segments',
-            antialias=False, width=1,
-        )
-        self.filtered_line = scene.visuals.Line(
-            parent=self.view.scene, method='gl', connect='segments',
-            antialias=False, width=1,
-        )
+        self.canvas = self.engine.canvas
+        self.widget = self.engine.widget
+        self.view = self.engine.view
+        self.raw_line = self.engine.line(color='red', width=1)
+        self.filtered_line = self.engine.line(color='black', width=1)
+        self.labels = []
+        self.vertical_gain = 1.
+        self.sweep_duration = 5.
+
+    def set_vertical_gain(self, gain):
+        gain = float(gain)
+        if not np.isfinite(gain) or gain <= 0:
+            raise ValueError('Vertical gain must be finite and positive')
+        self.vertical_gain = gain
 
     def reset(self):
         self.raw_line.visible = False
         self.filtered_line.visible = False
+        for label in self.labels:
+            label.visible = False
         self.canvas.update()
 
-    def set_frame(self, frame, left, right, show_raw=True, show_filtered=True):
-        times, raw, filtered, _, _, _ = frame
-        lower, upper = -3., max(6. * raw.shape[1], 3.)
-        for layer, enabled, data in (
-            (self.raw_line, show_raw, raw),
-            (self.filtered_line, show_filtered, filtered),
+    def set_frame(self, frame, left, right, show_raw=True, show_filtered=True,
+                  sweep_head=None):
+        times, raw, filtered, _, _, names = frame
+        duration = float(right - left)
+        self.sweep_duration = duration
+        if sweep_head is None:
+            sweep_head = float(times[-1]) if len(times) else 0.
+        n = raw.shape[1]
+        self.engine.set_view(0., 1., 0., 1.)
+        for layer, enabled, data, color in (
+            (self.raw_line, show_raw, raw, (1., 0., 0., 1.)),
+            (self.filtered_line, show_filtered, filtered, (0., 0., 0., 1.)),
         ):
             if not enabled:
                 layer.visible = False
                 continue
-            positions, colors = trace_segments(
-                times, data, left, right, lower, upper
+            vertices, colors = sweep_segments(
+                times, data, duration, sweep_head, self.vertical_gain
             )
-            layer.visible = bool(len(positions))
-            if len(positions):
-                layer.set_data(pos=positions, color=colors, connect='segments')
+            layer.visible = len(vertices) > 0
+            if len(vertices):
+                colors[:] = color
+                layer.set_data(pos=vertices, color=colors, connect='segments')
+        # Stable channel labels on the left, one visual per channel only
+        # (updated with waveform frames, not with individual LSL samples).
+        while len(self.labels) < n:
+            self.labels.append(self.engine.text())
+        for i, label in enumerate(self.labels):
+            label.visible = i < n
+            if i < n:
+                label.text = str(names[i]) if i < len(names) else f'Ch {i+1}'
+                label.pos = (.012, (6.*i + 1.) / max(6.*n+3., 6.))
         self.canvas.update()
 
     def close(self):
-        self.canvas.close()
+        self.engine.close()
