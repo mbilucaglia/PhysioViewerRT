@@ -1180,7 +1180,7 @@ class MainWindow(QMainWindow):
                 self.raw_scale[kind] = (centers, spreads)
             if self.raw_renderer_mode == 'vispy':
                 self.raw_vispy_plots[kind].set_vertical_gain(
-                    self.raw_vertical_gains[kind].currentData()
+                    self.raw_vertical_gains[kind].value()
                 )
                 self.raw_vispy_plots[kind].set_frame(
                     frame, 0., self.raw_view_seconds,
