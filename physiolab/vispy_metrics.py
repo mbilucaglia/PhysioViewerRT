@@ -99,88 +99,122 @@ def metric_sweep_points(times, values, duration, head):
 
 
 class VisPyMetricPlot:
-    """GPU metrics using the same white canvas and sweep as Raw Data."""
+    """All Metrics series share the exact incremental GPU sweep used by Raw."""
 
     def __init__(self, keys):
-        import time
         from .vispy_plot_engine import VisPyPlotEngine
         self.keys = tuple(keys)
         self.engine = VisPyPlotEngine(
-            x_label='Sweep time (s)', y_label='Metric value',
-            size=(1000, 520))
+            x_label='Sweep time (s)', y_label='Metric value', size=(1000, 520))
         self.canvas = self.engine.canvas
         self.widget = self.engine.widget
         self.view = self.engine.view
         self.xaxis = self.engine.xaxis
         self.yaxis = self.engine.yaxis
         self.gridlines = self.engine.gridlines
-        self.lines, self.points = {}, {}
-        self._data = {}
-        self._source = {}
+        self.lines = {}
+        self.points = {}
+        self._layers = {}
         self._bounds = (-5., 0.)
-        self._ylimits = (-1., 1.)
-        self._last_rebuild = 0.
+        self._duration = 5.
+        self._latest = -np.inf
+        self._y_limits = (-1., 1.)
+        self._signature = None
+        self._configure_layers()
+
+    def _configure_layers(self):
+        from .incremental_sweep import IncrementalSweepLayer
+        for layer_pair in self._layers.values():
+            for layer in layer_pair:
+                layer.close()
+        self._layers = {}
         for key, color in zip(self.keys, METRIC_COLORS):
-            self.lines[key] = self.engine.line(color=color, width=2)
-            self.points[key] = self.engine.markers()
-            self.lines[key].visible = False
-            self.points[key].visible = False
+            # Fixed 20Hz output for interpolated metrics and their measured
+            # markers; NaNs or missing observations never bridge gaps.
+            line = IncrementalSweepLayer(
+                self.view.scene, self._duration, 20., color, max_gap=1.1)
+            dots = IncrementalSweepLayer(
+                self.view.scene, self._duration, 20., color,
+                max_gap=1.1, mode='points')
+            line.visual.visible = False
+            dots.visual.visible = False
+            self._layers[key] = (line, dots)
+            self.lines[key] = line.visual
+            self.points[key] = dots.visual
+        self._latest = -np.inf
+        self._y_limits = (-1., 1.)
+        self.engine.set_view(0., 1., *self._y_limits)
+
+    def set_presentation_signature(self, signature):
+        """Rebuild only when data transformation settings change."""
+        signature = tuple(signature)
+        if self._signature != signature:
+            self._signature = signature
+            self._configure_layers()
 
     def set_series(self, key, x, y, sample_x, sample_y,
                    visible=True, show_line=True, show_markers=True):
-        self._source[key] = (
-            np.asarray(x, dtype=float), np.asarray(y, dtype=float),
-            np.asarray(sample_x, dtype=float), np.asarray(sample_y, dtype=float),
-            bool(visible and show_line), bool(visible and show_markers),
-        )
-        self._last_rebuild = 0.
-        self._render_series(key)
+        line, dots = self._layers[key]
+        line_enabled = bool(visible and show_line)
+        dots_enabled = bool(visible and show_markers)
+        if ((not line.visual.visible and line_enabled and
+             np.isfinite(line.ring.last_time))
+                or (not dots.visual.visible and dots_enabled and
+                    np.isfinite(dots.ring.last_time))):
+            # Re-enabled series must replay retained data, otherwise samples
+            # that arrived while the visual was hidden cannot be recovered.
+            self._configure_layers()
+            line, dots = self._layers[key]
+        line.visual.visible = line_enabled
+        dots.visual.visible = dots_enabled
+        if line_enabled:
+            line.append(x, y)
+        if dots_enabled:
+            dots.append(sample_x, sample_y)
+        if visible:
+            finite = np.asarray(sample_y, dtype=float)
+            finite = finite[np.isfinite(finite)]
+            if not len(finite):
+                finite = np.asarray(y, dtype=float)
+                finite = finite[np.isfinite(finite)]
+            if len(finite):
+                low, high = self._y_limits
+                candidate_low, candidate_high = float(np.min(finite)), float(np.max(finite))
+                # Expand-only while live: autoscale must never make traces
+                # jitter vertically on each new metric observation.
+                pad = max(.1, (candidate_high-candidate_low)*.08)
+                new_range = (min(low, candidate_low-pad),
+                             max(high, candidate_high+pad))
+                if new_range != self._y_limits:
+                    self._y_limits = new_range
+                    self.engine.set_view(0., 1., *new_range)
+            points = np.asarray(sample_x, dtype=float)
+            points = points[np.isfinite(points)]
+            if len(points):
+                self._latest = max(self._latest, float(points[-1]))
         self.canvas.update()
-
-    def _render_series(self, key):
-        from .vispy_plot_engine import VisPyPlotEngine
-        x, y, mx, my, show_line, show_markers = self._source[key]
-        left, head = self._bounds
-        duration = head - left
-        if duration <= 0:
-            return
-        line = (metric_sweep_segments(x, y, duration, head)
-                if show_line else np.empty((0, 2), dtype=np.float32))
-        pts = (metric_sweep_points(mx, my, duration, head)
-               if show_markers else np.empty((0, 2), dtype=np.float32))
-        self._data[key] = (line, pts)
-        self.lines[key].visible = len(line) > 0
-        if len(line):
-            self.lines[key].set_data(pos=line, connect='segments')
-        self.points[key].visible = len(pts) > 0
-        if len(pts):
-            self.points[key].set_data(
-                pos=pts, face_color=METRIC_COLORS[self.keys.index(key)],
-                edge_color=None, size=5)
 
     def set_xrange(self, left, right):
-        import time
-        self._bounds = (float(left), float(right))
-        if right <= left:
+        duration = float(right-left)
+        if duration <= 0:
             return
-        # Move cursor smoothly without rebuilding all line vertices at 30fps.
-        self.engine.set_sweep_cursor((right % (right-left))/(right-left))
-        if time.monotonic() - self._last_rebuild >= .1:
-            self._rebuild()
-            self._last_rebuild = time.monotonic()
-
-    def _rebuild(self):
-        for key in self._source:
-            self._render_series(key)
-        low, high = metric_y_limits(self._data, 0., 1.)
-        self._ylimits = (low, high)
-        self.engine.set_view(0., 1., low, high)
-        self.canvas.update()
+        self._bounds = (float(left), float(right))
+        if not np.isclose(duration, self._duration):
+            self._duration = duration
+            self._configure_layers()
+        # Cursor remains at the last true measurement, never ahead of data.
+        if np.isfinite(self._latest):
+            self.engine.set_sweep_cursor(
+                (self._latest % self._duration)/self._duration)
 
     def refresh_axes(self):
-        import time
-        self._rebuild()
-        self._last_rebuild = time.monotonic()
+        if np.isfinite(self._latest):
+            self.engine.set_sweep_cursor(
+                (self._latest % self._duration)/self._duration)
+        self.canvas.update()
 
     def close(self):
+        for pair in self._layers.values():
+            for layer in pair:
+                layer.close()
         self.engine.close()
