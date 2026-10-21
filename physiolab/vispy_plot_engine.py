@@ -1,55 +1,52 @@
-"""Shared VisPy canvas, axes, grid, GPU lines and viewport.
+"""Shared clean VisPy scene, axes policy, and blue sweep cursor.
 
-Both waveform and metrics adapters use this scene; only how they prepare
-coordinates differs. No VisPy dependency is required for pyqtgraph fallback.
+The same presentation engine hosts both Raw Data and Metrics.
 """
+import numpy as np
 
 
 class VisPyPlotEngine:
-    """Common visual shell for time-series displays."""
+    """White, borderless, full-canvas OpenGL plot with an optional sweep cursor."""
 
-    AXIS_WIDTH = 74
-    AXIS_HEIGHT = 55
-
-    def __init__(self, x_label='Time (s)', y_label='Value', size=(900, 350)):
+    def __init__(self, x_label='Time (s)', y_label='Value', size=(900, 350),
+                 show_axes=False):
         from vispy import scene
         self.scene = scene
         self.canvas = scene.SceneCanvas(
-            keys=None, show=False, bgcolor='white', size=size,
-            app='pyside6',
+            keys=None, show=False, bgcolor='white', size=size, app='pyside6'
         )
         self.widget = self.canvas.native
-        self.grid = self.canvas.central_widget.add_grid(margin=4, spacing=3)
-        self.yaxis = scene.AxisWidget(
-            orientation='left', axis_label=y_label,
-            text_color='#252525', axis_color='#555555',
-            tick_color='#777777',
-        )
-        self.xaxis = scene.AxisWidget(
-            orientation='bottom', axis_label=x_label,
-            text_color='#252525', axis_color='#555555',
-            tick_color='#777777',
-        )
-        self.grid.add_widget(self.yaxis, row=0, col=0)
-        self.grid.add_widget(self.xaxis, row=1, col=1)
-        self.view = self.grid.add_view(row=0, col=1, border_color='#cccccc')
-        # Axis sizing properties belong to the widgets, not AxisVisual.
-        self.yaxis.width_max = self.AXIS_WIDTH
-        self.xaxis.height_max = self.AXIS_HEIGHT
-        self.view.camera = scene.PanZoomCamera(rect=(0, -1, 5, 2), aspect=None)
+        self.xaxis = self.yaxis = self.gridlines = None
+        if show_axes:
+            grid = self.canvas.central_widget.add_grid(margin=4, spacing=3)
+            self.yaxis = scene.AxisWidget(
+                orientation='left', axis_label=y_label,
+                text_color='#303030', axis_color='#888888',
+                tick_color='#888888')
+            self.xaxis = scene.AxisWidget(
+                orientation='bottom', axis_label=x_label,
+                text_color='#303030', axis_color='#888888',
+                tick_color='#888888')
+            grid.add_widget(self.yaxis, row=0, col=0)
+            grid.add_widget(self.xaxis, row=1, col=1)
+            self.view = grid.add_view(row=0, col=1)
+            self.yaxis.width_max = 74
+            self.xaxis.height_max = 55
+        else:
+            self.view = self.canvas.central_widget.add_view()
+        self.view.camera = scene.PanZoomCamera(rect=(0, 0, 1, 1), aspect=None)
         self.view.camera.interactive = False
-        self.xaxis.link_view(self.view)
-        self.yaxis.link_view(self.view)
-        self.gridlines = scene.visuals.GridLines(
-            parent=self.view.scene, color=(.65, .65, .65, .13),
-        )
+        if show_axes:
+            self.xaxis.link_view(self.view)
+            self.yaxis.link_view(self.view)
+        self.sweep_cursor = self.line('#1769e0', width=2)
+        self.sweep_cursor.visible = False
+        self._y_bounds = (0., 1.)
 
     def line(self, color='black', width=1):
         return self.scene.visuals.Line(
-            parent=self.view.scene, color=color,
-            method='gl', connect='segments', width=width,
-            antialias=False,
-        )
+            parent=self.view.scene, color=color, method='gl',
+            connect='segments', width=width, antialias=False)
 
     def markers(self):
         return self.scene.visuals.Markers(parent=self.view.scene)
@@ -57,16 +54,29 @@ class VisPyPlotEngine:
     def text(self, text='', pos=(0, 0), color='#303030', size=11):
         return self.scene.visuals.Text(
             text=text, pos=pos, color=color, font_size=size,
-            anchor_x='left', anchor_y='center', parent=self.view.scene,
-        )
+            anchor_x='left', anchor_y='center', parent=self.view.scene)
 
     def set_view(self, left, right, bottom, top):
         if right <= left or top <= bottom:
             return
-        # Direct assignment never queries empty GL marker bounds.
-        self.view.camera.rect = (
-            float(left), float(bottom), float(right-left), float(top-bottom)
-        )
+        self._y_bounds = (float(bottom), float(top))
+        # Never introspect the bounds of empty VisPy Markers.
+        self.view.camera.rect = (float(left), float(bottom),
+                                 float(right-left), float(top-bottom))
+        self.canvas.update()
+
+    def set_sweep_cursor(self, phase):
+        """Thin blue line; no white erase band is drawn."""
+        phase = float(phase)
+        if not np.isfinite(phase):
+            self.sweep_cursor.visible = False
+            return
+        low, high = self._y_bounds
+        x = min(1., max(0., phase))
+        pos = np.array([[x, low], [x, high]], dtype=np.float32)
+        self.sweep_cursor.set_data(pos=pos, color='#1769e0',
+                                   connect='segments')
+        self.sweep_cursor.visible = True
         self.canvas.update()
 
     def close(self):
