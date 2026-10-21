@@ -175,6 +175,7 @@ class VisPyRawPlot:
         self.sweep_duration = duration
         n = raw.shape[1]
         self.engine.set_view(0., 1., 0., 1.)
+        self.engine.set_axis_labels(duration=duration, bounds=(0., 1.))
         if not len(times) or not n:
             return
         # The preparation worker uses fixed-clock decimation. Capture the
