@@ -38,10 +38,11 @@ class SweepTests(unittest.TestCase):
         doubled, _ = sweep_segments(times, values, 5., 1.2, scale=2.)
         self.assertEqual(original.shape, doubled.shape)
         self.assertTrue(np.all(doubled[:, 1] > original[:, 1]))
-        # Every channel's amplitude expands by same factor.
+        # Both channels' deviations grow by the same factor, with their
+        # independent 0 and 6 display-unit baselines unchanged.
         np.testing.assert_allclose(
             doubled[:, 1] - original[:, 1],
-            np.full(len(original), 1. / (6.*2+3.))
+            np.array([1., 2., 2., 3., 1., 2., 2., 3.]) / 15.
         )
 
     def test_rejects_invalid_duration_gain_shape(self):
