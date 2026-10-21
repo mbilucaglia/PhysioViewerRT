@@ -1,13 +1,12 @@
 from PySide6.QtCore import QThread, Signal
 from pylsl import StreamInlet, resolve_streams
 from .processing import Processor
-from .channel_selection import channel_labels, validated_indices, select_chunk
+from .channel_selection import validated_indices, select_chunk
+from .ingress import ChunkMailbox
 
 
 class Receiver(QThread):
-    updated = Signal(str, object, object, object, object, float, object)
     failure = Signal(str)
-    samples_received = Signal(str, object, object, object, float)
     stream_ready = Signal(str, object, float)
 
     def __init__(self, info, kind, selected_indices, selected_names):
@@ -20,6 +19,7 @@ class Receiver(QThread):
         self.active = True
         self.iaf_hz = 10.0
         self.inlet = None
+        self.mailbox = ChunkMailbox(info.nominal_srate())
 
     def run(self):
         try:
@@ -38,15 +38,13 @@ class Receiver(QThread):
                     continue
                 proc.iaf_hz = self.iaf_hz
                 selected = select_chunk(samples, self.selected_indices)
-                self.samples_received.emit(self.kind, selected, timestamps, names, float(fs))
                 metric = proc.push(selected)
                 count_plot = len(selected)
-                self.updated.emit(
-                    self.kind,
+                self.mailbox.put((
                     selected.copy(),
                     proc.filtered[-count_plot:].copy(),
-                    names, metric, float(fs), timestamps
-                )
+                    names, metric, float(fs), timestamps,
+                ))
         except Exception as exc:
             self.failure.emit(f'{self.kind}: {exc}')
         finally:
@@ -57,8 +55,12 @@ class Receiver(QThread):
                     pass
                 self.inlet = None
 
-    def stop(self):
+    def request_stop(self):
+        # Called from GUI thread: do not block waiting for the inlet timeout.
         self.active = False
+
+    def stop(self):
+        self.request_stop()
         return self.wait(1500)
 
 
