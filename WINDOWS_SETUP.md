@@ -247,3 +247,44 @@ scrolling display. The plot cursor uses the shared VisPy scene engine,
 and physiological algorithms, timestamps, calibration and recordings
 are unchanged. Continuous gain and thin GPU cursor require the VisPy
 renderer; they do not alter the historical pyqtgraph presentation.
+
+## Incremental GPU sweep architecture — Raw Data and Metrics
+
+Branch `experiment/incremental-gpu-sweep` contains a shared
+`physiolab/incremental_sweep.py` implementation for **all** VisPy plots.
+Each waveform channel (both raw and filtered) and each metric
+(AWI, BAR, SCL, HR, EI, plus measured-point markers) has a persistent,
+fixed-capacity sweep ring backed by a VisPy OpenGL vertex buffer.
+New arrivals overwrite only the affected bins through partial
+`VertexBuffer.set_subdata()` uploads. Already-drawn segments stay unchanged
+until the sweep overwrites them. The same ring handles wraparound, NaN
+observations and timestamps that skip bins. The blue sweep cursor does
+not advance beyond the most recent real sample.
+
+For Raw Data, the existing worker now crops and normalizes **only newly
+arriving samples** once the initial sweep and fixed channel scaling have
+been established. Its clock-anchored decimation rate stays consistent
+with the full selected window. The existing acquisition and processing
+pipelines are unchanged.
+
+For Metrics, the existing normalization/smoothing/interpolation functions
+still compute the mathematical values; the new renderer uploads only new
+display vertices and points, not the complete trace. History is explicitly
+replayed if the time window, normalization, smoothing, interpolation,
+stream/source, or calibration reference changes. Live vertical limits
+expand only when necessary to avoid rescaling flicker.
+
+To test on your Windows notebook:
+```powershell
+git fetch origin
+git switch --track origin/experiment/incremental-gpu-sweep
+.venv\Scripts\python.exe -m pip install -r requirements-vispy.txt
+.\start_windows.cmd
+```
+If the branch already exists locally use `git switch
+experiment/incremental-gpu-sweep` followed by `git pull`.
+
+This is a renderer experiment, not a claim that Intel/OpenGL behavior is
+validated. Observe the Raw and Metrics tabs for at least 10 minutes while
+all three LSL streams play, and inspect the regions before and after the
+blue cursor for any retained holes or cross-boundary connections.
