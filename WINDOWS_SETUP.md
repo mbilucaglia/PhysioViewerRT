@@ -162,3 +162,32 @@ pyqtgraph. This experiment does not establish that the freeze is fixed.
 Run the synthetic EEG+EDA+PPG workload for at least ten minutes with each
 backend, and compare the optional performance JSONL profiles. Switching
 renderers only affects Raw Data, not the Metrics tab.
+
+## Experimental VisPy/OpenGL Metrics panel
+
+Branch `experiment/vispy-metrics` extends the Raw Data GPU prototype with a
+VisPy renderer for **Metrics**. Install the same optional dependencies:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements-vispy.txt
+.\start_windows.cmd
+```
+
+On a normal desktop, if VisPy is installed, **both Raw Data and Metrics default
+to VisPy/OpenGL**; each tab has an independent renderer dropdown, so either
+can be returned to the original pyqtgraph implementation. An offscreen test
+session defaults to pyqtgraph.
+
+The new Metrics canvas renders all five physiological series using the same
+existing normalized/smoothed/interpolated arrays. Missing observations retain
+their gaps; measured-point markers, axis labels, y-axis scaling, time-window,
+zoom buttons, metric visibility switches, and live-follow remain supported.
+Metrics OpenGL deliberately omits mouse-driven plot panning in this first
+prototype; switch to pyqtgraph when manual dragging is needed. The series
+legend is presently represented by the existing labeled metric checkboxes
+rather than drawn within the GPU canvas.
+
+Compare the same EEG, EDA and PPG synthetic session for at least ten minutes
+with both tabs on VisPy, then switch Metrics alone back to pyqtgraph and verify
+there are no changes to AWI, BAR, SCL, HR or EI values. These experiments do
+not change calibration, samples, filters, numerical algorithms, or recordings.
