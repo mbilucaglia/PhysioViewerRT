@@ -1,7 +1,7 @@
 name: Calibration smoke tests
 on:
   push:
-    branches: [feature/windows-lsl-mvp]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
