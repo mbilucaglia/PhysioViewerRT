@@ -122,6 +122,7 @@ class VisPyRawPlot:
         self.sweep_duration = 5.
         self.layers = {'raw': [], 'filtered': []}
         self._configuration = None
+        self._target_channels = 0
         self._latest = -np.inf
         self._last_axis_duration = None
         # Keep the public layer attributes for widget smoke tests.
@@ -134,6 +135,7 @@ class VisPyRawPlot:
         self.layers = {'raw': [], 'filtered': []}
         self.raw_line = self.filtered_line = None
         self._configuration = None
+        self._target_channels = 0
         self._latest = -np.inf
 
     def set_vertical_gain(self, gain):
@@ -151,7 +153,7 @@ class VisPyRawPlot:
         Changing amplitude never reallocates GPU sweep buffers or loses history.
         """
         count = len(self.layers['raw'])
-        lower, upper = -3., max(6. * count, 3.)
+        lower, upper = -3., max(6. * self._target_channels, 3.)
         for i in range(count):
             center = (6. * i - lower) / (upper - lower)
             for layer_name in ('raw', 'filtered'):
@@ -166,17 +168,21 @@ class VisPyRawPlot:
     def _ensure_layers(self, count, duration, rate):
         from .incremental_sweep import IncrementalSweepLayer
         config = (count, float(duration), float(rate))
-        if self._configuration == config:
-            return
-        self._drop_layers()
-        self._configuration = config
-        for i in range(count):
+        if self._configuration != config:
+            self._drop_layers()
+            self._configuration = config
+            self._target_channels = count
+        # Building dozens of GL buffers in a single Qt callback freezes the
+        # interface. Allocate at most four raw/filtered pairs per frame.
+        built = len(self.layers['raw'])
+        for i in range(built, min(count, built + 4)):
             self.layers['raw'].append(IncrementalSweepLayer(
                 self.view.scene, duration, rate, '#db3232'))
             self.layers['filtered'].append(IncrementalSweepLayer(
                 self.view.scene, duration, rate, '#171717'))
-        self._apply_gain()
-        if count:
+        if len(self.layers['raw']) != built:
+            self._apply_gain()
+        if count and self.raw_line is None:
             self.raw_line = self.layers['raw'][0].visual
             self.filtered_line = self.layers['filtered'][0].visual
 
