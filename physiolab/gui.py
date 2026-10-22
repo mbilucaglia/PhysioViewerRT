@@ -24,6 +24,7 @@ from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
 from .raw_timing import clean_lsl_chunk, SmoothViewportClock
 from .raw_render_worker import RawRenderWorker
+from .render_contracts import RawFrameRequest, RawSourceRequest
 from .vispy_raw import VisPyRawPlot
 from .vispy_metrics import VisPyMetricPlot
 from .performance import PerformanceMonitor
@@ -194,6 +195,7 @@ class MainWindow(QMainWindow):
         self.raw_frame_ticket = 0
         self.raw_inflight_ticket = None
         self.raw_interacting_until = 0.0
+        self.raw_tab_entered_at = None
         self.metric_labels, self.metric_status = {}, {}
         self.pending = {}
         self.capture = None
@@ -1093,6 +1095,7 @@ class MainWindow(QMainWindow):
 
     def tab_changed(self, index):
         if self.tabs.widget(index) is self.raw_page:
+            self.raw_tab_entered_at = time.perf_counter()
             self.raw_dirty = True
             self.raw_last_render_time = 0.
             # Never submit a first large EEG render synchronously from the
@@ -1191,28 +1194,31 @@ class MainWindow(QMainWindow):
                 if item[0][0] <= maximum:
                     recent.append(item)
             if recent:
-                source = (tuple(reversed(recent)), low, high,
-                          self.raw_plot_origin, self.raw_scale.get(kind))
-                if self.raw_renderer_mode == 'vispy':
-                    # Keep the same clock-anchored decimation stride even
-                    # when cropping just a 100ms incremental tail.
-                    source += (2. * self.raw_view_seconds,)
-                if kind == 'EEG':
-                    source += (self.eeg_display_count.value(),)
-                sources[kind] = source
+                sources[kind] = RawSourceRequest(
+                    chunks=tuple(reversed(recent)), left=low, right=high,
+                    origin=self.raw_plot_origin, reference=self.raw_scale.get(kind),
+                    decimation_span=(2. * self.raw_view_seconds
+                                     if self.raw_renderer_mode == 'vispy' else None),
+                    max_channels=(self.eeg_display_count.value()
+                                  if kind == 'EEG' else 8),
+                )
         if sources:
             self.raw_frame_ticket += 1
             self.raw_inflight_ticket = self.raw_frame_ticket
-            self.raw_render_worker.submit({
-                'ticket': self.raw_frame_ticket,
-                'version': self.raw_frame_epoch,
-                'sources': sources,
-            })
+            self.raw_render_worker.submit(RawFrameRequest(
+                ticket=self.raw_frame_ticket, version=self.raw_frame_epoch,
+                sources=sources, queued_at=time.perf_counter(),
+            ))
 
     def apply_raw_frame(self, response):
         """Accept at most one completed raw frame; no Qt signal backlog."""
         started = time.perf_counter()
         self.performance.measure('raw_prepare', response.get('prepare_ms', 0.) / 1000.)
+        if 'queued_at' in response:
+            self.performance.measure(
+                'raw_worker_roundtrip',
+                max(0., time.perf_counter() - response['queued_at'])
+            )
         if response['ticket'] != self.raw_inflight_ticket:
             return
         self.raw_inflight_ticket = None
@@ -1240,6 +1246,11 @@ class MainWindow(QMainWindow):
                     show_filtered=self.show_processed.isChecked(),
                     sweep_head=self.raw_gl_bounds[1],
                 )
+                if self.raw_tab_entered_at is not None:
+                    self.performance.measure(
+                        'raw_tab_to_first_frame',
+                        max(0., time.perf_counter() - self.raw_tab_entered_at))
+                    self.raw_tab_entered_at = None
                 continue
             if len(self.curves[kind]) != 2 * n:
                 plot.clear()
