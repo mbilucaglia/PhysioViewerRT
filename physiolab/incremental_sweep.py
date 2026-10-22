@@ -94,9 +94,12 @@ def _incremental_visual_class():
         attribute vec2 a_position;
         uniform vec4 u_color;
         uniform float u_point_size;
+        uniform float u_gain;
+        uniform float u_center;
         varying vec4 v_color;
         void main() {
-            gl_Position = $transform(vec4(a_position, 0., 1.));
+            vec2 position = vec2(a_position.x, u_center + u_gain * (a_position.y - u_center));
+            gl_Position = $transform(vec4(position, 0., 1.));
             gl_PointSize = u_point_size;
             v_color = u_color;
         }
@@ -117,6 +120,8 @@ def _incremental_visual_class():
             self.shared_program['a_position'] = self._buffer
             self.shared_program['u_color'] = Color(color).rgba
             self.shared_program['u_point_size'] = float(point_size)
+            self.shared_program['u_gain'] = 1.0
+            self.shared_program['u_center'] = 0.0
             self._draw_mode = mode
             self.set_gl_state('translucent', depth_test=False)
 
@@ -128,6 +133,11 @@ def _incremental_visual_class():
 
         def _compute_bounds(self, axis, view):
             return (0., 1.)
+
+        def set_gain(self, gain, center):
+            self.shared_program['u_gain'] = float(gain)
+            self.shared_program['u_center'] = float(center)
+            self.update()
 
         def patch(self, updates):
             if not updates:
@@ -166,6 +176,9 @@ class IncrementalSweepLayer:
         VisualClass = _incremental_visual_class()
         self.visual = VisualClass(self.ring.capacity, color, mode=mode,
                                   parent=parent)
+
+    def set_gain(self, gain, center):
+        self.visual.set_gain(gain, center)
 
     def append(self, times, values):
         updates = self.ring.append(times, values)
