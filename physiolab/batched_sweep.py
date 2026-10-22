@@ -36,6 +36,7 @@ def _batch_visual():
 
         def __init__(self, capacity, color):
             self.capacity = int(capacity)
+            self._draw_mode = 'lines'
             self._buffer = gloo.VertexBuffer(
                 np.full((capacity * 2, 3), -10., dtype=np.float32))
             super().__init__(vcode=self.VERT, fcode=self.FRAG)
