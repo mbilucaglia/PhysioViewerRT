@@ -1095,9 +1095,9 @@ class MainWindow(QMainWindow):
         if self.tabs.widget(index) is self.raw_page:
             self.raw_dirty = True
             self.raw_last_render_time = 0.
-            if not self.raw_plot_paused:
-                self.update_raw_xranges()
-                self.draw()
+            # Never submit a first large EEG render synchronously from the
+            # tab-change event. The regular timer handles acquisition first
+            # and schedules one latest-only background reduction afterwards.
         elif self.tabs.widget(index) is self.metrics_page and not self.metric_plot_paused:
             self.metric_dirty = True
             self.refresh_metric_plot()
@@ -1174,6 +1174,12 @@ class MainWindow(QMainWindow):
                     # Feed only new samples. Small overlap absorbs UI
                     # scheduling jitter without modifying already drawn bins.
                     low = max(low, renderer._latest - .1)
+                else:
+                    # Initializing dozens of channel/layer rings while also
+                    # uploading minutes of history stalls Qt. Begin at the
+                    # live edge with a short bounded frame; subsequent frames
+                    # append incrementally and rebuild the sweep naturally.
+                    low = max(low, high - .35)
             minimum = self.raw_plot_origin + low
             maximum = self.raw_plot_origin + high
             # Snapshot references to existing immutable chunks; don't copy the
