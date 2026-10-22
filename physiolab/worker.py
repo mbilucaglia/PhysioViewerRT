@@ -25,15 +25,27 @@ class Receiver(QThread):
 
     def run(self):
         try:
-            inlet = StreamInlet(self.info, max_buflen=30)
-            self.inlet = inlet
-            fs = self.info.nominal_srate()
+            fs = float(self.info.nominal_srate())
             if fs <= 0:
                 raise ValueError('Irregular-rate streams are not supported in MVP')
+            # This is a live viewer, not a recorder. Keep the liblsl receive
+            # buffer shallow and cap sender-defined chunks so a newly opened
+            # stream cannot spend seconds replaying queued data before the
+            # display reaches the live edge.
+            max_chunklen = max(1, round(fs * .10))
+            inlet = StreamInlet(
+                self.info, max_buflen=5, max_chunklen=max_chunklen
+            )
+            self.inlet = inlet
+            inlet.open_stream(timeout=3.0)
+            # Start each explicit Play action at the current live edge. Any
+            # samples queued during stream negotiation are deliberately stale
+            # for a monitor and must not create an initial plotting delay.
+            inlet.flush()
             count = len(self.selected_indices)
             names = list(self.selected_names)
             proc = Processor(self.kind, fs, count, names, iaf_hz=self.iaf_hz)
-            self.stream_ready.emit(self.kind, names, float(fs))
+            self.stream_ready.emit(self.kind, names, fs)
             while self.active:
                 samples, timestamps = inlet.pull_chunk(timeout=.2, max_samples=1024)
                 if not samples:
