@@ -36,6 +36,13 @@ class RawSnapshotTests(unittest.TestCase):
         self.assertAlmostEqual(result.left, 8.6)
         self.assertIs(result.reference, ref)
 
+    def test_new_gpu_layers_can_replay_two_cycle_history(self):
+        result = build_raw_source(
+            self.chunks, left=0., right=9.5, origin=100.,
+            vispy=True, replay_history=True, sweep_seconds=5.)
+        self.assertEqual(result.left, 0.)
+        self.assertGreater(len(result.chunks), 1)
+
     def test_missing_view_has_no_frame(self):
         self.assertIsNone(build_raw_source(
             self.chunks, left=30., right=40., origin=100.))
