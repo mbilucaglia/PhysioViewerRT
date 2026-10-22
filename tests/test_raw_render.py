@@ -59,6 +59,27 @@ class RawRenderTests(unittest.TestCase):
             prepare_raw_window(history, 1., 2., 100.,
                                reference=(np.zeros(4), np.ones(4)))
 
+    def test_high_rate_startup_uses_predecimation_sample_count(self):
+        history = self.chunks(fs=4096, seconds=1, channels=32)
+        result = prepare_raw_window(
+            history, 0., 1., 100., max_points=400, max_channels=8
+        )
+        self.assertIsNotNone(result)
+        timestamps, raw, processed, centers, scales, labels = result
+        self.assertLessEqual(len(timestamps), 400)
+        self.assertEqual(raw.shape[1], 8)
+        self.assertEqual(processed.shape, raw.shape)
+        self.assertEqual(len(centers), 8)
+        self.assertEqual(len(scales), 8)
+        self.assertEqual(len(labels), 8)
+
+    def test_invalid_point_or_channel_budget_is_rejected(self):
+        history = self.chunks(seconds=2)
+        with self.assertRaises(ValueError):
+            prepare_raw_window(history, 0., 1., 100., max_points=0)
+        with self.assertRaises(ValueError):
+            prepare_raw_window(history, 0., 1., 100., max_channels=0)
+
 
 if __name__ == '__main__':
     unittest.main()
