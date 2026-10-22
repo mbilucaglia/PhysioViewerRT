@@ -831,17 +831,32 @@ class MainWindow(QMainWindow):
         self.update_raw_xranges()
         self.raw_dirty = True
 
-    def raw_view_changed_manually(self, kind, *_):
+    def raw_view_changed_manually(self, kind, *args):
         if QApplication.activePopupWidget() is not None:
             self.raw_dirty = True
             return
+
+        # pyqtgraph includes the manually changed axes in this signal. A
+        # Y-only zoom changes only the ViewBox transform; the waveform arrays
+        # are still valid and rebuilding every EEG curve just makes vertical
+        # zoom feel frozen when many channels are visible.
+        changed_axes = args[-1] if args else None
+        try:
+            x_changed = bool(changed_axes[0])
+        except (TypeError, IndexError):
+            x_changed = True
+        if not x_changed:
+            return
+
         low, high = self.plots[kind].viewRange()[0]
         span = float(max(.01, high - low))
         was_following = self.raw_follow_live
         # A wheel zoom changes the width of the time axis; it should
         # NOT freeze live acquisition. Horizontal dragging translates the
         # viewport without changing its width and deliberately pauses it.
-        is_zoom = abs(span - self.raw_view_seconds) > max(.001, .001*self.raw_view_seconds)
+        is_zoom = abs(span - self.raw_view_seconds) > max(
+            .001, .001*self.raw_view_seconds
+        )
         self.raw_view_seconds = span
         if was_following and is_zoom:
             self.update_raw_xranges()
@@ -852,7 +867,12 @@ class MainWindow(QMainWindow):
             for other, plot in self.plots.items():
                 if other != kind:
                     plot.setXRange(low, high, padding=0)
-        self.draw()
+
+        # Range-change signals can arrive rapidly while the mouse is moving.
+        # Do not compete with that interaction by painting 2*N curves for
+        # every event; render the latest viewport shortly after it settles.
+        self.raw_interacting_until = time.monotonic() + .06
+        self.raw_dirty = True
 
     def raw_view_scrolled(self, *_):
         # Let the user drag the scroll bar without competing with plot paints.
@@ -951,8 +971,14 @@ class MainWindow(QMainWindow):
                 if item[0][0] <= maximum:
                     recent.append(item)
             if recent:
-                sources[kind] = (tuple(reversed(recent)), low, high,
-                                 self.raw_plot_origin, self.raw_scale.get(kind))
+                # Screen-sized data are sufficient for a display plot. Keep
+                # the Qt paint workload essentially independent of timebase
+                # and acquisition rate.
+                max_points = int(np.clip(plot.width() * 1.5, 400, 2500))
+                sources[kind] = (
+                    tuple(reversed(recent)), low, high, self.raw_plot_origin,
+                    self.raw_scale.get(kind), max_points,
+                )
         if sources:
             self.raw_frame_ticket += 1
             self.raw_inflight_ticket = self.raw_frame_ticket
@@ -990,13 +1016,20 @@ class MainWindow(QMainWindow):
                 plot.setYRange(-3., n * 6., padding=0)
                 for i, name in enumerate(names):
                     color = pg.intColor(i, hues=max(n, 3))
-                    self.curves[kind].append(plot.plot(
+                    raw_curve = plot.plot(
                         name=f'{name} raw', pen=pg.mkPen(color, width=1)
-                    ))
-                    self.curves[kind].append(plot.plot(
+                    )
+                    filtered_curve = plot.plot(
                         name=f'{name} processed',
                         pen=pg.mkPen(color, width=2, style=Qt.PenStyle.DashLine)
-                    ))
+                    )
+                    # The background reducer already bounds point count, but
+                    # these flags avoid extra path generation outside the
+                    # current viewport during pans/zooms.
+                    raw_curve.setClipToView(True)
+                    filtered_curve.setClipToView(True)
+                    self.curves[kind].append(raw_curve)
+                    self.curves[kind].append(filtered_curve)
             for i in range(n):
                 if self.show_raw.isChecked():
                     self.curves[kind][2*i].setData(timestamps, raw[:, i])
