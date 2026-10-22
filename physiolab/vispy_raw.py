@@ -121,6 +121,7 @@ class VisPyRawPlot:
         self.vertical_gain = 1.
         self.sweep_duration = 5.
         self.layers = {'raw': [], 'filtered': []}
+        self._banks = {}
         self._configuration = None
         self._target_channels = 0
         self._pending_configuration = None
@@ -131,20 +132,14 @@ class VisPyRawPlot:
         self.raw_line = self.filtered_line = None
 
     def _drop_layers(self):
-        if self._pending_layers is not None:
-            for group in self._pending_layers.values():
-                for layer in group:
-                    layer.close()
-        self._pending_layers = None
-        self._pending_configuration = None
-        for group in self.layers.values():
-            for layer in group:
-                layer.close()
+        for bank in getattr(self, '_banks', {}).values():
+            bank.close()
+        self._banks = {}
         self.layers = {'raw': [], 'filtered': []}
-        self.raw_line = self.filtered_line = None
         self._configuration = None
         self._target_channels = 0
         self._latest = -np.inf
+        self.raw_line = self.filtered_line = None
 
     def set_vertical_gain(self, gain):
         gain = float(gain)
@@ -152,20 +147,9 @@ class VisPyRawPlot:
             raise ValueError('Vertical gain must be finite and positive')
         if gain != self.vertical_gain:
             self.vertical_gain = gain
-            self._apply_gain()
+            for bank in getattr(self, '_banks', {}).values():
+                bank.set_gain(gain)
             self.canvas.update()
-
-    def _apply_gain(self):
-        """Scale each existing trace around its channel offset in the shader.
-
-        Changing amplitude never reallocates GPU sweep buffers or loses history.
-        """
-        count = len(self.layers['raw'])
-        lower, upper = -3., max(6. * self._target_channels, 3.)
-        for i in range(count):
-            center = (6. * i - lower) / (upper - lower)
-            for layer_name in ('raw', 'filtered'):
-                self.layers[layer_name][i].set_gain(self.vertical_gain, center)
 
     def reset(self):
         self._drop_layers()
@@ -174,58 +158,34 @@ class VisPyRawPlot:
         self.canvas.update()
 
     def _ensure_layers(self, count, duration, rate):
-        """Stage a new GPU configuration without displaying partial channels.
-
-        Existing channels remain visible until the entire replacement scene
-        has received history. Construct at most four channel pairs per frame.
-        """
-        from .incremental_sweep import IncrementalSweepLayer
-        config = (count, float(duration), float(rate))
-        if self._configuration == config and self._pending_layers is None:
-            return self.layers, True
-        if self._pending_configuration != config:
-            if self._pending_layers is not None:
-                for group in self._pending_layers.values():
-                    for layer in group:
-                        layer.close()
-            self._pending_configuration = config
-            self._pending_layers = {'raw': [], 'filtered': []}
-        target = self._pending_layers
-        built = len(target['raw'])
-        for i in range(built, min(count, built + 4)):
-            raw_layer = IncrementalSweepLayer(
-                self.view.scene, duration, rate, '#db3232')
-            filtered_layer = IncrementalSweepLayer(
-                self.view.scene, duration, rate, '#171717')
-            raw_layer.visual.visible = False
-            filtered_layer.visual.visible = False
-            target['raw'].append(raw_layer)
-            target['filtered'].append(filtered_layer)
-        return target, len(target['raw']) == count
-
-    def _commit_layers(self, layers, config):
-        """Atomically replace the visible sweep after every channel is ready."""
-        old = self.layers
-        self.layers = layers
+        """Two drawables for all channels, no progressive channel construction."""
+        from .batched_sweep import BatchedSweepBank
+        config = (int(count), float(duration), float(rate))
+        if self._configuration == config:
+            return
+        # Only replace banks when the display capacity truly changes.
+        previous = getattr(self, '_banks', {})
+        banks = {
+            'raw': BatchedSweepBank(self.view.scene, count, duration, rate, '#db3232'),
+            'filtered': BatchedSweepBank(self.view.scene, count, duration, rate, '#171717'),
+        }
+        for bank in banks.values():
+            bank.visual.visible = False
+            bank.set_gain(self.vertical_gain)
+        self._banks = banks
         self._configuration = config
-        self._target_channels = config[0]
-        self._pending_layers = None
-        self._pending_configuration = None
-        for group in old.values():
-            for layer in group:
-                layer.close()
-        self._apply_gain()
-        self.raw_line = layers['raw'][0].visual if layers['raw'] else None
-        self.filtered_line = (
-            layers['filtered'][0].visual if layers['filtered'] else None)
+        self._target_channels = count
+        self._latest = -np.inf
+        for bank in previous.values():
+            bank.close()
+        self.raw_line = banks['raw'].visual
+        self.filtered_line = banks['filtered'].visual
 
     def needs_history_replay(self, count, duration):
-        """New GPU channels must receive full history, not just live tails."""
         if self._configuration is None:
             return True
         n, configured_duration, _ = self._configuration
-        return (n != count or configured_duration != duration
-                or self._pending_layers is not None)
+        return n != count or configured_duration != duration
 
     def set_frame(self, frame, left, right, show_raw=True, show_filtered=True,
                   sweep_head=None, nominal_fs=None, max_points=2500):
@@ -252,32 +212,16 @@ class VisPyRawPlot:
             rate = float(nominal_fs) / stride
         elif self._configuration and self._configuration[:2] == (n, duration):
             rate = self._configuration[2]
-        target_layers, ready = self._ensure_layers(n, duration, rate)
-        # Only the new tail is processed. Previous samples supplied by the
-        # worker are ignored in each ring after their first insertion.
-        lower, upper = -3., max(6.*n, 3.)
-        offsets = 6. * np.arange(n)
-        for layer_name, values, enabled in (
+        self._ensure_layers(n, duration, rate)
+        lower, upper = -3., max(6. * n, 3.)
+        for kind, values, enabled in (
             ('raw', raw, show_raw), ('filtered', filtered, show_filtered)
         ):
-            for i, layer in enumerate(target_layers[layer_name]):
-                if self._pending_layers is None:
-                    layer.visual.visible = bool(enabled)
-                # Keep hidden layers current too: toggling Raw/Filtered back
-                # on must not expose missing sweep bins or require a rebuild.
-                if layer.ring.last_time >= float(times[-1]):
-                    continue
-                normalized = (values[:, i] - lower) / (upper-lower)
-                layer.append(times, normalized)
-        if self._pending_layers is not None:
-            if not ready:
-                return
-            self._commit_layers(target_layers, (n, duration, rate))
-            for layer_name, enabled in (('raw', show_raw),
-                                        ('filtered', show_filtered)):
-                for layer in self.layers[layer_name]:
-                    layer.visual.visible = bool(enabled)
-            self._latest = -np.inf
+            bank = self._banks[kind]
+            bank.visual.visible = bool(enabled)
+            if bank.last_time >= float(times[-1]):
+                continue
+            bank.append(times, (values - lower) / (upper - lower))
         self.sweep_duration = duration
         self.engine.set_view(0., 1., 0., 1.)
         if duration != self._last_axis_duration:

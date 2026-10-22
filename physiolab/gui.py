@@ -1200,6 +1200,9 @@ class MainWindow(QMainWindow):
                 latest=latest, sweep_seconds=self.raw_view_seconds,
                 max_channels=(self.eeg_display_count.value()
                               if kind == 'EEG' else 8),
+                max_points=(min(12000, max(2500, 4 * renderer.widget.width()))
+                            if self.raw_renderer_mode == 'vispy' and renderer is not None
+                            else 2500),
             )
             if source is not None:
                 sources[kind] = source
@@ -1249,6 +1252,8 @@ class MainWindow(QMainWindow):
                     sweep_head=self.raw_gl_bounds[1],
                     nominal_fs=(self.raw_history[kind][-1][4]
                                 if self.raw_history[kind] else None),
+                    max_points=min(12000, max(2500,
+                                   4 * self.raw_vispy_plots[kind].widget.width())),
                 )
                 self.performance.measure(
                     'raw_gpu_frame_' + kind,
