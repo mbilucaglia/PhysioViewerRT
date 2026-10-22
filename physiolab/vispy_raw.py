@@ -261,7 +261,7 @@ class VisPyRawPlot:
             ('raw', raw, show_raw), ('filtered', filtered, show_filtered)
         ):
             for i, layer in enumerate(target_layers[layer_name]):
-                if ready:
+                if self._pending_layers is None:
                     layer.visual.visible = bool(enabled)
                 # Keep hidden layers current too: toggling Raw/Filtered back
                 # on must not expose missing sweep bins or require a rebuild.
@@ -273,6 +273,10 @@ class VisPyRawPlot:
             if not ready:
                 return
             self._commit_layers(target_layers, (n, duration, rate))
+            for layer_name, enabled in (('raw', show_raw),
+                                        ('filtered', show_filtered)):
+                for layer in self.layers[layer_name]:
+                    layer.visual.visible = bool(enabled)
             self._latest = -np.inf
         self.sweep_duration = duration
         self.engine.set_view(0., 1., 0., 1.)
