@@ -991,9 +991,13 @@ class MainWindow(QMainWindow):
             try:
                 for kind, stack in self.raw_plot_stacks.items():
                     if kind not in self.raw_vispy_plots:
+                        gpu_started = time.perf_counter()
                         renderer = VisPyRawPlot(kind)
                         self.raw_vispy_plots[kind] = renderer
                         stack.addWidget(renderer.widget)
+                        self.performance.measure(
+                            'raw_gpu_canvas_init_' + kind,
+                            time.perf_counter() - gpu_started)
             except Exception as exc:
                 self.raw_renderer_choice.blockSignals(True)
                 self.raw_renderer_choice.setCurrentIndex(0)
@@ -1240,12 +1244,16 @@ class MainWindow(QMainWindow):
                 self.raw_vispy_plots[kind].set_vertical_gain(
                     self.raw_vertical_gains[kind].value()
                 )
+                gpu_started = time.perf_counter()
                 self.raw_vispy_plots[kind].set_frame(
                     frame, 0., self.raw_view_seconds,
                     show_raw=self.show_raw.isChecked(),
                     show_filtered=self.show_processed.isChecked(),
                     sweep_head=self.raw_gl_bounds[1],
                 )
+                self.performance.measure(
+                    'raw_gpu_frame_' + kind,
+                    time.perf_counter() - gpu_started)
                 if self.raw_tab_entered_at is not None:
                     self.performance.measure(
                         'raw_tab_to_first_frame',
