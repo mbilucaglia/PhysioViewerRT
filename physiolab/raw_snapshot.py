@@ -8,7 +8,7 @@ from .render_contracts import RawSourceRequest
 
 def build_raw_source(chunks, *, left, right, origin, reference=None,
                      vispy=False, latest=None, replay_history=False, sweep_seconds=5.,
-                     max_channels=8):
+                     max_channels=8, max_points=2500):
     """Select intersecting chunks and define the worker's viewport.
 
     The GPU path starts from a short live tail on a fresh sweep and
@@ -42,4 +42,5 @@ def build_raw_source(chunks, *, left, right, origin, reference=None,
         reference=reference,
         decimation_span=(2. * sweep_seconds if vispy else None),
         max_channels=max_channels,
+        max_points=max_points,
     )
