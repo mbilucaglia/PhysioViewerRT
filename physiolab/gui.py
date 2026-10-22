@@ -1252,6 +1252,8 @@ class MainWindow(QMainWindow):
                     sweep_head=self.raw_gl_bounds[1],
                     nominal_fs=(self.raw_history[kind][-1][4]
                                 if self.raw_history[kind] else None),
+                    max_points=min(12000, max(2500,
+                                   4 * self.raw_vispy_plots[kind].widget.width())),
                 )
                 self.performance.measure(
                     'raw_gpu_frame_' + kind,
