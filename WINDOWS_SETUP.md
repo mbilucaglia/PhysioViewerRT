@@ -93,6 +93,16 @@ GUI timer delays, raw frame preparation/painting durations, and queue depths/
 dropped-sample counts. It **does not record biosignal data or participant
 information**. Reproduce scrolling and selector interactions for a few minutes,
 then share the resulting JSONL log to diagnose any remaining stalls.
+A native-timer watchdog opens `%USERPROFILE%\\PhysioViewerRT-hangs.log`
+as soon as the app starts with profiling enabled. If the GUI event loop
+stops refreshing the watchdog for five seconds, Python's built-in
+`faulthandler` writes thread stack traces directly to this file. It does
+not require the Python GUI event loop or a Python monitoring thread to run.
+**An empty file is normal until a freeze lasts at least five seconds.**
+The trace contains Python code locations, not intentional biosignal logs.
+After a freeze, wait at least ten seconds, then close the application and
+share both the JSONL performance file and this hang log.
+
 Unsetting `PHYSIOLAB_PROFILE` disables logging.
 
 ## Application tabs

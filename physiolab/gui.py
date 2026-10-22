@@ -29,6 +29,7 @@ from .raw_snapshot import build_raw_source
 from .vispy_raw import VisPyRawPlot
 from .vispy_metrics import VisPyMetricPlot
 from .performance import PerformanceMonitor
+from .hang_watchdog import GuiHangWatchdog
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration, normalize,
     samples_after_timestamp,
@@ -169,6 +170,8 @@ class MainWindow(QMainWindow):
         self.discovery_serial = 0
         self._closing = False
         self.performance = PerformanceMonitor()
+        self.hang_watchdog = GuiHangWatchdog(enabled=self.performance.enabled)
+        self.hang_watchdog.start()
         self._last_gui_tick = time.monotonic()
         self.plots, self.curves = {}, {}
         self.raw_plot_stacks = {}
@@ -1129,6 +1132,7 @@ class MainWindow(QMainWindow):
         self.performance.measure('ingress_gui', time.perf_counter() - started)
 
     def render_frame(self):
+        self.hang_watchdog.beat()
         started = time.perf_counter()
         now = time.monotonic()
         self.performance.measure('tick_delay', max(0., now - self._last_gui_tick - .033))
@@ -1493,6 +1497,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self._closing = True
+        self.hang_watchdog.stop()
         self.timer.stop()
         for task in list(self.lsl_tasks.values()):
             task.wait(3000)
