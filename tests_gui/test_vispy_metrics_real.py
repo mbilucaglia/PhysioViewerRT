@@ -67,9 +67,12 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
             frame = (samples, data, data*.5, None, None, ('F3', 'F4'))
             plot.set_frame(frame, 0., 5., sweep_head=.3)
             self.assertTrue(plot.raw_line.visible)
-            self.assertEqual(plot.engine.y_gutter.channels, ('F3', 'F4'))
-            self.assertIsNot(plot.engine.widget, plot.engine.canvas.native)
-            self.assertEqual(plot.engine.x_gutter.duration, 5.)
+            self.assertEqual(
+                tuple(label.text for label in plot.engine._channel_labels[:2]),
+                ('F3', 'F4')
+            )
+            self.assertIs(plot.engine.widget, plot.engine.canvas.native)
+            self.assertEqual(plot.engine._axis_duration, 5.)
         finally:
             plot.close()
 
