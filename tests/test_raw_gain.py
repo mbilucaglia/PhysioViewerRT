@@ -24,6 +24,7 @@ class GainTests(unittest.TestCase):
     def test_amplitude_change_retains_existing_layers(self):
         plot = VisPyRawPlot.__new__(VisPyRawPlot)
         plot.vertical_gain = 1.
+        plot._target_channels = 8
         plot.layers = {'raw': [FakeLayer() for _ in range(8)],
                        'filtered': [FakeLayer() for _ in range(8)]}
         plot.canvas = FakeCanvas()
