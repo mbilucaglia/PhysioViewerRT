@@ -142,7 +142,20 @@ class VisPyRawPlot:
             raise ValueError('Vertical gain must be finite and positive')
         if gain != self.vertical_gain:
             self.vertical_gain = gain
-            self._drop_layers()
+            self._apply_gain()
+            self.canvas.update()
+
+    def _apply_gain(self):
+        """Scale each existing trace around its channel offset in the shader.
+
+        Changing amplitude never reallocates GPU sweep buffers or loses history.
+        """
+        count = len(self.layers['raw'])
+        lower, upper = -3., max(6. * count, 3.)
+        for i in range(count):
+            center = (6. * i - lower) / (upper - lower)
+            for layer_name in ('raw', 'filtered'):
+                self.layers[layer_name][i].set_gain(self.vertical_gain, center)
 
     def reset(self):
         self._drop_layers()
@@ -162,6 +175,7 @@ class VisPyRawPlot:
                 self.view.scene, duration, rate, '#db3232'))
             self.layers['filtered'].append(IncrementalSweepLayer(
                 self.view.scene, duration, rate, '#171717'))
+        self._apply_gain()
         if count:
             self.raw_line = self.layers['raw'][0].visual
             self.filtered_line = self.layers['filtered'][0].visual
@@ -202,8 +216,7 @@ class VisPyRawPlot:
                 layer.visual.visible = bool(enabled)
                 # Keep hidden layers current too: toggling Raw/Filtered back
                 # on must not expose missing sweep bins or require a rebuild.
-                normalized = ((offsets[i] + self.vertical_gain *
-                               (values[:, i] - offsets[i])) - lower) / (upper-lower)
+                normalized = (values[:, i] - lower) / (upper-lower)
                 layer.append(times, normalized)
         # Both the cursor and the erase boundary use the latest real sample.
         latest = float(times[-1])
