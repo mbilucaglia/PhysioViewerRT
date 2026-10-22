@@ -30,16 +30,20 @@ def sweep_positions(rings, gain=1.):
     return result
 
 
+def _line_class():
+    from vispy import scene
+    return scene.visuals.Line
+
+
 class BatchedSweepBank:
     """One reusable high-level VisPy Line for all channels of a signal type."""
 
     def __init__(self, parent, channels, duration, rate, color):
-        from vispy import scene
         self.channels = int(channels)
         self.rings = [SweepRing(duration, rate) for _ in range(channels)]
         self.capacity = self.rings[0].capacity if self.rings else 0
         self.gain = 1.
-        self.visual = scene.visuals.Line(
+        self.visual = _line_class()(
             pos=sweep_positions(self.rings), color=color, parent=parent,
             connect='segments', method='gl', antialias=False, width=1)
 
