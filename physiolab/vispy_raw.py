@@ -123,12 +123,20 @@ class VisPyRawPlot:
         self.layers = {'raw': [], 'filtered': []}
         self._configuration = None
         self._target_channels = 0
+        self._pending_configuration = None
+        self._pending_layers = None
         self._latest = -np.inf
         self._last_axis_duration = None
         # Keep the public layer attributes for widget smoke tests.
         self.raw_line = self.filtered_line = None
 
     def _drop_layers(self):
+        if self._pending_layers is not None:
+            for group in self._pending_layers.values():
+                for layer in group:
+                    layer.close()
+        self._pending_layers = None
+        self._pending_configuration = None
         for group in self.layers.values():
             for layer in group:
                 layer.close()
@@ -166,25 +174,50 @@ class VisPyRawPlot:
         self.canvas.update()
 
     def _ensure_layers(self, count, duration, rate):
+        """Stage a new GPU configuration without displaying partial channels.
+
+        Existing channels remain visible until the entire replacement scene
+        has received history. Construct at most four channel pairs per frame.
+        """
         from .incremental_sweep import IncrementalSweepLayer
         config = (count, float(duration), float(rate))
-        if self._configuration != config:
-            self._drop_layers()
-            self._configuration = config
-            self._target_channels = count
-        # Building dozens of GL buffers in a single Qt callback freezes the
-        # interface. Allocate at most four raw/filtered pairs per frame.
-        built = len(self.layers['raw'])
+        if self._configuration == config and self._pending_layers is None:
+            return self.layers, True
+        if self._pending_configuration != config:
+            if self._pending_layers is not None:
+                for group in self._pending_layers.values():
+                    for layer in group:
+                        layer.close()
+            self._pending_configuration = config
+            self._pending_layers = {'raw': [], 'filtered': []}
+        target = self._pending_layers
+        built = len(target['raw'])
         for i in range(built, min(count, built + 4)):
-            self.layers['raw'].append(IncrementalSweepLayer(
-                self.view.scene, duration, rate, '#db3232'))
-            self.layers['filtered'].append(IncrementalSweepLayer(
-                self.view.scene, duration, rate, '#171717'))
-        if len(self.layers['raw']) != built:
-            self._apply_gain()
-        if count and self.raw_line is None:
-            self.raw_line = self.layers['raw'][0].visual
-            self.filtered_line = self.layers['filtered'][0].visual
+            raw_layer = IncrementalSweepLayer(
+                self.view.scene, duration, rate, '#db3232')
+            filtered_layer = IncrementalSweepLayer(
+                self.view.scene, duration, rate, '#171717')
+            raw_layer.visual.visible = False
+            filtered_layer.visual.visible = False
+            target['raw'].append(raw_layer)
+            target['filtered'].append(filtered_layer)
+        return target, len(target['raw']) == count
+
+    def _commit_layers(self, layers, config):
+        """Atomically replace the visible sweep after every channel is ready."""
+        old = self.layers
+        self.layers = layers
+        self._configuration = config
+        self._target_channels = config[0]
+        self._pending_layers = None
+        self._pending_configuration = None
+        for group in old.values():
+            for layer in group:
+                layer.close()
+        self._apply_gain()
+        self.raw_line = layers['raw'][0].visual if layers['raw'] else None
+        self.filtered_line = (
+            layers['filtered'][0].visual if layers['filtered'] else None)
 
     def needs_history_replay(self, count, duration):
         """New GPU channels must receive full history, not just live tails."""
@@ -192,7 +225,7 @@ class VisPyRawPlot:
             return True
         n, configured_duration, _ = self._configuration
         return (n != count or configured_duration != duration
-                or len(self.layers['raw']) < count)
+                or self._pending_layers is not None)
 
     def set_frame(self, frame, left, right, show_raw=True, show_filtered=True,
                   sweep_head=None, nominal_fs=None, max_points=2500):
@@ -200,12 +233,7 @@ class VisPyRawPlot:
         duration = float(right-left)
         if duration <= 0:
             return
-        self.sweep_duration = duration
         n = raw.shape[1]
-        self.engine.set_view(0., 1., 0., 1.)
-        if duration != self._last_axis_duration:
-            self.engine.set_axis_labels(duration=duration, bounds=(0., 1.))
-            self._last_axis_duration = duration
         if not len(times) or not n:
             return
         # The preparation worker uses fixed-clock decimation. Capture the
@@ -224,7 +252,7 @@ class VisPyRawPlot:
             rate = float(nominal_fs) / stride
         elif self._configuration and self._configuration[:2] == (n, duration):
             rate = self._configuration[2]
-        self._ensure_layers(n, duration, rate)
+        target_layers, ready = self._ensure_layers(n, duration, rate)
         # Only the new tail is processed. Previous samples supplied by the
         # worker are ignored in each ring after their first insertion.
         lower, upper = -3., max(6.*n, 3.)
@@ -232,14 +260,29 @@ class VisPyRawPlot:
         for layer_name, values, enabled in (
             ('raw', raw, show_raw), ('filtered', filtered, show_filtered)
         ):
-            for i, layer in enumerate(self.layers[layer_name]):
-                layer.visual.visible = bool(enabled)
+            for i, layer in enumerate(target_layers[layer_name]):
+                if self._pending_layers is None:
+                    layer.visual.visible = bool(enabled)
                 # Keep hidden layers current too: toggling Raw/Filtered back
                 # on must not expose missing sweep bins or require a rebuild.
                 if layer.ring.last_time >= float(times[-1]):
                     continue
                 normalized = (values[:, i] - lower) / (upper-lower)
                 layer.append(times, normalized)
+        if self._pending_layers is not None:
+            if not ready:
+                return
+            self._commit_layers(target_layers, (n, duration, rate))
+            for layer_name, enabled in (('raw', show_raw),
+                                        ('filtered', show_filtered)):
+                for layer in self.layers[layer_name]:
+                    layer.visual.visible = bool(enabled)
+            self._latest = -np.inf
+        self.sweep_duration = duration
+        self.engine.set_view(0., 1., 0., 1.)
+        if duration != self._last_axis_duration:
+            self.engine.set_axis_labels(duration=duration, bounds=(0., 1.))
+            self._last_axis_duration = duration
         # Both the cursor and the erase boundary use the latest real sample.
         latest = float(times[-1])
         self._latest = max(self._latest, latest)

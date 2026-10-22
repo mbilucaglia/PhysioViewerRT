@@ -542,8 +542,8 @@ class MainWindow(QMainWindow):
         self.raw_scale.pop('EEG', None)
         self.raw_frame_epoch += 1
         self.raw_dirty = True
-        if 'EEG' in self.raw_vispy_plots:
-            self.raw_vispy_plots['EEG'].reset()
+        # Keep the current GPU scene visible while its replacement is
+        # prepared; VisPyRawPlot commits the complete channel set atomically.
         self.curves['EEG'] = []
         self.plots['EEG'].clear()
 
