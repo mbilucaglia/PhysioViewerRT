@@ -123,6 +123,7 @@ class VisPyRawPlot:
         self.layers = {'raw': [], 'filtered': []}
         self._configuration = None
         self._latest = -np.inf
+        self._last_axis_duration = None
         # Keep the public layer attributes for widget smoke tests.
         self.raw_line = self.filtered_line = None
 
@@ -174,7 +175,9 @@ class VisPyRawPlot:
         self.sweep_duration = duration
         n = raw.shape[1]
         self.engine.set_view(0., 1., 0., 1.)
-        self.engine.set_axis_labels(duration=duration, bounds=(0., 1.))
+        if duration != self._last_axis_duration:
+            self.engine.set_axis_labels(duration=duration, bounds=(0., 1.))
+            self._last_axis_duration = duration
         if not len(times) or not n:
             return
         # The preparation worker uses fixed-clock decimation. Capture the

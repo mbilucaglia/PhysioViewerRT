@@ -42,6 +42,8 @@ class VisPyPlotEngine:
         self.sweep_cursor = self.line('#1769e0', width=2)
         self.sweep_cursor.visible = False
         self._y_bounds = (0., 1.)
+        self._view_rect = None
+        self._channel_names = None
         # Restrained in-scene axes, no heavy AxisWidget margins.
         self.axis_x = self.line('#d0d7df', width=1)
         self.axis_y = self.line('#d0d7df', width=1)
@@ -67,10 +69,14 @@ class VisPyPlotEngine:
     def set_view(self, left, right, bottom, top):
         if right <= left or top <= bottom:
             return
+        rect = (float(left), float(bottom),
+                float(right-left), float(top-bottom))
+        if rect == self._view_rect:
+            return
+        self._view_rect = rect
         self._y_bounds = (float(bottom), float(top))
         # Never introspect the bounds of empty VisPy Markers.
-        self.view.camera.rect = (float(left), float(bottom),
-                                 float(right-left), float(top-bottom))
+        self.view.camera.rect = rect
         self.canvas.update()
 
     def set_axis_labels(self, duration=None, bounds=None):
@@ -101,6 +107,9 @@ class VisPyPlotEngine:
     def set_channel_labels(self, names):
         """Update labels used by raw EEG/PPG/EDA; safe during stream reset."""
         names = tuple(str(name) for name in names)
+        if names == self._channel_names:
+            return
+        self._channel_names = names
         if not hasattr(self, '_channel_labels'):
             self._channel_labels = []
         while len(self._channel_labels) < len(names):
