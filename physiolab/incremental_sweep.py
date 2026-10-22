@@ -2,7 +2,8 @@
 
 A display slot is tied to a fixed acquisition-time bin. Once a sample has
 been painted its vertices remain unchanged until the sweep overwrites that
-slot. Only a slot and its successor (the shared boundary) need updating.
+slot. Only the segment ending at the arriving sample is replaced; the next
+old segment remains visible until its own replacement arrives.
 """
 import numpy as np
 
@@ -54,30 +55,68 @@ class SweepRing:
         v = np.asarray(values, dtype=float)
         if t.ndim != 1 or v.ndim != 1 or t.shape != v.shape:
             raise ValueError('One-dimensional timestamps/values required')
-        changed = set()
-        for when, value in zip(t, v):
-            if not np.isfinite(when) or when <= self.last_time:
-                continue
-            identity = int(np.floor(when*self.rate + 1e-7))
-            if identity <= self.last_id:
-                self.last_time = float(when)
-                continue
-            slot = identity % self.capacity
-            # Equal-age bins can contain multiple samples. The most recent
-            # value is retained without changing unrelated GPU vertices.
-            self.stamps[slot] = when
-            self.values[slot] = value
-            self.identities[slot] = identity
-            self.last_time = float(when)
-            self.last_id = identity
-            changed.add(slot)
-            changed.add((slot+1) % self.capacity)
-        result = []
-        for slot in sorted(changed):
-            geometry = self._geometry(slot)
-            self.positions[slot] = geometry
-            result.append((slot, geometry.copy()))
-        return result
+        # NumPy handles replay batches without Python work per sample/channel
+        # on the GUI thread. Preserve the first sample in each advancing bin.
+        finite = np.isfinite(t)
+        t, v = t[finite], v[finite]
+        if not len(t):
+            return []
+        prior = np.maximum.accumulate(np.r_[self.last_time, t])[:-1]
+        advancing = t > prior
+        t, v = t[advancing], v[advancing]
+        if not len(t):
+            return []
+        self.last_time = float(t[-1])
+        # Center bins on the nominal sample clock. Flooring puts correctly
+        # timed samples on bin edges: tiny +/- timestamp jitter can then
+        # produce IDs 0, 0, 2, 2, ... and no consecutive drawable segments.
+        # Geometry still uses the measured timestamps, without resampling.
+        identities = np.rint(t*self.rate).astype(np.int64)
+        first = np.r_[identities[0] > self.last_id,
+                      np.diff(identities) > 0]
+        first &= identities > self.last_id
+        identities, t, v = identities[first], t[first], v[first]
+        if not len(t):
+            return []
+        self.last_id = int(identities[-1])
+        slots = identities % self.capacity
+        # A replay can span multiple cycles; keep the newest write per slot.
+        _, reverse_indices = np.unique(slots[::-1], return_index=True)
+        latest = len(slots) - 1 - reverse_indices
+        target = slots[latest]
+        # Capture each segment's own preceding sample before ring writes
+        # overwrite a preceding slot from the older cycle. A full replay may
+        # include both cycles; find predecessors in the input batch first.
+        previous = (target-1) % self.capacity
+        prior_ids = self.identities[previous].copy()
+        prior_times = self.stamps[previous].copy()
+        prior_values = self.values[previous].copy()
+        expected = identities[latest]-1
+        indices = np.searchsorted(identities, expected)
+        safe = np.minimum(indices, len(identities)-1)
+        found = (indices < len(identities)) & (identities[safe] == expected)
+        prior_ids[found] = identities[safe[found]]
+        prior_times[found] = t[safe[found]]
+        prior_values[found] = v[safe[found]]
+        self.stamps[target] = t[latest]
+        self.values[target] = v[latest]
+        self.identities[target] = identities[latest]
+        changed = target
+        valid = (
+            (prior_ids == expected)
+            & np.isfinite(self.values[changed])
+            & np.isfinite(prior_values)
+            & (self.stamps[changed]-prior_times <= self.max_gap)
+            & (np.floor(self.stamps[changed]/self.duration)
+               == np.floor(prior_times/self.duration)))
+        geometry = np.full((len(changed), 2, 2), -10., dtype=np.float32)
+        good = changed[valid]
+        geometry[valid, 0, 0] = (prior_times[valid] % self.duration)/self.duration
+        geometry[valid, 0, 1] = prior_values[valid]
+        geometry[valid, 1, 0] = (self.stamps[good] % self.duration)/self.duration
+        geometry[valid, 1, 1] = self.values[good]
+        self.positions[changed] = geometry
+        return list(zip(changed.tolist(), geometry))
 
 
 @__import__('functools').lru_cache(maxsize=1)
@@ -139,28 +178,27 @@ def _incremental_visual_class():
             self.shared_program['u_center'] = float(center)
             self.update()
 
+        def reset_capacity(self, capacity):
+            """Resize storage while retaining the linked shader program."""
+            self.capacity = int(capacity)
+            self._buffer.set_data(np.full(
+                (self.capacity*self.vertices_per_slot, 2), -10., dtype=np.float32))
+            self.update()
+
         def patch(self, updates):
             if not updates:
                 return
             # Merge consecutive ring slots into a single partial GPU write.
-            slots = sorted(int(slot) for slot, _ in updates)
-            start = previous = slots[0]
-            by_slot = {int(slot): vertices for slot, vertices in updates}
-            groups = []
-            for slot in slots[1:]:
-                if slot != previous + 1:
-                    groups.append((start, previous + 1))
-                    start = slot
-                previous = slot
-            groups.append((start, previous + 1))
-            for first, end in groups:
-                data = np.concatenate(
-                    [np.asarray(by_slot[i], dtype=np.float32).reshape(
-                        self.vertices_per_slot, 2) for i in range(first, end)],
-                    axis=0)
+            slots = np.fromiter((slot for slot, _ in updates), dtype=np.intp)
+            vertices = np.asarray([data for _, data in updates], dtype=np.float32)
+            order = np.argsort(slots)
+            slots, vertices = slots[order], vertices[order]
+            boundaries = np.r_[0, np.flatnonzero(np.diff(slots) != 1) + 1, len(slots)]
+            for first, end in zip(boundaries[:-1], boundaries[1:]):
+                data = vertices[first:end].reshape(-1, 2)
                 self._buffer.set_subdata(
                     np.ascontiguousarray(data),
-                    offset=first*self.vertices_per_slot)
+                    offset=int(slots[first])*self.vertices_per_slot)
             self.update()
 
     return create_visual_node(PartialLineVisual)
@@ -179,6 +217,11 @@ class IncrementalSweepLayer:
 
     def set_gain(self, gain, center):
         self.visual.set_gain(gain, center)
+
+    def reconfigure(self, duration, rate, max_gap=None):
+        """Reset display history without replacing the GPU visual/program."""
+        self.ring = SweepRing(duration, rate, max_gap)
+        self.visual.reset_capacity(self.ring.capacity)
 
     def append(self, times, values):
         updates = self.ring.append(times, values)

@@ -48,6 +48,35 @@ class RawRenderTests(unittest.TestCase):
              - centers) / scales + np.arange(8) * 6
         ), atol=1e-10)
 
+    def test_single_channel_fit_recovers_from_flat_startup_and_separate_dc_offsets(self):
+        fs = 128.
+        t = np.arange(512) / fs
+        raw = (10. + np.sin(2*np.pi*1.2*t))[:, None]
+        filtered = np.sin(2*np.pi*1.2*t)[:, None]
+        early = (t[:3], raw[:3], filtered[:3], ['PPG'], fs)
+        first = prepare_raw_window([early], 0, 4, 0, fit_traces=True)
+        complete = (t, raw, filtered, ['PPG'], fs)
+        fitted = prepare_raw_window([complete], 0, 4, 0,
+                                    reference=first[3:5], fit_traces=True)
+        self.assertTrue(np.all(np.abs(fitted[1]) <= 2.5))
+        self.assertTrue(np.all(np.abs(fitted[2]) <= 2.5))
+        np.testing.assert_allclose(fitted[1], fitted[2], atol=1e-12)
+        again = prepare_raw_window([complete], 0, 4, 0,
+                                   reference=fitted[3:5], fit_traces=True)
+        self.assertIs(again[3], fitted[3])
+        self.assertIs(again[4], fitted[4])
+        np.testing.assert_array_equal(raw[:, 0], 10. + np.sin(2*np.pi*1.2*t))
+
+    def test_single_channel_fit_recovers_when_tonic_signal_drifts(self):
+        t = np.arange(160) / 32.
+        raw = (5. + .1*t)[:, None]
+        early = (t[:2], raw[:2], raw[:2], ['SCL'], 32.)
+        first = prepare_raw_window([early], 0, 5, 0, fit_traces=True)
+        fitted = prepare_raw_window([(t, raw, raw, ['SCL'], 32.)], 0, 5, 0,
+                                    reference=first[3:5], fit_traces=True)
+        self.assertTrue(np.all(np.abs(fitted[1]) <= 2.5))
+        self.assertGreater(np.ptp(fitted[1]), 1.)
+
     def test_missing_window_and_insufficient_startup_samples(self):
         history = self.chunks(seconds=2)
         self.assertIsNone(prepare_raw_window(history, 10., 11., 100.))

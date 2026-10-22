@@ -80,13 +80,20 @@ class CalibrationTests(unittest.TestCase):
         record = {'EEG': {'fs': fs, 'channels': ['O1', 'O2'],
                           'data': np.column_stack((np.sin(2*np.pi*10*t),
                                                    np.sin(2*np.pi*10*t))),
-                          'timestamps': t + 100}}
+                          'timestamps': t + 100,
+                          'preprocessing': {'preset': 'wide', 'notch': False},
+                          'conversion': {'gain': .001, 'offset': 2., 'output_unit': 'µV'},
+                          'source_units': ['mV', 'mV'], 'units': ['µV', 'µV']}}
         analysis = analyze_eyc(record['EEG'])
         with tempfile.TemporaryDirectory() as folder:
             file = Path(folder) / 'eyc.npz'
             save_calibration(file, 'EYC', record, analysis)
             meta, loaded = load_calibration(file, 'EYC')
             self.assertEqual(meta['type'], 'EYC')
+            self.assertEqual(loaded['EEG']['preprocessing'], record['EEG']['preprocessing'])
+            self.assertEqual(loaded['EEG']['conversion'], record['EEG']['conversion'])
+            self.assertEqual(loaded['EEG']['source_units'], ['mV', 'mV'])
+            self.assertEqual(loaded['EEG']['units'], ['µV', 'µV'])
             np.testing.assert_allclose(loaded['EEG']['data'], record['EEG']['data'])
             self.assertAlmostEqual(meta['analysis']['iaf_hz'], 10, delta=.1)
             with self.assertRaisesRegex(ValueError, 'type'):

@@ -47,6 +47,16 @@ class SyntheticPhysiologyTests(unittest.TestCase):
             np.testing.assert_allclose(full, np.vstack(segments),
                                        atol=2e-5, rtol=1e-6)
 
+    def test_eda_chunk_invariance_through_phasic_responses_and_tail_cutoff(self):
+        fs = SPECS['EDA'][0]
+        count = 230 * fs
+        full = SyntheticPhysiology(seed=20).generate('EDA', 0, count)
+        split = SyntheticPhysiology(seed=20)
+        chunks = [split.generate('EDA', start, min(fs, count - start))
+                  for start in range(0, count, fs)]
+        # Includes multiple responses, their decay tails and the fixed age cutoff.
+        np.testing.assert_array_equal(full, np.vstack(chunks))
+
     def test_artifacts_are_present_and_configurable(self):
         for kind, (fs, _) in SPECS.items():
             a = SyntheticPhysiology(seed=99, artifact_level='none')

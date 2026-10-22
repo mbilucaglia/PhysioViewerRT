@@ -20,6 +20,15 @@ SPECS = {
 }
 
 
+EDA_RESPONSE_ONSET_SECONDS = 11.
+EDA_RESPONSE_SPACING_SECONDS = 12.5
+EDA_RESPONSE_JITTER_SECONDS = 2.3
+EDA_RESPONSE_DECAY_SECONDS = 4.5
+EDA_RESPONSE_RISE_SECONDS = .65
+# Forty decay constants: omitted tails are below float32 signal precision.
+EDA_RESPONSE_HISTORY_SECONDS = 40 * EDA_RESPONSE_DECAY_SECONDS
+
+
 class SyntheticPhysiology:
     """Maintain independent stochastic processes for each source.
 
@@ -136,15 +145,23 @@ class SyntheticPhysiology:
         # Sudomotor responses: rise ~1 s, recovery ~4 s; pulse amplitudes
         # and inter-response intervals vary instead of repeating identically.
         phasic = np.zeros(len(t), dtype=float)
-        for idx in range(max(0, int((t[0]-15.)//12.)-2),
-                         int((t[-1]-10.)//12.)+3):
-            onset = 11. + 12.5*idx + 2.3*np.sin(1.31*idx)
+        first = max(0, int(np.ceil(
+            (t[0] - EDA_RESPONSE_HISTORY_SECONDS - EDA_RESPONSE_ONSET_SECONDS
+             - EDA_RESPONSE_JITTER_SECONDS) / EDA_RESPONSE_SPACING_SECONDS)))
+        last = int(np.floor(
+            (t[-1] - EDA_RESPONSE_ONSET_SECONDS + EDA_RESPONSE_JITTER_SECONDS)
+            / EDA_RESPONSE_SPACING_SECONDS))
+        for idx in range(first, last + 1):
+            onset = (EDA_RESPONSE_ONSET_SECONDS + EDA_RESPONSE_SPACING_SECONDS * idx
+                     + EDA_RESPONSE_JITTER_SECONDS * np.sin(1.31 * idx))
             amp = .23 + .38*(.5+.5*np.sin(1.73*idx))
             delta = t - onset
             positive = np.maximum(delta, 0.)
-            response = amp*(np.exp(-positive/4.5)
-                            - np.exp(-positive/.65))
-            phasic += np.where(delta >= 0, response, 0.)
+            response = amp*(np.exp(-positive/EDA_RESPONSE_DECAY_SECONDS)
+                            - np.exp(-positive/EDA_RESPONSE_RISE_SECONDS))
+            # Apply the same age limit per sample, independent of chunk edges.
+            phasic += np.where((delta >= 0) & (delta <= EDA_RESPONSE_HISTORY_SECONDS),
+                               response, 0.)
         noise = self.rng['EDA'].normal(0, .006, len(t))
         # Contact changes produce abrupt downward steps and a slow recovery.
         # Short movement scratches add faster oscillations to the electrodes.

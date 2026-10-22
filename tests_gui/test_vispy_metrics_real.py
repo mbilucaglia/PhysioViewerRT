@@ -19,6 +19,73 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def test_reserved_channels_commit_without_progressive_frame_roundtrips(self):
+        from unittest.mock import patch
+        plot = VisPyRawPlot('EEG')
+        self.addCleanup(plot.close)
+        # Native driver linking is exercised by the transition benchmark;
+        # this lifecycle check also runs on CI without an OpenGL context.
+        with patch.object(plot.canvas, 'render') as render:
+            for count in range(1, 9):
+                self.assertTrue(plot.warm_channels(8, 5., 64.))
+                self.assertEqual(plot.reserved_channel_count, count)
+                self.assertFalse(plot.configured)
+            self.assertFalse(plot.warm_channels(8, 5., 64.))
+            self.assertEqual(render.call_count, 8)
+        programs = tuple(layer.visual.shared_program for layer in plot._layer_pool['raw'])
+        times = np.arange(64) / 64.
+        values = np.ones((64, 8)) + 6*np.arange(8)
+        frame = (times, values, values, None, None, tuple(map(str, range(8))))
+        plot.set_frame(frame, 0., 5., nominal_fs=64.)
+        self.assertEqual(plot.channel_count, 8)
+        self.assertIsNone(plot._pending_layers)
+        plot.reset()
+        self.assertFalse(plot.configured)
+        self.assertEqual(plot.reserved_channel_count, 8)
+        self.assertTrue(all(not np.isfinite(layer.ring.last_time)
+                            for layer in plot._layer_pool['raw']))
+        plot.set_frame(frame, 0., 5., nominal_fs=64.)
+        self.assertEqual(programs, tuple(layer.visual.shared_program
+                                        for layer in plot.layers['raw']))
+
+    def test_warming_spare_channel_does_not_change_live_history_or_visibility(self):
+        from unittest.mock import patch
+        plot = VisPyRawPlot('EEG')
+        self.addCleanup(plot.close)
+        times = np.array([0., .1, .2])
+        values = np.array([[0.], [1.], [0.]])
+        plot.set_frame((times, values, values, None, None, ('F3',)), 0., 5.)
+        layer = plot.layers['raw'][0]
+        positions = layer.ring.positions.copy()
+        with patch.object(plot.canvas, 'render'):
+            self.assertTrue(plot.warm_channels(2, 5., 64.))
+        self.assertIs(layer, plot.layers['raw'][0])
+        self.assertTrue(layer.visual.visible)
+        self.assertFalse(plot._layer_pool['raw'][1].visual.visible)
+        np.testing.assert_array_equal(layer.ring.positions, positions)
+        self.assertEqual(plot.channel_count, 1)
+
+    def test_partial_upload_groups_unsorted_adjacent_slots_without_changing_endpoints(self):
+        from unittest.mock import Mock
+        plot = VisPyRawPlot('EEG')
+        self.addCleanup(plot.close)
+        times = np.array([0., .1])
+        values = np.zeros((2, 1))
+        plot.set_frame((times, values, values, None, None, ('F3',)), 0., 5.)
+        visual = plot.layers['raw'][0].visual
+        buffer = visual._buffer
+        visual._buffer = Mock()
+        try:
+            updates = [(i, np.full((2, 2), i, dtype=np.float32)) for i in (5, 1, 2, 4)]
+            visual.patch(updates)
+            calls = visual._buffer.set_subdata.call_args_list
+            self.assertEqual(len(calls), 2)
+            self.assertEqual([call.kwargs['offset'] for call in calls], [2, 8])
+            np.testing.assert_array_equal(calls[0].args[0][:, 0], [1, 1, 2, 2])
+            np.testing.assert_array_equal(calls[1].args[0][:, 0], [4, 4, 5, 5])
+        finally:
+            visual._buffer = buffer
+
     def test_create_real_canvas_axes_and_update_metric_series(self):
         keys = (('EEG', 'AWI'), ('EEG', 'BAR'), ('EDA', 'SCL'),
                 ('PPG', 'HR'), ('EI', 'EI'))
@@ -41,7 +108,18 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
         finally:
             plot.close()
 
-    def test_raw_blue_cursor_never_leads_real_samples(self):
+    def test_more_than_five_metrics_have_gpu_layers(self):
+        keys = tuple(('EEG', f'metric_{i}') for i in range(9))
+        plot = VisPyMetricPlot(keys)
+        try:
+            self.assertEqual(set(plot.lines), set(keys))
+            plot.set_series(keys[-1], np.array([0., .5]), np.array([1., 2.]),
+                            np.array([0., .5]), np.array([1., 2.]))
+            self.assertTrue(plot.lines[keys[-1]].visible)
+        finally:
+            plot.close()
+
+    def test_raw_cursor_follows_shared_clock_without_retiming_samples(self):
         plot = VisPyRawPlot('EEG')
         try:
             samples = np.array([5., 5.1, 5.2, 5.3])
@@ -50,10 +128,52 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
             # Simulate viewport clock running 80 ms ahead of acquisition.
             plot.set_frame(frame, 0., 5., sweep_head=5.38)
             np.testing.assert_allclose(
-                plot.engine.sweep_cursor._pos[:, 0], [.06, .06], atol=1e-5
+                plot.engine.sweep_cursor._pos[:, 0], [.076, .076], atol=1e-5
             )
+            self.assertAlmostEqual(plot._latest, 5.3)
         finally:
             plot.close()
+
+    def test_raw_timebase_and_channel_count_reuse_gpu_programs(self):
+        plot = VisPyRawPlot('EEG')
+        times = np.arange(0., 4., 1./64)
+        def frame(count, duration):
+            values = np.sin(times[:, None]) + 6.*np.arange(count)
+            plot.set_frame((times, values, values, None, None,
+                            tuple(f'Ch{i}' for i in range(count))),
+                           0., duration, nominal_fs=64.)
+        try:
+            frame(4, 5.)
+            visuals = tuple(layer.visual for layer in plot.layers['raw'])
+            programs = tuple(visual.shared_program for visual in visuals)
+            frame(4, 10.)
+            self.assertEqual(visuals, tuple(layer.visual for layer in plot.layers['raw']))
+            frame(2, 10.)
+            self.assertEqual(visuals[:2], tuple(layer.visual for layer in plot.layers['raw']))
+            frame(4, 5.)
+            self.assertEqual(programs, tuple(layer.visual.shared_program
+                                            for layer in plot.layers['raw']))
+            self.assertTrue(all(layer.ring.last_time == times[-1]
+                                for layer in plot.layers['raw']))
+        finally:
+            plot.close()
+
+    def test_three_stream_cursors_align_despite_different_delivery_times(self):
+        plots = [VisPyRawPlot(kind) for kind in ('EEG', 'PPG', 'EDA')]
+        try:
+            for plot, end in zip(plots, (.22, .35, .5)):
+                times = np.array([0., end])
+                values = np.array([[0.], [1.]])
+                plot.set_frame((times, values, values, None, None, ('signal',)),
+                               0., 5., sweep_head=.6)
+                np.testing.assert_allclose(plot.engine.sweep_cursor._pos[:, 0], [.12, .12])
+                self.assertEqual(plot._latest, end)
+            for plot in plots:
+                plot.set_sweep_head(.8)
+                np.testing.assert_allclose(plot.engine.sweep_cursor._pos[:, 0], [.16, .16])
+        finally:
+            for plot in plots:
+                plot.close()
 
     def test_raw_uses_same_engine_with_labels_and_gain(self):
         plot = VisPyRawPlot('EEG')
@@ -68,11 +188,11 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
             plot.set_frame(frame, 0., 5., sweep_head=.3)
             self.assertTrue(plot.raw_line.visible)
             self.assertEqual(
-                tuple(label.text for label in plot.engine._channel_labels[:2]),
+                plot.engine.channel_names[:2],
                 ('F3', 'F4')
             )
-            self.assertIs(plot.engine.widget, plot.engine.canvas.native)
-            self.assertEqual(plot.engine._axis_duration, 5.)
+            self.assertTrue(plot.engine.widget.isAncestorOf(plot.engine.canvas.native))
+            self.assertEqual(plot.engine.time_duration, 5.)
         finally:
             plot.close()
 

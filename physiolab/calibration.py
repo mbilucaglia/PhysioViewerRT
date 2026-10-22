@@ -88,7 +88,8 @@ def analyze_bsl(streams, iaf_hz=10.0):
         if len(stamps) != len(data) or not np.isfinite(stamps).all():
             # Do not fabricate timestamps for multimodal EI alignment.
             continue
-        proc = Processor(kind, fs, data.shape[1], item['channels'], iaf_hz=iaf_hz)
+        proc = Processor(kind, fs, data.shape[1], item['channels'], iaf_hz=iaf_hz,
+                         preprocessing=item.get('preprocessing'))
         hop = max(1, round(fs*.5))
         sequence = {}
         for start in range(0, len(data), hop):
@@ -185,6 +186,10 @@ def save_calibration(path, kind, streams, analysis):
         arrays[f'{modality}_data'] = data
         arrays[f'{modality}_timestamps'] = stamp
         meta['streams'][modality] = {'fs': float(item['fs']), 'channels': list(item['channels']),
+                                     'preprocessing': dict(item.get('preprocessing') or {}),
+                                     'conversion': dict(item.get('conversion') or {}),
+                                     'source_units': list(item.get('source_units') or []),
+                                     'units': list(item.get('units') or []),
                                      'samples': int(len(data)),
                                      'recorded_span_s': float(stamp[-1]-stamp[0])}
     if kind == 'EYC' and 'EEG' not in meta['streams']:
@@ -208,5 +213,9 @@ def load_calibration(path, expected_kind):
             if data.ndim != 2 or len(data) != len(stamps) or data.shape[1] != len(descriptor['channels']):
                 raise ValueError('Invalid file signal dimensions')
             streams[modality] = {'data': data, 'timestamps': stamps,
-                                 'fs': descriptor['fs'], 'channels': descriptor['channels']}
+                                 'fs': descriptor['fs'], 'channels': descriptor['channels'],
+                                 'preprocessing': descriptor.get('preprocessing', {}),
+                                 'conversion': descriptor.get('conversion', {}),
+                                 'source_units': descriptor.get('source_units', []),
+                                 'units': descriptor.get('units', [])}
     return meta, streams

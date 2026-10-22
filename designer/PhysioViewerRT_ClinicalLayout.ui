@@ -1,7 +1,53 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <ui version="4.0">
  <class>PhysioViewerClinicalLayout</class>
  <widget class="QMainWindow" name="PhysioViewerClinicalLayout">
+  <property name="windowTitle">
+   <string>PhysioViewerRT — Live physiological signals</string>
+  </property>
+  <property name="styleSheet">
+   <string>QWidget { color: #243347; font-family: "Segoe UI"; font-size: 10pt; }
+QMainWindow, QWidget#centralwidget { background: #eef2f6; }
+QFrame#workspaceHeader { background: #152739; border-radius: 10px; }
+QLabel#workspaceBrand { color: #ffffff; font-size: 17pt; font-weight: 600; }
+QLabel#workspaceDescriptor { color: #a8bdcf; font-size: 9pt; }
+QLabel#workspaceBadge { color: #85e0cf; background: #203f48; border: 1px solid #34575d; border-radius: 12px; padding: 5px 12px; font-size: 9pt; font-weight: 600; }
+QTabWidget::pane { background: #f8fafc; border: 1px solid #dce3eb; border-radius: 10px; top: 4px; }
+QTabBar::tab { background: transparent; color: #64748b; padding: 10px 26px; margin: 0 6px 6px 0; border: 1px solid transparent; border-radius: 7px; font-weight: 600; }
+QTabBar::tab:selected { color: #0f766e; background: #ffffff; border-color: #d5e2e5; }
+QTabBar::tab:hover:!selected { background: #e2e9ef; color: #243347; }
+QGroupBox { background: #ffffff; border: 1px solid #dce3eb; border-radius: 10px; margin-top: 18px; padding: 16px 12px 12px; font-weight: 600; }
+QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 14px; padding: 0 7px; color: #334155; }
+QGroupBox#eegSourceGroup::title { color: #2563a6; }
+QGroupBox#ppgSourceGroup::title { color: #b34870; }
+QGroupBox#edaSourceGroup::title { color: #0f8272; }
+QPushButton, QToolButton { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 11px; min-height: 20px; }
+QPushButton:hover, QToolButton:hover { background: #edf7f6; border-color: #68aaa4; }
+QPushButton:pressed, QToolButton:pressed { background: #d9efec; }
+QPushButton:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QToolButton:focus { border: 1px solid #0d9488; }
+QPushButton:disabled, QToolButton:disabled { color: #94a3b8; background: #f1f5f9; border-color: #e2e8f0; }
+QPushButton#EEGPlay, QPushButton#PPGPlay, QPushButton#EDAPlay { background: #0f766e; color: white; border-color: #0f766e; font-weight: 600; min-width: 76px; }
+QPushButton#EEGPlay:hover, QPushButton#PPGPlay:hover, QPushButton#EDAPlay:hover { background: #115e59; }
+QPushButton#rawFollowLive, QPushButton#metricsFollowLive { color: #0f766e; background: #e8f6f2; border-color: #b7dfd3; font-weight: 600; }
+QPushButton#rawFollowLive:checked, QPushButton#metricsFollowLive:checked { color: white; background: #0f766e; }
+QComboBox, QSpinBox, QDoubleSpinBox { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; min-height: 22px; selection-background-color: #0f766e; }
+QComboBox::drop-down { border: none; width: 23px; }
+QComboBox QAbstractItemView { background: white; border: 1px solid #dce3eb; selection-background-color: #def2ee; selection-color: #115e59; padding: 5px; }
+QCheckBox { spacing: 7px; padding: 3px 0; }
+QLabel#EEGPlotTitle, QLabel#PPGPlotTitle, QLabel#EDAPlotTitle { font-size: 10pt; font-weight: 600; padding: 3px 9px; border-radius: 5px; }
+QLabel#EEGPlotTitle { color: #2563a6; background: #eaf2fc; }
+QLabel#PPGPlotTitle { color: #a93e66; background: #fceef3; }
+QLabel#EDAPlotTitle { color: #0f8272; background: #e5f5f0; }
+QLabel#rawRenderingStatus, QLabel#baselineSummary, QLabel#EYCStatus, QLabel#BSLStatus { color: #738296; }
+QLabel#sourcesIntro, QLabel#rawIntro, QLabel#metricsIntro { color: #64748b; padding: 0 0 4px; }
+QWidget#EEGPlotPanel, QWidget#PPGPlotPanel, QWidget#EDAPlotPanel { background: #ffffff; border: 1px solid #dce3eb; border-radius: 8px; }
+QFrame#EEGPlotHost, QFrame#PPGPlotHost, QFrame#EDAPlotHost, QFrame#metricsPlotHost { background: #ffffff; border: none; border-radius: 6px; }
+QSplitter::handle { background: #eef2f6; height: 8px; }
+QSplitter::handle:hover { background: #b8d7d3; }
+QStatusBar { background: #eef2f6; color: #738296; border-top: 1px solid #dce3eb; font-size: 9pt; }
+QToolTip { background: #152739; color: white; border: none; padding: 7px; }
+</string>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -10,15 +56,79 @@
     <height>920</height>
    </rect>
   </property>
-  <property name="windowTitle">
-   <string>PhysioViewerRT — Clinical monitor (Qt Designer)</string>
-  </property>
-  <property name="styleSheet">
-   <string>QWidget { color: #243746; font-family: 'Segoe UI'; font-size: 10pt; background: #f7f9fb; } QTabWidget::pane { background: white; border: 1px solid #dce3eb; } QTabBar::tab { padding: 11px 26px; background: #eaf0f6; } QTabBar::tab:selected { background: white; color: #1769e0; } QGroupBox { border: 1px solid #d8e1ec; border-radius: 6px; margin-top: 12px; padding: 10px; font-weight: bold; } QFrame#EEGPlotHost, QFrame#PPGPlotHost, QFrame#EDAPlotHost, QFrame#metricsPlotHost { background: white; border: 1px solid #e0e6eb; min-height: 120px; } QPushButton { background: #eaf1f8; border: 1px solid #c4d0dd; border-radius: 4px; padding: 5px 10px; }</string>
-  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="0">
+     <widget class="QFrame" name="workspaceHeader">
+      <layout class="QHBoxLayout" name="workspaceHeaderLayout">
+       <property name="leftMargin">
+        <number>18</number>
+       </property>
+       <property name="rightMargin">
+        <number>18</number>
+       </property>
+       <property name="topMargin">
+        <number>10</number>
+       </property>
+       <property name="bottomMargin">
+        <number>10</number>
+       </property>
+       <property name="spacing">
+        <number>18</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="workspaceBrand">
+         <property name="text">
+          <string>PhysioViewer</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="workspaceDescriptor">
+         <property name="text">
+          <string>Real-time physiology workspace</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="workspaceHeaderSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="workspaceBadge">
+         <property name="text">
+          <string>LSL  /  REAL TIME</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <property name="bottomMargin">
+     <number>12</number>
+    </property>
+    <property name="rightMargin">
+     <number>12</number>
+    </property>
+    <property name="topMargin">
+     <number>12</number>
+    </property>
+    <property name="leftMargin">
+     <number>12</number>
+    </property>
+    <property name="spacing">
+     <number>12</number>
+    </property>
+    <item row="1" column="0">
      <widget class="QTabWidget" name="mainTabs">
       <property name="currentIndex">
        <number>0</number>
@@ -27,17 +137,51 @@
        <attribute name="title">
         <string>Sources</string>
        </attribute>
-       <layout class="QVBoxLayout" name="sourcesLayout">
-        <item>
+       <layout class="QGridLayout" name="sourcesLayout" columnstretch="1,1" rowstretch="0,1,1,0">
+        <property name="bottomMargin">
+         <number>16</number>
+        </property>
+        <property name="rightMargin">
+         <number>16</number>
+        </property>
+        <property name="topMargin">
+         <number>16</number>
+        </property>
+        <property name="leftMargin">
+         <number>16</number>
+        </property>
+        <property name="spacing">
+         <number>10</number>
+        </property>
+        <item row="0" column="0" colspan="2">
+         <widget class="QLabel" name="sourcesIntro">
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>Connect EEG, PPG and skin conductance streams, then start acquisition.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="1">
          <widget class="QGroupBox" name="eegSourceGroup">
           <property name="title">
            <string>EEG • LSL source</string>
           </property>
           <layout class="QVBoxLayout" name="EEGSourceLayout">
+           <property name="spacing">
+            <number>10</number>
+           </property>
            <item>
-            <layout class="QHBoxLayout" name="EEGSourcePicker">
+            <layout class="QHBoxLayout" name="EEGSourcePicker" stretch="0,1,0,0">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="EEGStreamLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Stream</string>
                </property>
@@ -45,6 +189,9 @@
              </item>
              <item>
               <widget class="QComboBox" name="EEGStreamSelector">
+               <property name="toolTip">
+                <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
+               </property>
                <item>
                 <property name="text">
                  <string>Select LSL stream…</string>
@@ -70,8 +217,14 @@
            </item>
            <item>
             <layout class="QHBoxLayout" name="EEGPreprocessing">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="EEGFilterLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Pre-processing</string>
                </property>
@@ -108,32 +261,51 @@
                </property>
               </widget>
              </item>
+             <item>
+              <spacer name="EEGPreprocessingSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>24</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
             </layout>
            </item>
            <item>
-            <layout class="QHBoxLayout" name="EEGChannels">
-             <item>
+            <layout class="QGridLayout" name="EEGChannels">
+             <property name="spacing">
+              <number>10</number>
+             </property>
+             <item row="0" column="0">
               <widget class="QLabel" name="EEGChannelLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Channels</string>
                </property>
               </widget>
              </item>
-             <item>
+             <item row="0" column="1">
               <widget class="QPushButton" name="EEGChooseChannels">
                <property name="text">
                 <string>Select channels…</string>
                </property>
               </widget>
              </item>
-             <item>
+             <item row="1" column="0">
               <widget class="QLabel" name="eegCountLabel">
                <property name="text">
                 <string>Display channels</string>
                </property>
               </widget>
              </item>
-             <item>
+             <item row="1" column="1">
               <widget class="QSpinBox" name="eegDisplayChannelCount">
                <property name="minimum">
                 <number>1</number>
@@ -146,21 +318,43 @@
                </property>
               </widget>
              </item>
+             <item row="1" column="2">
+              <spacer name="EEGChannelsSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>24</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
             </layout>
            </item>
           </layout>
          </widget>
         </item>
-        <item>
+        <item row="1" column="1" colspan="1">
          <widget class="QGroupBox" name="ppgSourceGroup">
           <property name="title">
            <string>PPG • LSL source</string>
           </property>
           <layout class="QVBoxLayout" name="PPGSourceLayout">
+           <property name="spacing">
+            <number>10</number>
+           </property>
            <item>
-            <layout class="QHBoxLayout" name="PPGSourcePicker">
+            <layout class="QHBoxLayout" name="PPGSourcePicker" stretch="0,1,0,0">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="PPGStreamLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Stream</string>
                </property>
@@ -168,6 +362,9 @@
              </item>
              <item>
               <widget class="QComboBox" name="PPGStreamSelector">
+               <property name="toolTip">
+                <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
+               </property>
                <item>
                 <property name="text">
                  <string>Select LSL stream…</string>
@@ -193,8 +390,14 @@
            </item>
            <item>
             <layout class="QHBoxLayout" name="PPGPreprocessing">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="PPGFilterLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Pre-processing</string>
                </property>
@@ -231,12 +434,31 @@
                </property>
               </widget>
              </item>
+             <item>
+              <spacer name="PPGPreprocessingSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>24</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
             </layout>
            </item>
            <item>
             <layout class="QHBoxLayout" name="PPGChannels">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="PPGChannelLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Channels</string>
                </property>
@@ -249,21 +471,43 @@
                </property>
               </widget>
              </item>
+             <item>
+              <spacer name="PPGChannelsSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>24</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
             </layout>
            </item>
           </layout>
          </widget>
         </item>
-        <item>
+        <item row="2" column="0" colspan="1">
          <widget class="QGroupBox" name="edaSourceGroup">
           <property name="title">
            <string>SC / EDA • LSL source</string>
           </property>
           <layout class="QVBoxLayout" name="EDASourceLayout">
+           <property name="spacing">
+            <number>10</number>
+           </property>
            <item>
-            <layout class="QHBoxLayout" name="EDASourcePicker">
+            <layout class="QHBoxLayout" name="EDASourcePicker" stretch="0,1,0,0">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="EDAStreamLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Stream</string>
                </property>
@@ -271,6 +515,9 @@
              </item>
              <item>
               <widget class="QComboBox" name="EDAStreamSelector">
+               <property name="toolTip">
+                <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
+               </property>
                <item>
                 <property name="text">
                  <string>Select LSL stream…</string>
@@ -296,8 +543,14 @@
            </item>
            <item>
             <layout class="QHBoxLayout" name="EDAPreprocessing">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="EDAFilterLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Pre-processing</string>
                </property>
@@ -329,12 +582,31 @@
                </property>
               </widget>
              </item>
+             <item>
+              <spacer name="EDAPreprocessingSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>24</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
             </layout>
            </item>
            <item>
             <layout class="QHBoxLayout" name="EDAChannels">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="EDAChannelLabel">
+               <property name="minimumWidth">
+                <number>92</number>
+               </property>
                <property name="text">
                 <string>Channels</string>
                </property>
@@ -347,17 +619,33 @@
                </property>
               </widget>
              </item>
+             <item>
+              <spacer name="EDAChannelsSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>24</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
             </layout>
            </item>
           </layout>
          </widget>
         </item>
-        <item>
+        <item row="2" column="1" colspan="1">
          <widget class="QGroupBox" name="baselineGroup">
           <property name="title">
            <string>Baselines</string>
           </property>
           <layout class="QVBoxLayout" name="baselineLayout">
+           <property name="spacing">
+            <number>10</number>
+           </property>
            <item>
             <widget class="QLabel" name="baselineSummary">
              <property name="text">
@@ -367,6 +655,9 @@
            </item>
            <item>
             <layout class="QHBoxLayout" name="EYCBaselineRow">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="EYCTitle">
                <property name="text">
@@ -411,6 +702,9 @@
            </item>
            <item>
             <layout class="QHBoxLayout" name="BSLBaselineRow">
+             <property name="spacing">
+              <number>10</number>
+             </property>
              <item>
               <widget class="QLabel" name="BSLTitle">
                <property name="text">
@@ -456,7 +750,7 @@
           </layout>
          </widget>
         </item>
-        <item>
+        <item row="3" column="0" colspan="2">
          <widget class="QPushButton" name="refreshAllStreams">
           <property name="text">
            <string>Refresh all LSL streams</string>
@@ -469,11 +763,42 @@
        <attribute name="title">
         <string>Raw Data</string>
        </attribute>
-       <layout class="QVBoxLayout" name="rawDataLayout">
+       <layout class="QVBoxLayout" name="rawDataLayout" stretch="0,0,1">
+        <property name="bottomMargin">
+         <number>16</number>
+        </property>
+        <property name="rightMargin">
+         <number>16</number>
+        </property>
+        <property name="topMargin">
+         <number>16</number>
+        </property>
+        <property name="leftMargin">
+         <number>16</number>
+        </property>
+        <property name="spacing">
+         <number>10</number>
+        </property>
         <item>
-         <layout class="QHBoxLayout" name="rawToolbar">
+         <widget class="QLabel" name="rawIntro">
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>Live waveforms · Adjust the time window and display gain. Drag the dividers to resize each signal panel.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="rawToolbar" stretch="0,0,1,0,0,0,0,0">
+          <property name="spacing">
+           <number>10</number>
+          </property>
           <item>
            <widget class="QComboBox" name="rawRendererChoice">
+            <property name="maximumWidth">
+             <number>170</number>
+            </property>
             <item>
              <property name="text">
               <string>pyqtgraph</string>
@@ -488,6 +813,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="rawFollowLive">
+            <property name="toolTip">
+             <string>Return to the newest incoming samples</string>
+            </property>
             <property name="text">
              <string>● LIVE</string>
             </property>
@@ -496,14 +824,14 @@
           <item>
            <widget class="QLabel" name="rawRenderingStatus">
             <property name="text">
-             <string/>
+             <string />
             </property>
            </widget>
           </item>
           <item>
            <widget class="QLabel" name="rawSweepLabel">
             <property name="text">
-             <string>Sweep</string>
+             <string>Time window</string>
             </property>
            </widget>
           </item>
@@ -548,6 +876,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="rawZoomMinus">
+            <property name="toolTip">
+             <string>Show a longer time window</string>
+            </property>
             <property name="text">
              <string>−</string>
             </property>
@@ -555,6 +886,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="rawZoomPlus">
+            <property name="toolTip">
+             <string>Show a shorter time window</string>
+            </property>
             <property name="text">
              <string>+</string>
             </property>
@@ -576,6 +910,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="rawPlotPause">
+            <property name="toolTip">
+             <string>Pause display updates while acquisition continues</string>
+            </property>
             <property name="text">
              <string>⏸ Pause plotting</string>
             </property>
@@ -590,12 +927,18 @@
           </property>
           <widget class="QWidget" name="EEGPlotPanel">
            <layout class="QVBoxLayout" name="EEGPlotLayout">
+            <property name="spacing">
+             <number>10</number>
+            </property>
             <item>
-             <layout class="QHBoxLayout" name="EEGPlotHeader">
+             <layout class="QHBoxLayout" name="EEGPlotHeader" stretch="1,0,0,0,0">
+              <property name="spacing">
+               <number>10</number>
+              </property>
               <item>
                <widget class="QLabel" name="EEGPlotTitle">
                 <property name="text">
-                 <string>EEG</string>
+                 <string>EEG  /  Brain activity</string>
                 </property>
                </widget>
               </item>
@@ -608,6 +951,12 @@
               </item>
               <item>
                <widget class="QPushButton" name="EEGAmplitudeMinus">
+                <property name="maximumWidth">
+                 <number>36</number>
+                </property>
+                <property name="toolTip">
+                 <string>Decrease display gain</string>
+                </property>
                 <property name="text">
                  <string>−</string>
                 </property>
@@ -615,6 +964,9 @@
               </item>
               <item>
                <widget class="QDoubleSpinBox" name="EEGAmplitude">
+                <property name="toolTip">
+                 <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                </property>
                 <property name="suffix">
                  <string>×</string>
                 </property>
@@ -627,10 +979,19 @@
                 <property name="value">
                  <double>1.000000000000000</double>
                 </property>
+                <property name="maximumWidth">
+                 <number>124</number>
+                </property>
                </widget>
               </item>
               <item>
                <widget class="QPushButton" name="EEGAmplitudePlus">
+                <property name="maximumWidth">
+                 <number>36</number>
+                </property>
+                <property name="toolTip">
+                 <string>Increase display gain</string>
+                </property>
                 <property name="text">
                  <string>+</string>
                 </property>
@@ -640,14 +1001,14 @@
             </item>
             <item>
              <widget class="QFrame" name="EEGPlotHost">
+              <property name="toolTip">
+               <string>Live signal display. Use the header controls to adjust display gain.</string>
+              </property>
               <property name="minimumSize">
                <size>
                 <width>0</width>
                 <height>122</height>
                </size>
-              </property>
-              <property name="toolTip">
-               <string>VisPy OpenGL plot placeholder — embedded by Python runtime</string>
               </property>
              </widget>
             </item>
@@ -655,12 +1016,18 @@
           </widget>
           <widget class="QWidget" name="PPGPlotPanel">
            <layout class="QVBoxLayout" name="PPGPlotLayout">
+            <property name="spacing">
+             <number>10</number>
+            </property>
             <item>
-             <layout class="QHBoxLayout" name="PPGPlotHeader">
+             <layout class="QHBoxLayout" name="PPGPlotHeader" stretch="1,0,0,0,0">
+              <property name="spacing">
+               <number>10</number>
+              </property>
               <item>
                <widget class="QLabel" name="PPGPlotTitle">
                 <property name="text">
-                 <string>PPG</string>
+                 <string>PPG  /  Pulse waveform</string>
                 </property>
                </widget>
               </item>
@@ -673,6 +1040,12 @@
               </item>
               <item>
                <widget class="QPushButton" name="PPGAmplitudeMinus">
+                <property name="maximumWidth">
+                 <number>36</number>
+                </property>
+                <property name="toolTip">
+                 <string>Decrease display gain</string>
+                </property>
                 <property name="text">
                  <string>−</string>
                 </property>
@@ -680,6 +1053,9 @@
               </item>
               <item>
                <widget class="QDoubleSpinBox" name="PPGAmplitude">
+                <property name="toolTip">
+                 <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                </property>
                 <property name="suffix">
                  <string>×</string>
                 </property>
@@ -692,10 +1068,19 @@
                 <property name="value">
                  <double>1.000000000000000</double>
                 </property>
+                <property name="maximumWidth">
+                 <number>124</number>
+                </property>
                </widget>
               </item>
               <item>
                <widget class="QPushButton" name="PPGAmplitudePlus">
+                <property name="maximumWidth">
+                 <number>36</number>
+                </property>
+                <property name="toolTip">
+                 <string>Increase display gain</string>
+                </property>
                 <property name="text">
                  <string>+</string>
                 </property>
@@ -705,14 +1090,14 @@
             </item>
             <item>
              <widget class="QFrame" name="PPGPlotHost">
+              <property name="toolTip">
+               <string>Live signal display. Use the header controls to adjust display gain.</string>
+              </property>
               <property name="minimumSize">
                <size>
                 <width>0</width>
                 <height>122</height>
                </size>
-              </property>
-              <property name="toolTip">
-               <string>VisPy OpenGL plot placeholder — embedded by Python runtime</string>
               </property>
              </widget>
             </item>
@@ -720,12 +1105,18 @@
           </widget>
           <widget class="QWidget" name="EDAPlotPanel">
            <layout class="QVBoxLayout" name="EDAPlotLayout">
+            <property name="spacing">
+             <number>10</number>
+            </property>
             <item>
-             <layout class="QHBoxLayout" name="EDAPlotHeader">
+             <layout class="QHBoxLayout" name="EDAPlotHeader" stretch="1,0,0,0,0">
+              <property name="spacing">
+               <number>10</number>
+              </property>
               <item>
                <widget class="QLabel" name="EDAPlotTitle">
                 <property name="text">
-                 <string>SC</string>
+                 <string>EDA  /  Skin conductance</string>
                 </property>
                </widget>
               </item>
@@ -738,6 +1129,12 @@
               </item>
               <item>
                <widget class="QPushButton" name="EDAAmplitudeMinus">
+                <property name="maximumWidth">
+                 <number>36</number>
+                </property>
+                <property name="toolTip">
+                 <string>Decrease display gain</string>
+                </property>
                 <property name="text">
                  <string>−</string>
                 </property>
@@ -745,6 +1142,9 @@
               </item>
               <item>
                <widget class="QDoubleSpinBox" name="EDAAmplitude">
+                <property name="toolTip">
+                 <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                </property>
                 <property name="suffix">
                  <string>×</string>
                 </property>
@@ -757,10 +1157,19 @@
                 <property name="value">
                  <double>1.000000000000000</double>
                 </property>
+                <property name="maximumWidth">
+                 <number>124</number>
+                </property>
                </widget>
               </item>
               <item>
                <widget class="QPushButton" name="EDAAmplitudePlus">
+                <property name="maximumWidth">
+                 <number>36</number>
+                </property>
+                <property name="toolTip">
+                 <string>Increase display gain</string>
+                </property>
                 <property name="text">
                  <string>+</string>
                 </property>
@@ -770,14 +1179,14 @@
             </item>
             <item>
              <widget class="QFrame" name="EDAPlotHost">
+              <property name="toolTip">
+               <string>Live signal display. Use the header controls to adjust display gain.</string>
+              </property>
               <property name="minimumSize">
                <size>
                 <width>0</width>
                 <height>122</height>
                </size>
-              </property>
-              <property name="toolTip">
-               <string>VisPy OpenGL plot placeholder — embedded by Python runtime</string>
               </property>
              </widget>
             </item>
@@ -791,11 +1200,42 @@
        <attribute name="title">
         <string>Metrics</string>
        </attribute>
-       <layout class="QVBoxLayout" name="metricsLayout">
+       <layout class="QVBoxLayout" name="metricsLayout" stretch="0,0,0,0,1,0">
+        <property name="bottomMargin">
+         <number>16</number>
+        </property>
+        <property name="rightMargin">
+         <number>16</number>
+        </property>
+        <property name="topMargin">
+         <number>16</number>
+        </property>
+        <property name="leftMargin">
+         <number>16</number>
+        </property>
+        <property name="spacing">
+         <number>10</number>
+        </property>
         <item>
-         <layout class="QHBoxLayout" name="metricsToolbar">
+         <widget class="QLabel" name="metricsIntro">
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>Live metrics · Choose visible series and their display settings.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="metricsToolbar" stretch="0,0,1,0,0,0,0,0">
+          <property name="spacing">
+           <number>10</number>
+          </property>
           <item>
            <widget class="QPushButton" name="metricsFollowLive">
+            <property name="toolTip">
+             <string>Return to the newest incoming samples</string>
+            </property>
             <property name="text">
              <string>● LIVE</string>
             </property>
@@ -803,6 +1243,9 @@
           </item>
           <item>
            <widget class="QComboBox" name="metricsRendererChoice">
+            <property name="maximumWidth">
+             <number>170</number>
+            </property>
             <item>
              <property name="text">
               <string>pyqtgraph</string>
@@ -816,9 +1259,16 @@
            </widget>
           </item>
           <item>
+           <spacer name="metricsToolbarSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </spacer>
+          </item>
+          <item>
            <widget class="QLabel" name="metricsSweepLabel">
             <property name="text">
-             <string>Sweep</string>
+             <string>Time window</string>
             </property>
            </widget>
           </item>
@@ -863,6 +1313,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="metricsZoomMinus">
+            <property name="toolTip">
+             <string>Show a longer time window</string>
+            </property>
             <property name="text">
              <string>−</string>
             </property>
@@ -870,6 +1323,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="metricsZoomPlus">
+            <property name="toolTip">
+             <string>Show a shorter time window</string>
+            </property>
             <property name="text">
              <string>+</string>
             </property>
@@ -877,6 +1333,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="metricsPlotPause">
+            <property name="toolTip">
+             <string>Pause display updates while acquisition continues</string>
+            </property>
             <property name="text">
              <string>⏸ Pause plotting</string>
             </property>
@@ -885,15 +1344,18 @@
          </layout>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="metricsTransforms">
-          <item>
+         <layout class="QGridLayout" name="metricsTransforms">
+          <property name="spacing">
+           <number>10</number>
+          </property>
+          <item row="0" column="0">
            <widget class="QLabel" name="metricDurationLabel">
             <property name="text">
-             <string>Duration</string>
+             <string>Smoothing window</string>
             </property>
            </widget>
           </item>
-          <item>
+          <item row="0" column="1">
            <widget class="QComboBox" name="metricsSmoothingDuration">
             <item>
              <property name="text">
@@ -922,14 +1384,14 @@
             </item>
            </widget>
           </item>
-          <item>
+          <item row="0" column="2">
            <widget class="QLabel" name="metricInterpolationLabel">
             <property name="text">
              <string>Interpolation</string>
             </property>
            </widget>
           </item>
-          <item>
+          <item row="0" column="3">
            <widget class="QComboBox" name="metricsInterpolation">
             <item>
              <property name="text">
@@ -953,14 +1415,14 @@
             </item>
            </widget>
           </item>
-          <item>
+          <item row="1" column="0">
            <widget class="QLabel" name="metricNormalizationLabel">
             <property name="text">
              <string>Normalization</string>
             </property>
            </widget>
           </item>
-          <item>
+          <item row="1" column="1">
            <widget class="QComboBox" name="metricNormalization">
             <item>
              <property name="text">
@@ -989,14 +1451,14 @@
             </item>
            </widget>
           </item>
-          <item>
+          <item row="1" column="2">
            <widget class="QLabel" name="smoothingLabel">
             <property name="text">
              <string>Smoothing</string>
             </property>
            </widget>
           </item>
-          <item>
+          <item row="1" column="3">
            <widget class="QComboBox" name="metricsSmoothing">
             <item>
              <property name="text">
@@ -1015,7 +1477,7 @@
             </item>
            </widget>
           </item>
-          <item>
+          <item row="1" column="4">
            <widget class="QCheckBox" name="measuredPoints">
             <property name="text">
              <string>Measured points</string>
@@ -1026,6 +1488,9 @@
         </item>
         <item>
          <layout class="QHBoxLayout" name="metricsSeriesControls">
+          <property name="spacing">
+           <number>10</number>
+          </property>
           <item>
            <widget class="QCheckBox" name="metricToggleAWI">
             <property name="text">
@@ -1061,6 +1526,19 @@
             </property>
            </widget>
           </item>
+          <item>
+           <spacer name="metricsSeriesSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>24</width>
+              <height>0</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
          </layout>
         </item>
         <item>
@@ -1086,8 +1564,42 @@
     </item>
    </layout>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="statusbar" />
  </widget>
- <resources/>
- <connections/>
+ <tabstops>
+  <tabstop>EEGStreamSelector</tabstop>
+  <tabstop>EEGRefresh</tabstop>
+  <tabstop>EEGPlay</tabstop>
+  <tabstop>EEGFilterPreset</tabstop>
+  <tabstop>EEGNotch</tabstop>
+  <tabstop>EEGChooseChannels</tabstop>
+  <tabstop>eegDisplayChannelCount</tabstop>
+  <tabstop>PPGStreamSelector</tabstop>
+  <tabstop>PPGRefresh</tabstop>
+  <tabstop>PPGPlay</tabstop>
+  <tabstop>PPGFilterPreset</tabstop>
+  <tabstop>PPGNotch</tabstop>
+  <tabstop>PPGChooseChannels</tabstop>
+  <tabstop>EDAStreamSelector</tabstop>
+  <tabstop>EDARefresh</tabstop>
+  <tabstop>EDAPlay</tabstop>
+  <tabstop>EDAFilterPreset</tabstop>
+  <tabstop>EDANotch</tabstop>
+  <tabstop>EDAChooseChannels</tabstop>
+  <tabstop>EYCMode</tabstop>
+  <tabstop>EYCExecute</tabstop>
+  <tabstop>BSLMode</tabstop>
+  <tabstop>BSLExecute</tabstop>
+  <tabstop>refreshAllStreams</tabstop>
+  <tabstop>rawFollowLive</tabstop>
+  <tabstop>rawSweepDuration</tabstop>
+  <tabstop>rawZoomMinus</tabstop>
+  <tabstop>rawZoomPlus</tabstop>
+  <tabstop>rawPlotPause</tabstop>
+  <tabstop>EEGAmplitude</tabstop>
+  <tabstop>PPGAmplitude</tabstop>
+  <tabstop>EDAAmplitude</tabstop>
+ </tabstops>
+ <resources />
+ <connections />
 </ui>

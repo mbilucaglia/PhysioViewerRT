@@ -45,7 +45,8 @@ class SmoothViewportClock:
     instead of making the time axis jump forwards or backwards.
     """
 
-    def __init__(self):
+    def __init__(self, presentation_delay=0.):
+        self.presentation_delay = float(presentation_delay)
         self.reset()
 
     def reset(self):
@@ -63,7 +64,7 @@ class SmoothViewportClock:
             self.latest_sample = sample_time
             self.received_at = received_at
             if self.head is None:
-                self.head = sample_time
+                self.head = sample_time - self.presentation_delay
                 self.frame_at = received_at
 
     def advance(self, now):
@@ -73,7 +74,8 @@ class SmoothViewportClock:
         dt = max(0., min(now - self.frame_at, .1))
         self.frame_at = now
         # Keep no more than ~80ms of visual lead on the newest *real* data.
-        target = self.latest_sample + min(max(now - self.received_at, 0.), .08)
+        target = (self.latest_sample - self.presentation_delay
+                  + min(max(now - self.received_at, 0.), .08))
         distance = target - self.head
         # Slew correction at at most 50% of normal speed, never jump.
         speed = max(0., min(1.5, 1. + distance * 3.))

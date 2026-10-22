@@ -17,7 +17,7 @@ class ChunkMailbox:
         self.dropped_samples = 0
 
     def put(self, chunk):
-        """Each chunk holds (raw, filtered, names, metric, fs, timestamps)."""
+        """Enqueue an AcquisitionChunk; its first item is the sample array."""
         count = len(chunk[0])
         with self._lock:
             self._items.append(chunk)

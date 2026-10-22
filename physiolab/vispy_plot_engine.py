@@ -2,7 +2,70 @@
 
 The same presentation engine hosts both Raw Data and Metrics.
 """
+import math
 import numpy as np
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QPainter
+from PySide6.QtWidgets import QWidget, QSizePolicy, QGridLayout
+
+from .render_policy import RAW_DISPLAY_POLICY
+from .scale_rulers import ScaleRuler
+
+
+class _ChannelLabelGutter(QWidget):
+    """Paint channel labels at trace baselines without imposing a plot height."""
+
+    LABEL_GAP = 3
+
+    def __init__(self):
+        super().__init__()
+        self.names = ()
+        self.visible_indices = ()
+        self.setMinimumHeight(0)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Ignored)
+        self.setStyleSheet('color: #718096; font-size: 9pt; border: none;')
+
+    def set_names(self, names):
+        self.names = tuple(names)
+        self.setToolTip('Channels (bottom to top):\n' + '\n'.join(self.names))
+        self.update_density()
+
+    def update_density(self):
+        count = len(self.names)
+        if not count or self.height() < self.fontMetrics().height():
+            self.visible_indices = ()
+        else:
+            spacing = RAW_DISPLAY_POLICY.channel_spacing * self.height() / RAW_DISPLAY_POLICY.span(count)
+            stride = max(1, math.ceil((self.fontMetrics().height() + self.LABEL_GAP) / spacing))
+            indices = list(range(0, count, stride))
+            # Include the uppermost channel when its label fits independently.
+            if count > 1 and indices[-1] != count - 1:
+                if len(indices) > 1 and count - 1 - indices[-1] < stride:
+                    indices.pop()
+                if (count - 1 - indices[-1]) * spacing >= self.fontMetrics().height() + self.LABEL_GAP:
+                    indices.append(count - 1)
+            half_height = self.fontMetrics().height() / 2.
+            self.visible_indices = tuple(index for index in indices
+                                         if half_height <= self.label_center(index)
+                                         <= self.height() - half_height)
+        self.update()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.update_density()
+
+    def label_center(self, index):
+        return self.height() * (1. - RAW_DISPLAY_POLICY.label_fraction(index, len(self.names)))
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setPen(self.palette().color(self.foregroundRole()))
+        height = self.fontMetrics().height()
+        for index in self.visible_indices:
+            rect = QRectF(0, self.label_center(index) - height / 2., self.width() - 6, height)
+            text = self.fontMetrics().elidedText(self.names[index], Qt.TextElideMode.ElideRight, self.width() - 6)
+            painter.drawText(rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, text)
+
 
 
 class VisPyPlotEngine:
@@ -15,8 +78,24 @@ class VisPyPlotEngine:
         self.canvas = scene.SceneCanvas(
             keys=None, show=False, bgcolor='white', size=size, app='pyside6'
         )
-        self.widget = self.canvas.native
-        self.xaxis = self.yaxis = self.gridlines = None
+        self.widget = QWidget()
+        layout = QGridLayout(self.widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        self.label_gutter = _ChannelLabelGutter()
+        self.label_gutter.setFixedWidth(48)
+        self.time_footer = ScaleRuler(Qt.Orientation.Horizontal)
+        self.amplitude_ruler = ScaleRuler(Qt.Orientation.Vertical)
+        self.amplitude_ruler.hide()
+        self._amplitude_range = None
+        layout.addWidget(self.label_gutter, 0, 0)
+        layout.addWidget(self.canvas.native, 0, 1)
+        layout.addWidget(self.time_footer, 1, 1)
+        layout.addWidget(self.amplitude_ruler, 0, 2)
+        layout.setColumnStretch(1, 1)
+        layout.setRowStretch(0, 1)
+        self.label_gutter.hide()
+        self.xaxis = self.yaxis = None
         if show_axes:
             grid = self.canvas.central_widget.add_grid(margin=4, spacing=3)
             self.yaxis = scene.AxisWidget(
@@ -40,18 +119,27 @@ class VisPyPlotEngine:
             self.xaxis.link_view(self.view)
             self.yaxis.link_view(self.view)
         self.sweep_cursor = self.line('#1769e0', width=2)
+        self.sweep_cursor.order = 1000  # Keep the shared playhead above dense EEG traces.
         self.sweep_cursor.visible = False
         self._y_bounds = (0., 1.)
         self._view_rect = None
         self._channel_names = None
-        # Restrained in-scene axes, no heavy AxisWidget margins.
-        self.axis_x = self.line('#d0d7df', width=1)
-        self.axis_y = self.line('#d0d7df', width=1)
-        self._axis_x_labels = [self.text(color='#607386', size=9) for _ in range(3)]
-        self._axis_y_labels = [self.text(color='#607386', size=9) for _ in range(3)]
-        self._axis_duration = None
-        self._axis_range = None
-        self.set_axis_labels(duration=5., bounds=(0., 1.))
+        self._axis_duration = 5.
+        self._update_rulers()
+        self.canvas.events.resize.connect(self._update_rulers)
+
+    def _update_rulers(self, event=None):
+        width = max(1, self.canvas.native.width())
+        height = max(1, self.canvas.native.height())
+        self.time_footer.set_scale((self._axis_duration or 5.) / width, 's')
+        if self._amplitude_range is not None:
+            span, unit = self._amplitude_range
+            self.amplitude_ruler.set_scale(span / height, unit)
+
+    def set_amplitude_range(self, span, unit):
+        self._amplitude_range = (float(span), unit)
+        self.amplitude_ruler.show()
+        self._update_rulers()
 
     def line(self, color='black', width=1):
         return self.scene.visuals.Line(
@@ -60,11 +148,6 @@ class VisPyPlotEngine:
 
     def markers(self):
         return self.scene.visuals.Markers(parent=self.view.scene)
-
-    def text(self, text='', pos=(0, 0), color='#303030', size=11):
-        return self.scene.visuals.Text(
-            text=text, pos=pos, color=color, font_size=size,
-            anchor_x='left', anchor_y='center', parent=self.view.scene)
 
     def set_view(self, left, right, bottom, top):
         if right <= left or top <= bottom:
@@ -79,48 +162,41 @@ class VisPyPlotEngine:
         self.view.camera.rect = rect
         self.canvas.update()
 
+    @property
+    def channel_names(self):
+        """Source channel names painted by the Qt gutter, bottom to top."""
+        return self._channel_names or ()
+
+    @property
+    def time_duration(self):
+        """Physical sweep duration represented by the time ruler."""
+        return self._axis_duration
+
+    @property
+    def y_bounds(self):
+        """Current vertical extent of the scene camera."""
+        return self._y_bounds
+
     def set_axis_labels(self, duration=None, bounds=None):
-        """Minimal time and vertical-value labels, with no tick marks."""
-        if duration is not None and duration > 0 and duration != self._axis_duration:
+        """Update physical scale metadata without allocating scene annotations."""
+        if duration is not None and np.isfinite(duration) and duration > 0:
             self._axis_duration = float(duration)
-            for label, phase in zip(self._axis_x_labels, (.1, .5, .9)):
-                label.text = f'{phase * duration:g} s'
-                label.pos = (phase, self._y_bounds[0] +
-                             .03*(self._y_bounds[1]-self._y_bounds[0]))
+            self._update_rulers()
         if bounds is not None:
-            bottom, top = float(bounds[0]), float(bounds[1])
-            if top > bottom and (bottom, top) != self._axis_range:
-                self._axis_range = (bottom, top)
-                self.axis_x.set_data(pos=np.array(
-                    [[.025, bottom+.09*(top-bottom)], [.985, bottom+.09*(top-bottom)]],
-                    dtype=np.float32))
-                self.axis_y.set_data(pos=np.array(
-                    [[.025, bottom+.09*(top-bottom)], [.025, bottom+.97*(top-bottom)]],
-                    dtype=np.float32))
-                for label, phase in zip(self._axis_y_labels, (.25, .5, .75)):
-                    label.text = f'{bottom + phase*(top-bottom):.2g}'
-                    label.pos = (.04, bottom + phase*(top-bottom))
-                for label, phase in zip(self._axis_x_labels, (.1, .5, .9)):
-                    label.pos = (phase, bottom+.035*(top-bottom))
+            bottom, top = map(float, bounds)
+            if np.isfinite((bottom, top)).all() and top > bottom:
+                left, _, width, _ = self._view_rect or (0., 0., 1., 1.)
+                self.set_view(left, left + width, bottom, top)
         self.canvas.update()
 
     def set_channel_labels(self, names):
-        """Update labels used by raw EEG/PPG/EDA; safe during stream reset."""
+        """Update the painted Qt gutter without allocating child label widgets."""
         names = tuple(str(name) for name in names)
         if names == self._channel_names:
             return
         self._channel_names = names
-        if not hasattr(self, '_channel_labels'):
-            self._channel_labels = []
-        while len(self._channel_labels) < len(names):
-            self._channel_labels.append(self.text(color='#526272', size=9))
-        for index, label in enumerate(self._channel_labels):
-            label.visible = index < len(names)
-            if index < len(names):
-                label.text = names[index]
-                label.pos = (.002, (6.*index+1.) /
-                             max(6.*len(names)+3., 6.))
-        self.canvas.update()
+        self.label_gutter.setVisible(bool(names))
+        self.label_gutter.set_names(names)
 
     def set_sweep_cursor(self, phase):
         """Thin blue line; no white erase band is drawn."""

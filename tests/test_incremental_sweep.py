@@ -5,13 +5,23 @@ from physiolab.incremental_sweep import SweepRing
 
 
 class SweepRingTests(unittest.TestCase):
-    def test_only_two_slots_change_when_one_sample_arrives(self):
+    def test_small_timestamp_jitter_cannot_remove_every_signal_segment(self):
+        for fs in (32., 128., 256.):
+            ring = SweepRing(5., fs)
+            index = np.arange(int(fs))
+            times = index/fs + np.where(index % 2 == 0, 1e-6, -1e-6)
+            ring.append(times, np.sin(times))
+            drawn = np.any(ring.positions != -10., axis=(1, 2))
+            self.assertEqual(np.count_nonzero(drawn), len(times)-1)
+            np.testing.assert_allclose(ring.positions[1, :, 0], times[:2]/5.)
+
+    def test_only_one_segment_changes_when_one_sample_arrives(self):
         ring = SweepRing(duration=5., rate=10.)
         initial = ring.append([.1, .2, .3], [1., 2., 3.])
         self.assertLessEqual(len(initial), 6)
         before = ring.positions.copy()
         newer = ring.append([.1, .2, .3, .4], [1., 2., 3., 4.])
-        self.assertEqual({s for s, _ in newer}, {4, 5})
+        self.assertEqual({s for s, _ in newer}, {4})
         np.testing.assert_array_equal(before[1:4], ring.positions[1:4])
         self.assertEqual(ring.last_time, .4)
 
@@ -37,12 +47,43 @@ class SweepRingTests(unittest.TestCase):
         ring.append([.1, .2, 1.0], [1., 2., 3.])
         self.assertTrue(np.all(ring.positions[10] == -10.))
 
+    def test_next_old_segment_stays_visible_until_its_replacement_arrives(self):
+        ring = SweepRing(5., 100.)
+        times = np.arange(500) / 100.
+        ring.append(times, np.sin(times))
+        before = ring.positions.copy()
+        incoming = 5. + np.arange(124)/100.
+        ring.append(incoming, np.cos(incoming))
+        # Each old segment retains its own old endpoints; no mixed-cycle
+        # diagonal or premature blank space is introduced after the cursor.
+        np.testing.assert_array_equal(ring.positions[124:], before[124:])
+        self.assertAlmostEqual(ring.positions[123, 1, 0], 1.23/5.)
+        self.assertAlmostEqual(ring.positions[125, 0, 0], 1.24/5.)
+        replay = SweepRing(5., 100.)
+        replay.append(np.r_[times, incoming], np.r_[np.sin(times), np.cos(incoming)])
+        np.testing.assert_array_equal(replay.positions, ring.positions)
+
     def test_dimensions_and_empty_history(self):
         ring = SweepRing(5., 20.)
         self.assertEqual(ring.capacity, 100)
         self.assertEqual(ring.append([], []), [])
         with self.assertRaises(ValueError):
             ring.append([0., 1.], [2.])
+
+    def test_batch_replay_matches_samplewise_updates_across_wraps_and_gaps(self):
+        rng = np.random.default_rng(24)
+        batch_ring, sample_ring = SweepRing(1., 32.), SweepRing(1., 32.)
+        for batch in range(20):
+            times = batch * .5 + np.arange(80) / 64.
+            times[10:13] = [np.nan, times[9], times[7]]
+            values = rng.normal(size=len(times))
+            values[5] = np.nan
+            batch_ring.append(times, values)
+            for stamp, value in zip(times, values):
+                sample_ring.append([stamp], [value])
+            np.testing.assert_array_equal(batch_ring.positions, sample_ring.positions)
+            np.testing.assert_array_equal(batch_ring.identities, sample_ring.identities)
+            self.assertEqual(batch_ring.last_time, sample_ring.last_time)
 
 
 if __name__ == '__main__':

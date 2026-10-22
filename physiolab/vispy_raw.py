@@ -8,9 +8,11 @@ VisPy is imported lazily so the standard pyqtgraph installation still works.
 from colorsys import hsv_to_rgb
 
 import numpy as np
+from .render_policy import RAW_DISPLAY_POLICY
+from .display_units import ARBITRARY_UNIT
 
 
-def trace_segments(times, values, left, right, lower=-3.0, upper=50.0):
+def trace_segments(times, values, left, right, lower=None, upper=None):
     """Make one batched GL line geometry for all channels.
 
     Input `values` is [samples, channels], pre-scaled by raw_render.py.
@@ -22,6 +24,9 @@ def trace_segments(times, values, left, right, lower=-3.0, upper=50.0):
     v = np.asarray(values, dtype=float)
     if v.ndim != 2 or t.ndim != 1 or v.shape[0] != len(t):
         raise ValueError('Waveform and timestamp dimensions do not match')
+    default_lower, default_upper = RAW_DISPLAY_POLICY.bounds(v.shape[1])
+    lower = default_lower if lower is None else lower
+    upper = default_upper if upper is None else upper
     if right <= left or upper <= lower:
         raise ValueError('Invalid waveform viewport bounds')
     if len(t) < 2 or not v.shape[1]:
@@ -60,7 +65,7 @@ def sweep_segments(times, values, duration, head, scale=1.0):
     Previous-cycle samples remain on the right of the advancing sweep head;
     current-cycle samples occupy the left. Segments may never cross a cycle
     boundary or join the old and new sweeps. Input amplitudes already have
-    6-unit per-channel offsets applied by prepare_raw_window().
+    shared-policy channel offsets applied by prepare_raw_window().
     """
     times = np.asarray(times, dtype=float)
     values = np.asarray(values, dtype=float)
@@ -76,9 +81,9 @@ def sweep_segments(times, values, duration, head, scale=1.0):
     phase = float(head % duration)
     x = np.mod(times, duration)
     n = values.shape[1]
-    offsets = 6. * np.arange(n)
+    offsets = RAW_DISPLAY_POLICY.offsets(n)
     gain_values = offsets + scale * (values - offsets)
-    lower, upper = -3., max(6.*n, 3.)
+    lower, upper = RAW_DISPLAY_POLICY.bounds(n)
     normalized_y = (gain_values - lower) / (upper - lower)
     valid_samples = ((cycle == current)
                      | ((cycle == current - 1) & (x >= phase)))
@@ -119,27 +124,32 @@ class VisPyRawPlot:
         self.view = self.engine.view
         self.labels = []  # Legacy public attribute; channel names now live in Qt gutter.
         self.vertical_gain = 1.
+        self._amplitude_step = None
+        self._amplitude_unit = ARBITRARY_UNIT
         self.sweep_duration = 5.
         self.layers = {'raw': [], 'filtered': []}
+        self._layer_pool = {'raw': [], 'filtered': []}
         self._configuration = None
         self._target_channels = 0
         self._pending_configuration = None
         self._pending_layers = None
         self._latest = -np.inf
         self._last_axis_duration = None
+        self._warmup_failed = False
         # Keep the public layer attributes for widget smoke tests.
         self.raw_line = self.filtered_line = None
 
     def _drop_layers(self):
-        if self._pending_layers is not None:
-            for group in self._pending_layers.values():
+        closed = set()
+        for collection in (self._layer_pool, self._pending_layers, self.layers):
+            for group in (collection or {}).values():
                 for layer in group:
-                    layer.close()
+                    if id(layer) not in closed:
+                        layer.close()
+                        closed.add(id(layer))
+        self._layer_pool = {'raw': [], 'filtered': []}
         self._pending_layers = None
         self._pending_configuration = None
-        for group in self.layers.values():
-            for layer in group:
-                layer.close()
         self.layers = {'raw': [], 'filtered': []}
         self.raw_line = self.filtered_line = None
         self._configuration = None
@@ -161,17 +171,97 @@ class VisPyRawPlot:
         Changing amplitude never reallocates GPU sweep buffers or loses history.
         """
         count = len(self.layers['raw'])
-        lower, upper = -3., max(6. * self._target_channels, 3.)
+        centers = RAW_DISPLAY_POLICY.normalized_centers(self._target_channels)
         for i in range(count):
-            center = (6. * i - lower) / (upper - lower)
+            center = centers[i]
             for layer_name in ('raw', 'filtered'):
                 self.layers[layer_name][i].set_gain(self.vertical_gain, center)
+        self._update_amplitude_ruler()
+
+    def set_amplitude_units(self, step, unit):
+        self._amplitude_step, self._amplitude_unit = float(step), unit
+        self._update_amplitude_ruler()
+
+    def set_sweep_head(self, head):
+        """Use the shared display clock without altering sample timestamps."""
+        if head is not None and np.isfinite(head):
+            self._sweep_head = float(head)
+            self.engine.set_sweep_cursor((float(head) % self.sweep_duration)
+                                         / self.sweep_duration)
+
+    def _update_amplitude_ruler(self):
+        if getattr(self, '_amplitude_step', None) is not None and self._target_channels:
+            self.engine.set_amplitude_range(
+                self._amplitude_step * RAW_DISPLAY_POLICY.span(self._target_channels) / self.vertical_gain,
+                self._amplitude_unit)
 
     def reset(self):
-        self._drop_layers()
+        # A new source discards samples, but can reuse already linked programs.
+        for key, group in (self._pending_layers or {}).items():
+            for layer in group:
+                if layer not in self._layer_pool[key]:
+                    layer.close()
+        for group in self._layer_pool.values():
+            for layer in group:
+                layer.visual.visible = False
+                ring = layer.ring
+                layer.reconfigure(ring.duration, ring.rate, max_gap=ring.max_gap)
+        self.layers = {'raw': [], 'filtered': []}
+        self._configuration = self._pending_configuration = self._pending_layers = None
+        self._target_channels = 0
+        self._latest = -np.inf
+        self.raw_line = self.filtered_line = None
         self.engine.set_channel_labels(())
         self.engine.sweep_cursor.visible = False
         self.canvas.update()
+
+    def invalidate_history(self):
+        """Replay rescaled display data without replacing GPU programs."""
+        for group in self.layers.values():
+            for layer in group:
+                ring = layer.ring
+                layer.reconfigure(ring.duration, ring.rate, max_gap=ring.max_gap)
+        self._latest = -np.inf
+
+    def warm_channels(self, count, duration, nominal_fs):
+        """Prepare one spare channel pair per idle tick, including driver linking.
+
+        The offscreen draw uses empty geometry and never commits a display frame.
+        Existing channel resources and their samples remain untouched.
+        """
+        if (self._warmup_failed or self._pending_layers is not None
+                or len(self._layer_pool['raw']) >= count):
+            return False
+        from .incremental_sweep import IncrementalSweepLayer
+        rate = RAW_DISPLAY_POLICY.display_rate(nominal_fs, duration)
+        pair = []
+        try:
+            for key, color in (('raw', '#db3232'), ('filtered', '#171717')):
+                layer = IncrementalSweepLayer(self.view.scene, duration, rate, color)
+                pair.append(layer)
+                layer.visual.visible = True
+            # VisPy links programs lazily at draw time, not node construction.
+            # A tiny framebuffer avoids reading back a full hidden plot image.
+            self.canvas.render(size=(1, 1))
+            self.engine.label_gutter.fontMetrics().height()
+        except Exception:
+            for layer in pair:
+                layer.close()
+            # Warmup is optional; normal first-use rendering remains available.
+            import logging
+            logging.getLogger(__name__).warning('Raw GPU warmup failed', exc_info=True)
+            self._warmup_failed = True
+            return False
+        finally:
+            for layer in pair:
+                layer.visual.visible = False
+        for key, layer in zip(('raw', 'filtered'), pair):
+            self._layer_pool[key].append(layer)
+        return True
+
+    @property
+    def reserved_channel_count(self):
+        return len(self._layer_pool['raw'])
 
     def _ensure_layers(self, count, duration, rate):
         """Stage a new GPU configuration without displaying partial channels.
@@ -183,20 +273,46 @@ class VisPyRawPlot:
         config = (count, float(duration), float(rate))
         if self._configuration == config and self._pending_layers is None:
             return self.layers, True
+        if not hasattr(self, '_layer_pool'):
+            self._layer_pool = {'raw': [], 'filtered': []}
+        # Timebase changes reset storage, never the linked shader programs.
+        if (self._pending_layers is None
+                and all(len(self._layer_pool[key]) >= count
+                        for key in ('raw', 'filtered'))):
+            for key in ('raw', 'filtered'):
+                for layer in self._layer_pool[key]:
+                    layer.visual.visible = False
+                self.layers[key] = self._layer_pool[key][:count]
+                for layer in self.layers[key]:
+                    layer.reconfigure(duration, rate)
+            self._configuration = config
+            self._target_channels = count
+            self._latest = -np.inf
+            self._apply_gain()
+            self.raw_line = self.layers['raw'][0].visual if count else None
+            self.filtered_line = self.layers['filtered'][0].visual if count else None
+            return self.layers, True
         if self._pending_configuration != config:
             if self._pending_layers is not None:
-                for group in self._pending_layers.values():
+                for key, group in self._pending_layers.items():
                     for layer in group:
-                        layer.close()
+                        if layer not in self._layer_pool[key]:
+                            layer.close()
             self._pending_configuration = config
             self._pending_layers = {'raw': [], 'filtered': []}
         target = self._pending_layers
         built = len(target['raw'])
         for i in range(built, min(count, built + 4)):
-            raw_layer = IncrementalSweepLayer(
-                self.view.scene, duration, rate, '#db3232')
-            filtered_layer = IncrementalSweepLayer(
-                self.view.scene, duration, rate, '#171717')
+            if i < len(self._layer_pool['raw']):
+                raw_layer = self._layer_pool['raw'][i]
+                filtered_layer = self._layer_pool['filtered'][i]
+                raw_layer.reconfigure(duration, rate)
+                filtered_layer.reconfigure(duration, rate)
+            else:
+                raw_layer = IncrementalSweepLayer(
+                    self.view.scene, duration, rate, '#db3232')
+                filtered_layer = IncrementalSweepLayer(
+                    self.view.scene, duration, rate, '#171717')
             raw_layer.visual.visible = False
             filtered_layer.visual.visible = False
             target['raw'].append(raw_layer)
@@ -213,7 +329,15 @@ class VisPyRawPlot:
         self._pending_configuration = None
         for group in old.values():
             for layer in group:
-                layer.close()
+                layer.visual.visible = False
+        for key in ('raw', 'filtered'):
+            for i, layer in enumerate(layers[key]):
+                if i < len(self._layer_pool[key]):
+                    if self._layer_pool[key][i] is not layer:
+                        self._layer_pool[key][i].close()
+                    self._layer_pool[key][i] = layer
+                else:
+                    self._layer_pool[key].append(layer)
         self._apply_gain()
         self.raw_line = layers['raw'][0].visual if layers['raw'] else None
         self.filtered_line = (
@@ -227,9 +351,28 @@ class VisPyRawPlot:
         return (n != count or configured_duration != duration
                 or self._pending_layers is not None)
 
+    @property
+    def channel_count(self):
+        return self._target_channels
+
+    @property
+    def latest_sample_time(self):
+        return self._latest
+
+    @property
+    def configured(self):
+        return self._configuration is not None
+
+    def history_needs_replay(self, count, duration):
+        return self.needs_history_replay(count, duration)
+
     def set_frame(self, frame, left, right, show_raw=True, show_filtered=True,
-                  sweep_head=None, nominal_fs=None, max_points=2500):
+                  sweep_head=None, nominal_fs=None,
+                  max_points=RAW_DISPLAY_POLICY.max_points):
         times, raw, filtered, _, _, names = frame
+        if sweep_head is not None and np.isfinite(sweep_head):
+            stop = int(np.searchsorted(times, sweep_head, side='right'))
+            times, raw, filtered = times[:stop], raw[:stop], filtered[:stop]
         duration = float(right-left)
         if duration <= 0:
             return
@@ -238,25 +381,21 @@ class VisPyRawPlot:
             return
         # The preparation worker uses fixed-clock decimation. Capture the
         # effective sample rate once per duration and preserve its bin phase.
-        diffs = np.diff(times)
-        diffs = diffs[np.isfinite(diffs) & (diffs > 0)]
-        if len(diffs):
-            rate = float(max(1., round(1. / np.median(diffs), 3)))
-        else:
-            rate = self._configuration[2] if self._configuration else 1.
         if nominal_fs is not None and nominal_fs > 0:
             # Match the worker's fixed-clock decimation; never infer GPU
             # capacity from a short first frame or fallback grid samples.
-            stride = max(1, int(np.ceil(
-                float(nominal_fs) * (2. * duration) / max_points)))
-            rate = float(nominal_fs) / stride
+            rate = RAW_DISPLAY_POLICY.display_rate(nominal_fs, duration, max_points)
         elif self._configuration and self._configuration[:2] == (n, duration):
             rate = self._configuration[2]
+        else:
+            diffs = np.diff(times)
+            diffs = diffs[np.isfinite(diffs) & (diffs > 0)]
+            rate = (float(max(1., round(1. / np.median(diffs), 3))) if len(diffs)
+                    else self._configuration[2] if self._configuration else 1.)
         target_layers, ready = self._ensure_layers(n, duration, rate)
         # Only the new tail is processed. Previous samples supplied by the
         # worker are ignored in each ring after their first insertion.
-        lower, upper = -3., max(6.*n, 3.)
-        offsets = 6. * np.arange(n)
+        lower, upper = RAW_DISPLAY_POLICY.bounds(n)
         for layer_name, values, enabled in (
             ('raw', raw, show_raw), ('filtered', filtered, show_filtered)
         ):
@@ -279,14 +418,16 @@ class VisPyRawPlot:
                     layer.visual.visible = bool(enabled)
             self._latest = -np.inf
         self.sweep_duration = duration
+        # Qt hosts labels outside the canvas; use the full waveform viewport.
         self.engine.set_view(0., 1., 0., 1.)
         if duration != self._last_axis_duration:
             self.engine.set_axis_labels(duration=duration, bounds=(0., 1.))
             self._last_axis_duration = duration
-        # Both the cursor and the erase boundary use the latest real sample.
+        # Data insertion uses source timestamps; only the cursor uses the
+        # common presentation clock shared by the three raw panels.
         latest = float(times[-1])
         self._latest = max(self._latest, latest)
-        self.engine.set_sweep_cursor((self._latest % duration)/duration)
+        self.set_sweep_head(self._latest if sweep_head is None else sweep_head)
         # Channel labels are rendered by a separate Qt gutter outside the
         # OpenGL viewport. No overlay can obscure the first EEG samples.
         channel_names = tuple(

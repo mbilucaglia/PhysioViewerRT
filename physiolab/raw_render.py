@@ -6,11 +6,13 @@ No pyqtgraph or Qt widget is accessed by these functions.
 """
 import numpy as np
 from .raw_timing import visible_chunk
+from .render_policy import RAW_DISPLAY_POLICY
 
 
 def prepare_raw_window(chunks, left, right, origin, reference=None,
-                       max_points=2500, max_channels=8,
-                       decimation_span=None):
+                       max_points=RAW_DISPLAY_POLICY.max_points,
+                       max_channels=RAW_DISPLAY_POLICY.max_single_channels,
+                       decimation_span=None, shared_scale=None, fit_traces=False):
     """Return time and display-scaled traces for a raw modality.
 
     A result is (time, raw_traces, filtered_traces, centers, scales,
@@ -60,7 +62,7 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
         float(decimation_span) if decimation_span is not None else right-left)
     if decimation_seconds <= 0:
         raise ValueError('Decimation window must be positive')
-    stride = max(1, int(np.ceil(fs * decimation_seconds / max_points)))
+    stride = RAW_DISPLAY_POLICY.decimation_stride(fs, decimation_seconds, max_points)
     if stride > 1:
         # Using origin-relative nominal sample indices fixes the phase across
         # frames without requiring sample-index counters in the LSL reader.
@@ -74,7 +76,27 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
             t, x, y = t[keep], x[keep], y[keep]
         elif len(t) < 2:
             return None
-    if reference is None:
+    if fit_traces:
+        # Single-channel displays retain source amplitudes but remove raw and
+        # filtered DC offsets independently. A bandpass output need not have
+        # the same baseline as its raw input. Refit only when traces escape
+        # the reserved range, rather than freezing near-flat startup samples.
+        centers = np.stack((np.median(x, axis=0), np.median(y, axis=0)))
+        scales = None
+        if reference is not None:
+            prior_centers, prior_scales = reference
+            if np.shape(prior_centers) == (2, n) and np.shape(prior_scales) == (n,):
+                fits = (np.all(np.abs((x-prior_centers[0])/prior_scales) <= RAW_DISPLAY_POLICY.fit_limit)
+                        and np.all(np.abs((y-prior_centers[1])/prior_scales) <= RAW_DISPLAY_POLICY.fit_limit))
+                if fits:
+                    centers, scales = prior_centers, prior_scales
+        if scales is None:
+            extent = np.maximum(np.max(np.abs(x-centers[0]), axis=0),
+                                np.max(np.abs(y-centers[1]), axis=0))
+            scales = np.maximum(extent / RAW_DISPLAY_POLICY.fit_target, 1e-9)
+            if reference is not None and np.shape(reference[1]) == (n,):
+                scales = np.maximum(scales, reference[1])
+    elif reference is None:
         # A waveform needs only two samples. Never impose a 0.75-second
         # holdoff before the first visible trace. Scale is latched by
         # the GUI after this first frame and reused thereafter.
@@ -91,7 +113,13 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
         centers, scales = reference
         if len(centers) != n or len(scales) != n:
             raise ValueError('Display scale differs from channel count')
-    offsets = 6 * np.arange(n, dtype=float)
-    return (t-origin, (x-centers)/scales+offsets,
-            (y-centers)/scales+offsets, centers, scales,
+    offsets = RAW_DISPLAY_POLICY.offsets(n)
+    if shared_scale is not None:
+        supplied = np.asarray(shared_scale, dtype=float)
+        scales = np.broadcast_to(supplied, (chunks[-1][1].shape[1],))[:n].copy()
+        if not np.isfinite(scales).all() or np.any(scales <= 0):
+            raise ValueError('Shared amplitude scale must be finite and positive')
+    raw_center, filtered_center = (centers if fit_traces else (centers, centers))
+    return (t-origin, (x-raw_center)/scales+offsets,
+            (y-filtered_center)/scales+offsets, centers, scales,
             tuple(chunks[-1][3][:n]))

@@ -6,7 +6,9 @@ plot remains available as a fallback.
 """
 import numpy as np
 
-METRIC_COLORS = ('#e69f00', '#56b4e9', '#009e73', '#cc79a7', '#d55e00')
+from .metric_catalog import METRIC_PALETTE, metric_color
+
+METRIC_COLORS = METRIC_PALETTE
 
 
 def metric_segments(times, values):
@@ -111,7 +113,6 @@ class VisPyMetricPlot:
         self.view = self.engine.view
         self.xaxis = self.engine.xaxis
         self.yaxis = self.engine.yaxis
-        self.gridlines = self.engine.gridlines
         self.lines = {}
         self.points = {}
         self._layers = {}
@@ -124,11 +125,11 @@ class VisPyMetricPlot:
 
     def _configure_layers(self):
         from .incremental_sweep import IncrementalSweepLayer
-        for layer_pair in self._layers.values():
-            for layer in layer_pair:
-                layer.close()
-        self._layers = {}
-        for key, color in zip(self.keys, METRIC_COLORS):
+        for index, key in enumerate(self.keys):
+            if key in self._layers:
+                self._reset_series(key)
+                continue
+            color = metric_color(index)
             # Fixed 20Hz output for interpolated metrics and their measured
             # markers; NaNs or missing observations never bridge gaps.
             line = IncrementalSweepLayer(
@@ -146,26 +147,19 @@ class VisPyMetricPlot:
         self.engine.set_view(0., 1., *self._y_limits)
 
     def _reset_series(self, key):
-        from .incremental_sweep import IncrementalSweepLayer
-        old_line, old_points = self._layers[key]
-        old_line.close()
-        old_points.close()
-        color = METRIC_COLORS[self.keys.index(key)]
-        line = IncrementalSweepLayer(
-            self.view.scene, self._duration, 20., color, max_gap=1.1)
-        points = IncrementalSweepLayer(
-            self.view.scene, self._duration, 20., color,
-            max_gap=1.1, mode='points')
-        self._layers[key] = (line, points)
-        self.lines[key] = line.visual
-        self.points[key] = points.visual
+        # Reset CPU history and GPU geometry without creating new scene nodes
+        # or shader programs. Existing visibility remains caller-controlled.
+        for layer in self._layers[key]:
+            layer.reconfigure(self._duration, 20., max_gap=1.1)
 
     def set_presentation_signature(self, signature):
-        """Rebuild only when data transformation settings change."""
+        """Replay only when an established data transformation changes."""
         signature = tuple(signature)
         if self._signature != signature:
+            initial = self._signature is None
             self._signature = signature
-            self._configure_layers()
+            if not initial:
+                self._configure_layers()
 
     def set_series(self, key, x, y, sample_x, sample_y,
                    visible=True, show_line=True, show_markers=True):

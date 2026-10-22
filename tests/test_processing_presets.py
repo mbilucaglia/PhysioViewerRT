@@ -36,6 +36,19 @@ class FilterPresetTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_preprocessing('UNKNOWN')
 
+    def test_nonfinite_input_does_not_poison_filter_state(self):
+        proc = Processor('EEG', 256., 1, ['O1'])
+        for invalid in (np.nan, np.inf, -np.inf):
+            with self.assertRaisesRegex(ValueError, 'NaN or infinite'):
+                proc.push([[invalid]])
+        proc.push(np.ones((256, 1)))
+        self.assertTrue(np.isfinite(proc.filtered).all())
+
+    def test_invalid_sampling_rates_rejected(self):
+        for fs in (0, -1, np.nan, np.inf):
+            with self.assertRaisesRegex(ValueError, 'Sampling rate'):
+                Processor('EEG', fs, 1, ['O1'])
+
 
 if __name__ == '__main__':
     unittest.main()

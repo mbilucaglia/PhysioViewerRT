@@ -1,14 +1,14 @@
 """Latest-only background worker for raw waveform preparation.
 
 The worker operates exclusively on immutable NumPy chunk snapshots.
-Only the Qt GUI thread creates/updates pyqtgraph items.
+Only the Qt GUI thread creates or updates rendering resources.
 """
 import threading
 import time
 from PySide6.QtCore import QThread, Signal
 
 from .raw_render import prepare_raw_window
-from .render_contracts import RawFrameRequest
+from .render_contracts import RawFrameRequest, RawFrameResult
 
 
 class RawRenderWorker(QThread):
@@ -54,15 +54,18 @@ class RawRenderWorker(QThread):
                         source.chunks, source.left, source.right,
                         source.origin, source.reference,
                         decimation_span=source.decimation_span,
-                        max_channels=source.max_channels
+                        max_channels=source.max_channels,
+                        shared_scale=source.shared_scale,
+                        fit_traces=source.fit_traces,
                     )
-                except (ValueError, IndexError) as exc:
+                except (ValueError, IndexError):
                     frames[kind] = None
-            self.frame_ready.emit({
-                'ticket': request.ticket,
-                'prepare_ms': (time.perf_counter() - started) * 1000.,
-                'version': request.version,
-                'frames': frames,
-                'queued_at': request.queued_at,
-                'ready_at': time.perf_counter(),
-            })
+            self.frame_ready.emit(RawFrameResult(
+                ticket=request.ticket,
+                prepare_ms=(time.perf_counter() - started) * 1000.,
+                version=request.version,
+                frames=frames,
+                queued_at=request.queued_at,
+                ready_at=time.perf_counter(),
+                presentation_head=request.presentation_head,
+            ))

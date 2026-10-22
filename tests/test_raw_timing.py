@@ -73,6 +73,14 @@ class RawTimingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             clean_lsl_chunk([1., 2.], np.zeros((3, 1)), np.zeros((3, 1)))
 
+    def test_buffered_clock_keeps_chunk_jitter_behind_the_display_head(self):
+        clock = SmoothViewportClock(presentation_delay=.25)
+        clock.observe(100., 1.)
+        self.assertAlmostEqual(clock.head, 99.75)
+        heads = [clock.advance(1.+i/30.) for i in range(120)]
+        self.assertTrue(np.all(np.diff(heads) >= 0))
+        self.assertLessEqual(heads[-1], 99.83+1e-9)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,11 +4,12 @@ Only references to immutable chunks are returned. No Qt, GUI state,
 NumPy copying or data reduction occurs on the caller's thread.
 """
 from .render_contracts import RawSourceRequest
+from .render_policy import RAW_DISPLAY_POLICY
 
 
 def build_raw_source(chunks, *, left, right, origin, reference=None,
                      vispy=False, latest=None, replay_history=False, sweep_seconds=5.,
-                     max_channels=8):
+                     max_channels=RAW_DISPLAY_POLICY.max_single_channels, shared_scale=None, fit_traces=False):
     """Select intersecting chunks and define the worker's viewport.
 
     The GPU path starts from a short live tail on a fresh sweep and
@@ -18,12 +19,12 @@ def build_raw_source(chunks, *, left, right, origin, reference=None,
     if not chunks or origin is None or right <= left:
         return None
     if vispy:
-        if replay_history:
+        if replay_history or fit_traces:
             pass  # Retain the requested two-cycle history for new GPU layers.
         elif latest is not None and reference is not None:
-            left = max(left, latest - .1)
+            left = max(left, latest - RAW_DISPLAY_POLICY.tail_overlap_seconds)
         else:
-            left = max(left, right - .35)
+            left = max(left, right - RAW_DISPLAY_POLICY.initial_tail_seconds)
     lower, upper = origin + left, origin + right
     recent = []
     for chunk in reversed(chunks):
@@ -40,6 +41,8 @@ def build_raw_source(chunks, *, left, right, origin, reference=None,
         chunks=tuple(reversed(recent)),
         left=left, right=right, origin=origin,
         reference=reference,
-        decimation_span=(2. * sweep_seconds if vispy else None),
+        decimation_span=(RAW_DISPLAY_POLICY.history_cycles * sweep_seconds if vispy else None),
         max_channels=max_channels,
+        shared_scale=shared_scale,
+        fit_traces=fit_traces,
     )

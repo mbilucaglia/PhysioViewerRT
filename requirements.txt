@@ -3,3 +3,4 @@ pyqtgraph>=0.13
 numpy>=1.26
 scipy>=1.11
 pylsl>=1.16
+-r requirements-vispy.txt
