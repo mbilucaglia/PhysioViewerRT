@@ -16,6 +16,7 @@ class RawSourceRequest:
     reference: Optional[Tuple[object, object]] = None
     decimation_span: Optional[float] = None
     max_channels: int = 8
+    max_points: int = 2500
 
 
 @dataclass(frozen=True)
