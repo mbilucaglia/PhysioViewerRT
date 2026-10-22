@@ -7,7 +7,7 @@ from .render_contracts import RawSourceRequest
 
 
 def build_raw_source(chunks, *, left, right, origin, reference=None,
-                     vispy=False, latest=None, sweep_seconds=5.,
+                     vispy=False, latest=None, replay_history=False, sweep_seconds=5.,
                      max_channels=8):
     """Select intersecting chunks and define the worker's viewport.
 
@@ -18,7 +18,9 @@ def build_raw_source(chunks, *, left, right, origin, reference=None,
     if not chunks or origin is None or right <= left:
         return None
     if vispy:
-        if latest is not None and reference is not None:
+        if replay_history:
+            pass  # Retain the requested two-cycle history for new GPU layers.
+        elif latest is not None and reference is not None:
             left = max(left, latest - .1)
         else:
             left = max(left, right - .35)
