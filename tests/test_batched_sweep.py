@@ -38,7 +38,8 @@ class BatchTests(unittest.TestCase):
                    return_value=FakeVisualClass):
             bank = BatchedSweepBank(None, 32, 5., 100., '#000000')
             self.assertEqual(len(FakeVisualClass.instances), 1)
-            self.assertEqual(bank.visual.capacity, 32 * 500)
+            self.assertEqual(bank.capacity, 500)
+            self.assertEqual(FakeVisualClass.instances.__len__(), 1)
             t = np.arange(100) / 100.
             x = np.tile(np.linspace(0.1, 0.2, 100)[:, None], (1, 32))
             self.assertGreater(bank.append(t, x), 0)
