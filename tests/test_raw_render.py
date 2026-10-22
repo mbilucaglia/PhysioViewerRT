@@ -67,6 +67,20 @@ class RawRenderTests(unittest.TestCase):
         self.assertEqual(len(frame[0]), 4)
         self.assertTrue(np.isfinite(frame[1]).all())
 
+    def test_channel_limit_applied_before_preparation(self):
+        history = self.chunks(seconds=4, channels=32)
+        result = prepare_raw_window(
+            history, 1., 3., 100., max_channels=4)
+        self.assertEqual(result[1].shape[1], 4)
+        self.assertEqual(len(result[-1]), 4)
+
+    def test_invalid_budgets_rejected(self):
+        history = self.chunks(seconds=2)
+        with self.assertRaises(ValueError):
+            prepare_raw_window(history, 0., 1., 100., max_channels=0)
+        with self.assertRaises(ValueError):
+            prepare_raw_window(history, 0., 1., 100., max_points=0)
+
     def test_invalid_reference_is_rejected(self):
         history = self.chunks(seconds=3)
         with self.assertRaises(ValueError):
