@@ -186,8 +186,16 @@ class VisPyRawPlot:
             self.raw_line = self.layers['raw'][0].visual
             self.filtered_line = self.layers['filtered'][0].visual
 
+    def needs_history_replay(self, count, duration):
+        """New GPU channels must receive full history, not just live tails."""
+        if self._configuration is None:
+            return True
+        n, configured_duration, _ = self._configuration
+        return (n != count or configured_duration != duration
+                or len(self.layers['raw']) < count)
+
     def set_frame(self, frame, left, right, show_raw=True, show_filtered=True,
-                  sweep_head=None):
+                  sweep_head=None, nominal_fs=None, max_points=2500):
         times, raw, filtered, _, _, names = frame
         duration = float(right-left)
         if duration <= 0:
@@ -208,7 +216,13 @@ class VisPyRawPlot:
             rate = float(max(1., round(1. / np.median(diffs), 3)))
         else:
             rate = self._configuration[2] if self._configuration else 1.
-        if self._configuration and self._configuration[:2] == (n, duration):
+        if nominal_fs is not None and nominal_fs > 0:
+            # Match the worker's fixed-clock decimation; never infer GPU
+            # capacity from a short first frame or fallback grid samples.
+            stride = max(1, int(np.ceil(
+                float(nominal_fs) * (2. * duration) / max_points)))
+            rate = float(nominal_fs) / stride
+        elif self._configuration and self._configuration[:2] == (n, duration):
             rate = self._configuration[2]
         self._ensure_layers(n, duration, rate)
         # Only the new tail is processed. Previous samples supplied by the
@@ -222,6 +236,8 @@ class VisPyRawPlot:
                 layer.visual.visible = bool(enabled)
                 # Keep hidden layers current too: toggling Raw/Filtered back
                 # on must not expose missing sweep bins or require a rebuild.
+                if layer.ring.last_time >= float(times[-1]):
+                    continue
                 normalized = (values[:, i] - lower) / (upper-lower)
                 layer.append(times, normalized)
         # Both the cursor and the erase boundary use the latest real sample.
