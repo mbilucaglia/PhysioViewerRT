@@ -10,7 +10,7 @@ class Receiver(QThread):
     failure = Signal(str)
     stream_ready = Signal(str, object, float)
 
-    def __init__(self, info, kind, selected_indices, selected_names):
+    def __init__(self, info, kind, selected_indices, selected_names, preprocessing=None):
         super().__init__()
         self.info, self.kind = info, kind
         self.selected_indices = validated_indices(selected_indices, info.channel_count(), kind)
@@ -19,6 +19,7 @@ class Receiver(QThread):
         self.selected_names = [str(selected_names[i]) for i in self.selected_indices]
         self.active = True
         self.iaf_hz = 10.0
+        self.preprocessing = dict(preprocessing or {})
         self.inlet = None
         self.latest_source_timestamp = None
         self.mailbox = ChunkMailbox(info.nominal_srate())
@@ -32,7 +33,8 @@ class Receiver(QThread):
                 raise ValueError('Irregular-rate streams are not supported in MVP')
             count = len(self.selected_indices)
             names = list(self.selected_names)
-            proc = Processor(self.kind, fs, count, names, iaf_hz=self.iaf_hz)
+            proc = Processor(self.kind, fs, count, names, iaf_hz=self.iaf_hz,
+                             preprocessing=self.preprocessing)
             self.stream_ready.emit(self.kind, names, float(fs))
             while self.active:
                 samples, timestamps = inlet.pull_chunk(timeout=.2, max_samples=1024)

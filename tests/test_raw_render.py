@@ -51,7 +51,21 @@ class RawRenderTests(unittest.TestCase):
     def test_missing_window_and_insufficient_startup_samples(self):
         history = self.chunks(seconds=2)
         self.assertIsNone(prepare_raw_window(history, 10., 11., 100.))
-        self.assertIsNone(prepare_raw_window(history, 0., .1, 100.))
+        early = prepare_raw_window(history, 0., .1, 100.)
+        self.assertIsNotNone(early)
+        self.assertGreaterEqual(len(early[0]), 2)
+        self.assertTrue(np.isfinite(early[1]).all())
+
+    def test_first_short_chunk_visible_even_without_decimation_grid_points(self):
+        fs = 512.
+        stamps = 100. + np.array([1., 2., 3., 4.]) / fs
+        values = np.array([[0.], [0.1], [0.2], [0.3]])
+        history = ((stamps, values, values.copy(), ['C0'], fs),)
+        frame = prepare_raw_window(history, 0., .02, 100.,
+                                   max_points=10, decimation_span=20.)
+        self.assertIsNotNone(frame)
+        self.assertEqual(len(frame[0]), 4)
+        self.assertTrue(np.isfinite(frame[1]).all())
 
     def test_invalid_reference_is_rejected(self):
         history = self.chunks(seconds=3)
