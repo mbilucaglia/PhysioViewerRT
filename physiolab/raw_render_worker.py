@@ -8,6 +8,7 @@ import time
 from PySide6.QtCore import QThread, Signal
 
 from .raw_render import prepare_raw_window
+from .render_contracts import RawFrameRequest
 
 
 class RawRenderWorker(QThread):
@@ -45,21 +46,23 @@ class RawRenderWorker(QThread):
                 self._pending = None
             started = time.perf_counter()
             frames = {}
-            for kind, source in request['sources'].items():
-                chunks, left, right, origin, reference = source[:5]
-                decimation_span = source[5] if len(source) > 5 else None
-                display_count = source[6] if len(source) > 6 else 8
+            if not isinstance(request, RawFrameRequest):
+                continue
+            for kind, source in request.sources.items():
                 try:
                     frames[kind] = prepare_raw_window(
-                        chunks, left, right, origin, reference,
-                        decimation_span=decimation_span,
-                        max_channels=display_count
+                        source.chunks, source.left, source.right,
+                        source.origin, source.reference,
+                        decimation_span=source.decimation_span,
+                        max_channels=source.max_channels
                     )
                 except (ValueError, IndexError) as exc:
                     frames[kind] = None
             self.frame_ready.emit({
-                'ticket': request['ticket'],
+                'ticket': request.ticket,
                 'prepare_ms': (time.perf_counter() - started) * 1000.,
-                'version': request['version'],
+                'version': request.version,
                 'frames': frames,
+                'queued_at': request.queued_at,
+                'ready_at': time.perf_counter(),
             })
