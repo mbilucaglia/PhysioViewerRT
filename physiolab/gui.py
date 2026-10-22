@@ -1183,8 +1183,17 @@ class MainWindow(QMainWindow):
                         else len(renderer.layers['raw']),
                         self.raw_view_seconds)):
                 latest = float(renderer._latest)
+            replay_history = (
+                self.raw_renderer_mode == 'vispy'
+                and renderer is not None
+                and renderer._configuration is not None
+                and renderer.needs_history_replay(
+                    self.eeg_display_count.value() if kind == 'EEG'
+                    else renderer._configuration[0],
+                    self.raw_view_seconds))
             source = build_raw_source(
                 chunks, left=low, right=high,
+                replay_history=replay_history,
                 origin=self.raw_plot_origin,
                 reference=self.raw_scale.get(kind),
                 vispy=self.raw_renderer_mode == 'vispy',
