@@ -54,7 +54,8 @@ class RawRenderWorker(QThread):
                         source.chunks, source.left, source.right,
                         source.origin, source.reference,
                         decimation_span=source.decimation_span,
-                        max_channels=source.max_channels
+                        max_channels=source.max_channels,
+                        max_points=source.max_points
                     )
                 except (ValueError, IndexError) as exc:
                     frames[kind] = None
