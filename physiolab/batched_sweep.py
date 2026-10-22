@@ -62,7 +62,7 @@ def _batch_visual():
                 return
             self._buffer.set_subdata(
                 np.ascontiguousarray(data, dtype=np.float32),
-                offset=int(first_vertex))
+                offset=int(first_vertex) * 3 * np.dtype(np.float32).itemsize)
             self.update()
 
     return create_visual_node(BatchedLineVisual)
@@ -96,13 +96,26 @@ class BatchedSweepBank:
             bottom = -3.
             top = max(6. * self.channels, 3.)
             baseline = (6. * channel - bottom) / (top - bottom)
-            for slot, geometry in changed:
-                positions = np.empty((2, 3), dtype=np.float32)
-                positions[:, :2] = geometry
-                positions[:, 2] = baseline
-                self.visual.patch(2 * (channel * self.capacity + slot),
-                                  positions)
-                updates += 1
+            # Upload contiguous modified bins together, avoiding one GL call
+            # per sample. Slots are already sorted by SweepRing.append.
+            first = last = changed[0][0]
+            group = [changed[0][1]]
+            def flush():
+                vertices = np.asarray(group, dtype=np.float32).reshape(-1, 2)
+                payload = np.empty((len(vertices), 3), dtype=np.float32)
+                payload[:, :2] = vertices
+                payload[:, 2] = baseline
+                self.visual.patch(2 * (channel * self.capacity + first),
+                                  payload)
+            for slot, geometry in changed[1:]:
+                if slot != last + 1:
+                    flush()
+                    first = slot
+                    group = []
+                group.append(geometry)
+                last = slot
+            flush()
+            updates += len(changed)
         return updates
 
     @property
