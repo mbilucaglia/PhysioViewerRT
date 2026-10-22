@@ -33,7 +33,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(bank.visual.calls, 2)
 
     def test_channel_geometry_remains_disconnected(self):
-        with patch('vispy.scene.visuals.Line', FakeLine):
+        with patch('physiolab.batched_sweep._line_class', return_value=FakeLine):
             bank = BatchedSweepBank(None, 2, 5., 10., '#000000')
             t = np.arange(10, dtype=float) / 10
             bank.append(t, np.zeros((10, 2)))
