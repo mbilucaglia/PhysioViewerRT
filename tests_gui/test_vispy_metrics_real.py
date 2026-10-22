@@ -86,8 +86,8 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
             data = np.sin(times)[:, None]
             raw.set_frame((times, data, data*.5, None, None, ('F3',)),
                           0., 5.)
-            layer = raw.layers['raw'][0]
-            old = layer.ring.positions.copy()
+            layer = raw._banks['raw'].rings[0]
+            old = layer.positions.copy()
             old_visual = raw.raw_line
             more = np.append(times, [1.05, 1.10])
             new_data = np.sin(more)[:, None]
@@ -95,7 +95,7 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
                           0., 5.)
             self.assertIs(raw.raw_line, old_visual)
             np.testing.assert_array_equal(
-                old[2:18], layer.ring.positions[2:18])
+                old[2:18], layer.positions[2:18])
             key = ('EEG', 'AWI')
             metrics.set_xrange(0., 5.)
             metrics.set_series(key, times, np.sin(times),
