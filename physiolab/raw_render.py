@@ -5,7 +5,6 @@ decimation and per-channel normalization runs in the render thread.
 No pyqtgraph or Qt widget is accessed by these functions.
 """
 import numpy as np
-from .raw_timing import visible_chunk
 
 
 def prepare_raw_window(chunks, left, right, origin, reference=None,
@@ -13,40 +12,69 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
     """Return time and display-scaled traces for a raw modality.
 
     A result is (time, raw_traces, filtered_traces, centers, scales,
-    labels). The output has at most max_points samples and max_channels
-    channels. Fixed scaling is reused when supplied.
+    labels). Cropping, channel limiting and decimation all happen before
+    concatenation, so long/high-channel histories do not create large
+    temporary arrays merely to draw a small screen-sized frame.
     """
     if not chunks or origin is None or right <= left:
         return None
+    if max_points < 1 or max_channels < 1:
+        raise ValueError('max_points and max_channels must be positive')
+
     t_min, t_max = origin + left, origin + right
     selected = []
+    total_samples = 0
     for item in reversed(chunks):
-        stamps = item[0]
+        stamps = np.asarray(item[0], dtype=float)
+        if not len(stamps):
+            continue
         if stamps[-1] < t_min:
             break
-        if stamps[0] <= t_max:
-            selected.append(item)
+        if stamps[0] > t_max:
+            continue
+        lo = int(np.searchsorted(stamps, t_min, side='left'))
+        hi = int(np.searchsorted(stamps, t_max, side='right'))
+        if hi > lo:
+            selected.append((item, lo, hi))
+            total_samples += hi - lo
+    if not selected:
+        return None
+
+    selected.reverse()
+    latest = selected[-1][0]
+    n = min(np.asarray(latest[1]).shape[1], int(max_channels))
+    if n < 1:
+        return None
+
+    fs = float(latest[4])
+    if reference is None and total_samples < max(8, round(fs * .75)):
+        # Do not establish display scale from just a few startup samples.
+        # Use the pre-decimation sample count so high-rate streams can still
+        # initialize when the screen point budget is lower than 0.75 * fs.
+        return None
+
+    stride = max(1, int(np.ceil(total_samples / float(max_points))))
     times, raws, filters = [], [], []
-    for stamps, raw, processed, _, _ in reversed(selected):
-        ts, x, y = visible_chunk(stamps, raw, processed, t_min, t_max)
-        if len(ts):
-            times.append(ts)
-            raws.append(x)
-            filters.append(y)
+    consumed = 0
+    for (stamps, raw, processed, _, _), lo, hi in selected:
+        count = hi - lo
+        first = (-consumed) % stride
+        if first < count:
+            sample_slice = slice(lo + first, hi, stride)
+            times.append(np.asarray(stamps)[sample_slice])
+            # Limit channels before any concatenation. This is the important
+            # path for 32/64-channel EEG with multi-minute timebases.
+            raws.append(np.asarray(raw)[sample_slice, :n])
+            filters.append(np.asarray(processed)[sample_slice, :n])
+        consumed += count
+
     if not times:
         return None
     t = np.concatenate(times)
-    x = np.concatenate(raws)
-    y = np.concatenate(filters)
-    stride = max(1, int(np.ceil(len(t) / max_points)))
-    t, x, y = t[::stride], x[::stride], y[::stride]
-    n = min(x.shape[1], max_channels)
-    x, y = x[:, :n], y[:, :n]
+    x = np.concatenate(raws, axis=0)
+    y = np.concatenate(filters, axis=0)
+
     if reference is None:
-        # Do not establish display scale from just a few startup samples.
-        fs = float(chunks[-1][4])
-        if len(x) < max(8, round(fs * .75)):
-            return None
         centers = np.median(x, axis=0)
         scales = np.std(x, axis=0)
         scales = np.where(np.isfinite(scales) & (scales > 1e-12),
@@ -55,7 +83,8 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
         centers, scales = reference
         if len(centers) != n or len(scales) != n:
             raise ValueError('Display scale differs from channel count')
+
     offsets = 6 * np.arange(n, dtype=float)
     return (t-origin, (x-centers)/scales+offsets,
             (y-centers)/scales+offsets, centers, scales,
-            tuple(chunks[-1][3][:n]))
+            tuple(latest[3][:n]))
