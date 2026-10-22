@@ -24,7 +24,8 @@ from .emotion import BaselineEmotionalIndex
 from .metric_display import prepare_metric_curve
 from .raw_timing import clean_lsl_chunk, SmoothViewportClock
 from .raw_render_worker import RawRenderWorker
-from .render_contracts import RawFrameRequest, RawSourceRequest
+from .render_contracts import RawFrameRequest
+from .raw_snapshot import build_raw_source
 from .vispy_raw import VisPyRawPlot
 from .vispy_metrics import VisPyMetricPlot
 from .performance import PerformanceMonitor
@@ -1172,40 +1173,23 @@ class MainWindow(QMainWindow):
                 low = high - 2. * self.raw_view_seconds
             else:
                 low, high = self.plots[kind].viewRange()[0]
-            if self.raw_renderer_mode == 'vispy':
-                renderer = self.raw_vispy_plots.get(kind)
-                if (renderer is not None
-                        and renderer.sweep_duration == self.raw_view_seconds
-                        and np.isfinite(renderer._latest)
-                        and kind in self.raw_scale):
-                    # Feed only new samples. Small overlap absorbs UI
-                    # scheduling jitter without modifying already drawn bins.
-                    low = max(low, renderer._latest - .1)
-                else:
-                    # Initializing dozens of channel/layer rings while also
-                    # uploading minutes of history stalls Qt. Begin at the
-                    # live edge with a short bounded frame; subsequent frames
-                    # append incrementally and rebuild the sweep naturally.
-                    low = max(low, high - .35)
-            minimum = self.raw_plot_origin + low
-            maximum = self.raw_plot_origin + high
-            # Snapshot references to existing immutable chunks; don't copy the
-            # sample arrays or retain all five minutes in each request.
-            recent = []
-            for item in reversed(chunks):
-                if item[0][-1] < minimum:
-                    break
-                if item[0][0] <= maximum:
-                    recent.append(item)
-            if recent:
-                sources[kind] = RawSourceRequest(
-                    chunks=tuple(reversed(recent)), left=low, right=high,
-                    origin=self.raw_plot_origin, reference=self.raw_scale.get(kind),
-                    decimation_span=(2. * self.raw_view_seconds
-                                     if self.raw_renderer_mode == 'vispy' else None),
-                    max_channels=(self.eeg_display_count.value()
-                                  if kind == 'EEG' else 8),
-                )
+            renderer = self.raw_vispy_plots.get(kind)
+            latest = None
+            if (renderer is not None
+                    and renderer.sweep_duration == self.raw_view_seconds
+                    and np.isfinite(renderer._latest)):
+                latest = float(renderer._latest)
+            source = build_raw_source(
+                chunks, left=low, right=high,
+                origin=self.raw_plot_origin,
+                reference=self.raw_scale.get(kind),
+                vispy=self.raw_renderer_mode == 'vispy',
+                latest=latest, sweep_seconds=self.raw_view_seconds,
+                max_channels=(self.eeg_display_count.value()
+                              if kind == 'EEG' else 8),
+            )
+            if source is not None:
+                sources[kind] = source
         if sources:
             self.raw_frame_ticket += 1
             self.raw_inflight_ticket = self.raw_frame_ticket
