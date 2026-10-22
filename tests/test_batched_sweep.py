@@ -19,7 +19,7 @@ class FakeLine:
 
 class BatchTests(unittest.TestCase):
     def test_single_line_per_bank_and_no_redraw_for_duplicate_data(self):
-        with patch('vispy.scene.visuals.Line', FakeLine):
+        with patch('physiolab.batched_sweep._line_class', return_value=FakeLine):
             bank = BatchedSweepBank(None, 32, 5., 100., '#000000')
             self.assertEqual(bank.capacity, 500)
             self.assertEqual(bank.visual.pos.shape, (32 * 500 * 2, 2))
