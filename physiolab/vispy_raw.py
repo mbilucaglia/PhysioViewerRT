@@ -125,6 +125,7 @@ class VisPyRawPlot:
         self._target_channels = 0
         self._latest = -np.inf
         self._last_axis_duration = None
+        self._ever_populated = False
         # Keep the public layer attributes for widget smoke tests.
         self.raw_line = self.filtered_line = None
 
@@ -189,7 +190,7 @@ class VisPyRawPlot:
     def needs_history_replay(self, count, duration):
         """New GPU channels must receive full history, not just live tails."""
         if self._configuration is None:
-            return True
+            return self._ever_populated
         n, configured_duration, _ = self._configuration
         return (n != count or configured_duration != duration
                 or len(self.layers['raw']) < count)
@@ -243,6 +244,7 @@ class VisPyRawPlot:
         # Both the cursor and the erase boundary use the latest real sample.
         latest = float(times[-1])
         self._latest = max(self._latest, latest)
+        self._ever_populated = True
         self.engine.set_sweep_cursor((self._latest % duration)/duration)
         # Channel labels are rendered by a separate Qt gutter outside the
         # OpenGL viewport. No overlay can obscure the first EEG samples.
