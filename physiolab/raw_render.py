@@ -27,9 +27,17 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
             break
         if stamps[0] <= t_max:
             selected.append(item)
+    if not selected:
+        return None
+    if max_channels < 1 or max_points < 1:
+        raise ValueError('Positive channel and point budgets required')
+    n = min(selected[-1][1].shape[1], int(max_channels))
     times, raws, filters = [], [], []
     for stamps, raw, processed, _, _ in reversed(selected):
-        ts, x, y = visible_chunk(stamps, raw, processed, t_min, t_max)
+        # Narrow to displayed channels before copying/concatenating samples.
+        # EEG acquisition can retain 64+ channels when only 8 are shown.
+        ts, x, y = visible_chunk(
+            stamps, raw[:, :n], processed[:, :n], t_min, t_max)
         if len(ts):
             times.append(ts)
             raws.append(x)
@@ -66,8 +74,6 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
             t, x, y = t[keep], x[keep], y[keep]
         elif len(t) < 2:
             return None
-    n = min(x.shape[1], max_channels)
-    x, y = x[:, :n], y[:, :n]
     if reference is None:
         # A waveform needs only two samples. Never impose a 0.75-second
         # holdoff before the first visible trace. Scale is latched by
