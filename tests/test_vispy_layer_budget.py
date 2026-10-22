@@ -30,22 +30,25 @@ class ProgressiveLayerTests(unittest.TestCase):
         plot.layers = {'raw': [], 'filtered': []}
         plot._configuration = None
         plot._target_channels = 0
+        plot._pending_layers = None
+        plot._pending_configuration = None
         plot._latest = float('-inf')
         plot.vertical_gain = 1.
         plot.raw_line = plot.filtered_line = None
         with patch('physiolab.incremental_sweep.IncrementalSweepLayer', FakeLayer):
             plot._ensure_layers(32, 5., 100.)
             self.assertEqual(FakeLayer.created, 8)
-            self.assertEqual(len(plot.layers['raw']), 4)
+            self.assertEqual(len(plot._pending_layers['raw']), 4)
             for _ in range(7):
                 plot._ensure_layers(32, 5., 100.)
-            self.assertEqual(len(plot.layers['raw']), 32)
+            self.assertEqual(len(plot._pending_layers['raw']), 32)
             self.assertEqual(FakeLayer.created, 64)
             plot._ensure_layers(32, 5., 100.)
             self.assertEqual(FakeLayer.created, 64)
+            self.assertEqual(len(plot.layers['raw']), 0)
             plot._ensure_layers(32, 10., 50.)
             self.assertEqual(FakeLayer.created, 72)
-            self.assertEqual(len(plot.layers['raw']), 4)
+            self.assertEqual(len(plot._pending_layers['raw']), 4)
 
 
 if __name__ == '__main__':
