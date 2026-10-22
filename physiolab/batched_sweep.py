@@ -1,123 +1,66 @@
-"""Batched incremental EEG sweep: two GPU drawables regardless of channel count.
+"""Multichannel sweep rendered with one standard VisPy Line per modality.
 
-Each signal type owns one vertex buffer; channel segments occupy fixed,
-non-overlapping ranges. Ring geometry and timestamp decisions remain pure
-NumPy in SweepRing. VisPy imports occur only when a GPU canvas is created.
+The sweep rings preserve timestamp continuity. VisPy owns GPU buffers and
+transfers via scene.visuals.Line.set_data; no application OpenGL shaders or
+vertex-buffer calls are required.
 """
-from functools import lru_cache
 import numpy as np
 from .incremental_sweep import SweepRing
 
 
-@lru_cache(maxsize=1)
-def _batch_visual():
-    from vispy import gloo
-    from vispy.color import Color
-    from vispy.visuals import Visual
-    from vispy.scene.visuals import create_visual_node
+def sweep_positions(rings, gain=1.):
+    """Build disconnected [x, y] line segments for all channel rings.
 
-    class BatchedLineVisual(Visual):
-        VERT = """
-        attribute vec3 a_position;
-        uniform float u_gain;
-        uniform vec4 u_color;
-        varying vec4 v_color;
-        void main() {
-            vec3 p = a_position;
-            p.y = p.z + u_gain * (p.y - p.z);
-            gl_Position = $transform(vec4(p.xy, 0., 1.));
-            v_color = u_color;
-        }
-        """
-        FRAG = """
-        varying vec4 v_color;
-        void main() { gl_FragColor = v_color; }
-        """
-
-        def __init__(self, capacity, color):
-            self.capacity = int(capacity)
-            self._draw_mode = 'lines'
-            self._buffer = gloo.VertexBuffer(
-                np.full((capacity * 2, 3), -10., dtype=np.float32))
-            super().__init__(vcode=self.VERT, fcode=self.FRAG)
-            self.shared_program['a_position'] = self._buffer
-            self.shared_program['u_gain'] = 1.
-            self.shared_program['u_color'] = Color(color).rgba
-            self.set_gl_state('translucent', depth_test=False)
-
-        def _prepare_transforms(self, view):
-            view.view_program.vert['transform'] = view.transforms.get_transform()
-
-        def _prepare_draw(self, view):
-            return True
-
-        def _compute_bounds(self, axis, view):
-            return (0., 1.)
-
-        def set_gain(self, gain):
-            self.shared_program['u_gain'] = float(gain)
-            self.update()
-
-        def patch(self, first_vertex, data):
-            if not len(data):
-                return
-            self._buffer.set_subdata(
-                np.ascontiguousarray(data, dtype=np.float32),
-                offset=int(first_vertex) * 3 * np.dtype(np.float32).itemsize)
-            self.update()
-
-    return create_visual_node(BatchedLineVisual)
+    Ring geometry already excludes gaps and sweep-cycle crossings. Each
+    segment is two vertices and is rendered using connect='segments'.
+    Invalid ring slots remain off-canvas.
+    """
+    if not rings:
+        return np.empty((0, 2), dtype=np.float32)
+    n = len(rings)
+    segments = np.stack([ring.positions for ring in rings], axis=0)
+    result = np.ascontiguousarray(segments.reshape(-1, 2), dtype=np.float32)
+    if gain != 1.:
+        bottom, top = -3., max(6. * n, 3.)
+        centers = (6. * np.arange(n, dtype=np.float32) - bottom) / (top - bottom)
+        channel_centers = np.repeat(centers, rings[0].capacity * 2)
+        valid = result[:, 0] >= 0.
+        result[valid, 1] = (channel_centers[valid] +
+                            gain * (result[valid, 1] - channel_centers[valid]))
+    return result
 
 
 class BatchedSweepBank:
-    """A single drawable holding all channels of one signal modality."""
+    """One reusable high-level VisPy Line for all channels of a signal type."""
 
     def __init__(self, parent, channels, duration, rate, color):
+        from vispy import scene
         self.channels = int(channels)
         self.rings = [SweepRing(duration, rate) for _ in range(channels)]
         self.capacity = self.rings[0].capacity if self.rings else 0
-        self.visual = _batch_visual()(self.channels * self.capacity,
-                                      color, parent=parent)
+        self.gain = 1.
+        self.visual = scene.visuals.Line(
+            pos=sweep_positions(self.rings), color=color, parent=parent,
+            connect='segments', method='gl', antialias=False, width=1)
+
+    def _upload(self):
+        self.visual.set_data(pos=sweep_positions(self.rings, self.gain),
+                             connect='segments')
 
     def set_gain(self, gain):
-        self.visual.set_gain(gain)
+        self.gain = float(gain)
+        self._upload()
 
     def append(self, times, matrix):
-        """Update only changed channel slots; no per-channel drawables."""
         matrix = np.asarray(matrix)
         if matrix.ndim != 2 or matrix.shape != (len(times), self.channels):
             raise ValueError('Expected [samples, channels] matrix')
-        updates = 0
+        changed = 0
         for channel, ring in enumerate(self.rings):
-            changed = ring.append(times, matrix[:, channel])
-            if not changed:
-                continue
-            # The shader scales each sample around its channel's own center.
-            # The third attribute is the per-channel normalized baseline.
-            bottom = -3.
-            top = max(6. * self.channels, 3.)
-            baseline = (6. * channel - bottom) / (top - bottom)
-            # Upload contiguous modified bins together, avoiding one GL call
-            # per sample. Slots are already sorted by SweepRing.append.
-            first = last = changed[0][0]
-            group = [changed[0][1]]
-            def flush():
-                vertices = np.asarray(group, dtype=np.float32).reshape(-1, 2)
-                payload = np.empty((len(vertices), 3), dtype=np.float32)
-                payload[:, :2] = vertices
-                payload[:, 2] = baseline
-                self.visual.patch(2 * (channel * self.capacity + first),
-                                  payload)
-            for slot, geometry in changed[1:]:
-                if slot != last + 1:
-                    flush()
-                    first = slot
-                    group = []
-                group.append(geometry)
-                last = slot
-            flush()
-            updates += len(changed)
-        return updates
+            changed += len(ring.append(times, matrix[:, channel]))
+        if changed:
+            self._upload()
+        return changed
 
     @property
     def last_time(self):
