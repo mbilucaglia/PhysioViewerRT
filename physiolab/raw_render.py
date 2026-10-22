@@ -58,20 +58,29 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
         # frames without requiring sample-index counters in the LSL reader.
         index = np.rint((t - origin) * fs).astype(np.int64)
         keep = index % stride == 0
-        t, x, y = t[keep], x[keep], y[keep]
-        if not len(t):
+        # During initial connection a short chunk may contain no sample
+        # on the global decimation grid. Render that chunk immediately
+        # rather than waiting for the next grid-aligned timestamp.
+        # Once at least two aligned points exist, resume the stable phase.
+        if np.count_nonzero(keep) >= 2:
+            t, x, y = t[keep], x[keep], y[keep]
+        elif len(t) < 2:
             return None
     n = min(x.shape[1], max_channels)
     x, y = x[:, :n], y[:, :n]
     if reference is None:
-        # Do not establish display scale from just a few startup samples.
-        fs = float(chunks[-1][4])
-        if len(x) < max(8, round(fs * .75)):
+        # A waveform needs only two samples. Never impose a 0.75-second
+        # holdoff before the first visible trace. Scale is latched by
+        # the GUI after this first frame and reused thereafter.
+        if len(x) < 2:
             return None
         centers = np.median(x, axis=0)
         scales = np.std(x, axis=0)
-        scales = np.where(np.isfinite(scales) & (scales > 1e-12),
-                          scales, 1.0)
+        # Avoid extreme gains from near-flat startup samples. The floor
+        # is relative to the observed signal level, with an absolute
+        # fallback for a zero-valued stream.
+        floor = np.maximum(np.max(np.abs(x), axis=0) * 1e-6, 1e-9)
+        scales = np.where(np.isfinite(scales), np.maximum(scales, floor), 1.0)
     else:
         centers, scales = reference
         if len(centers) != n or len(scales) != n:
