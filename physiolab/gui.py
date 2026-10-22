@@ -1177,7 +1177,11 @@ class MainWindow(QMainWindow):
             latest = None
             if (renderer is not None
                     and renderer.sweep_duration == self.raw_view_seconds
-                    and np.isfinite(renderer._latest)):
+                    and np.isfinite(renderer._latest)
+                    and not renderer.needs_history_replay(
+                        self.eeg_display_count.value() if kind == 'EEG'
+                        else len(renderer.layers['raw']),
+                        self.raw_view_seconds)):
                 latest = float(renderer._latest)
             source = build_raw_source(
                 chunks, left=low, right=high,
@@ -1234,6 +1238,8 @@ class MainWindow(QMainWindow):
                     show_raw=self.show_raw.isChecked(),
                     show_filtered=self.show_processed.isChecked(),
                     sweep_head=self.raw_gl_bounds[1],
+                    nominal_fs=(self.raw_history[kind][-1][4]
+                                if self.raw_history[kind] else None),
                 )
                 self.performance.measure(
                     'raw_gpu_frame_' + kind,
