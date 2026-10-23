@@ -1,4 +1,20 @@
-# Live application demonstration
+# Live application demonstrations
+
+## Implemented Affect tab
+
+[Watch the Affect video](./PhysioViewerRT-affect-demo.mp4) (MP4, 1:04, approximately 5 MB).
+
+![Actual Affect tab](./affect-preview.png)
+
+This newer recording shows the implemented Central/Peripheral circumplex and
+separate signed Emotional Index. Both responses are driven by synthetic live
+LSL streams. The original freshly recorded EYC/BSL files were reused; BSL samples
+were reanalyzed through the same rolling cvxEDA pipeline as live SC, producing
+compatible tonic SCL references. It demonstrates live trails, fading, manual
+range, auto range, pause/resume, and expansion. This remains a local development
+build; the recording is published independently of the application source changes.
+
+## Initial calibration and waveform demonstration
 
 [Watch or download the video](./PhysioViewerRT-live-demo.mp4) (MP4, 3:43, approximately 9 MB).
 
@@ -19,4 +35,4 @@ Both calibration sessions were newly recorded through the application: EYC inclu
 | 03:25 | PPG expansion and autoscale |
 | 03:31 | Combined live metrics |
 
-The proposed circumplex and separate affect visualization are design previews and are not implemented in this recording. Data are synthetic, not participant recordings.
+This initial recording predates the Affect implementation; use the newer video above to see that tab. All data are synthetic, not participant recordings.
