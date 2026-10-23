@@ -15,6 +15,7 @@ class MetricDefinition:
     name: str
     description: str = ''
     unit: str = ''
+    asynchronous: bool = False
 
     @property
     def key(self):
@@ -24,7 +25,8 @@ class MetricDefinition:
 DEFAULT_METRICS = (
     MetricDefinition('EEG', 'AWI', 'Frontal alpha asymmetry'),
     MetricDefinition('EEG', 'BAR', 'Beta / alpha power ratio'),
-    MetricDefinition('EDA', 'SCL', 'Skin conductance level', 'source units'),
+    MetricDefinition('EDA', 'SCL', 'Tonic skin conductance from cvxEDA decomposition',
+                     'source units', asynchronous=True),
     MetricDefinition('PPG', 'HR', 'Heart rate', 'bpm'),
     MetricDefinition('EI', 'EI', 'Baseline referenced emotional index'),
 )

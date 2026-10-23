@@ -121,7 +121,18 @@ class VisPyMetricPlot:
         self._latest = -np.inf
         self._y_limits = (-1., 1.)
         self._signature = None
+        self._amplitude_unit = 'a.u.'
+        self._amplitude_description = ''
         self._configure_layers()
+
+    def set_amplitude_units(self, unit, description=''):
+        self._amplitude_unit, self._amplitude_description = unit, description
+        self._update_amplitude_ruler()
+
+    def _update_amplitude_ruler(self):
+        low, high = self._y_limits
+        self.engine.set_amplitude_range(high-low, self._amplitude_unit)
+        self.engine.amplitude_ruler.setToolTip(self._amplitude_description)
 
     def _configure_layers(self):
         from .incremental_sweep import IncrementalSweepLayer
@@ -145,6 +156,7 @@ class VisPyMetricPlot:
         self._latest = -np.inf
         self._y_limits = (-1., 1.)
         self.engine.set_view(0., 1., *self._y_limits)
+        self._update_amplitude_ruler()
 
     def _reset_series(self, key):
         # Reset CPU history and GPU geometry without creating new scene nodes
@@ -198,6 +210,7 @@ class VisPyMetricPlot:
                     self._y_limits = new_range
                     self.engine.set_view(0., 1., *new_range)
                     self.engine.set_axis_labels(bounds=new_range)
+                    self._update_amplitude_ruler()
             points = np.asarray(sample_x, dtype=float)
             points = points[np.isfinite(points)]
             if len(points):

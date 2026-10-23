@@ -2,13 +2,14 @@
 
 Stage 1: z-score live HR and SCL using the fixed HR/SCL statistics computed
 during BSL; BSL EI uses HR/SCL z-scored within that same baseline recording.
-Stage 2: apply the user's optional display transform to EI using the
-BSL EI reference distribution (calibration.normalize).
+EI remains on its original signed scale in Metrics and Affect; optional
+display normalization applies to the other plotted metrics.
 """
 import math
 import numpy as np
 
 MIN_VALID_SAMPLES = 30
+MIN_REFERENCE_STD = 1e-12
 
 
 def emotional_index_z(hr_z, gsr_z):
@@ -20,9 +21,9 @@ def emotional_index_z(hr_z, gsr_z):
         if SCL >= 0 and HR <= 0: beta = 2.5*pi - theta
         EI = 1 - beta/pi
 
-    HR is horizontal, GSR/SCL vertical. The source MATLAB returns NaN
-    for an all-zero HR vector. A scalar HR_z of zero is thus treated
-    as unavailable, consistent with a length-one MATLAB input.
+    HR is horizontal, GSR/SCL vertical. Apply the pointwise angular formula,
+    including HR at its baseline mean; the batch all-zero-epoch guard is
+    not an appropriate validity check for a single live observation.
     Do not clip the calculated output; preserve the supplied formula.
     """
     if hr_z is None or gsr_z is None:
@@ -31,7 +32,7 @@ def emotional_index_z(hr_z, gsr_z):
         h, g = float(hr_z), float(gsr_z)
     except (TypeError, ValueError):
         return None
-    if not np.isfinite(h) or not np.isfinite(g) or h == 0.:
+    if not np.isfinite(h) or not np.isfinite(g):
         return None
     theta = math.atan2(g, h)
     beta = 2.5 * math.pi - theta if g >= 0. and h <= 0. else (
@@ -137,26 +138,41 @@ def emotional_index_from_bsl(hr, scl, hr_reference, scl_reference):
         return None
     if not all(np.isfinite(v) for v in (hr, scl, mh, sh, mg, sg)):
         return None
-    if sh <= 1e-12 or sg <= 1e-12:
+    if sh <= MIN_REFERENCE_STD or sg <= MIN_REFERENCE_STD:
         return None
     return emotional_index_z((hr - mh) / sh, (scl - mg) / sg)
 
 
 class BaselineEmotionalIndex:
-    """Combine fresh HR/SCL metric values using fixed BSL statistics.
+    """Combine latest available HR/SCL using fixed BSL statistics.
 
-    Only validity/freshness gating remains: no 60-second live history.
+    Different update rates and delayed decomposition never suppress EI.
+    An explicit missing/invalid input or source reset clears availability.
     """
 
-    def __init__(self, hr_reference=None, scl_reference=None, max_age=1.0):
+    def __init__(self, hr_reference=None, scl_reference=None):
         self.hr_reference = hr_reference
         self.scl_reference = scl_reference
-        self.max_age = float(max_age)
         self.latest = {}
 
     def set_references(self, hr_reference, scl_reference):
         self.hr_reference = hr_reference
         self.scl_reference = scl_reference
+
+    def reference_problem(self):
+        """Explain unavailable fixed factors without inventing an EI value."""
+        for name, reference in (('HR', self.hr_reference), ('tonic SCL', self.scl_reference)):
+            if not reference:
+                return f'EI needs a BSL {name} reference'
+            try:
+                mean, std = float(reference['mu']), float(reference['sigma'])
+            except (KeyError, TypeError, ValueError):
+                return f'EI needs a valid BSL {name} reference'
+            if not np.isfinite(mean) or not np.isfinite(std):
+                return f'EI needs a valid BSL {name} reference'
+            if std <= MIN_REFERENCE_STD:
+                return f'EI unavailable: BSL {name} has no usable variability'
+        return None
 
     def update(self, kind, value, timestamp):
         name = {'PPG': 'HR', 'EDA': 'SCL'}.get(kind)
@@ -167,12 +183,8 @@ class BaselineEmotionalIndex:
         else:
             self.latest[name] = (float(timestamp), float(value))
 
-    def value(self, now):
+    def value(self, now=None):
         if not all(k in self.latest for k in ('HR', 'SCL')):
-            return None
-        if any(now - self.latest[k][0] > self.max_age for k in ('HR', 'SCL')):
-            return None
-        if abs(self.latest['HR'][0] - self.latest['SCL'][0]) > self.max_age:
             return None
         return emotional_index_from_bsl(
             self.latest['HR'][1], self.latest['SCL'][1],

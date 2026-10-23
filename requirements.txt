@@ -4,3 +4,5 @@ numpy>=1.26
 scipy>=1.11
 pylsl>=1.16
 -r requirements-vispy.txt
+-r requirements-affect.txt
+-r requirements-asr.txt

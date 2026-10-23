@@ -1,10 +1,38 @@
 """Metric display processing tests (no Qt or LSL required)."""
 import unittest
 import numpy as np
-from physiolab.metric_display import prepare_metric_curve, monotonic_display_samples
+from physiolab.metric_display import prepare_metric_curve, monotonic_display_samples, metric_amplitude_label
+from physiolab.metric_catalog import DEFAULT_METRICS, MetricDefinition
 
 
 class MetricDisplayTests(unittest.TestCase):
+    def test_original_ei_ruler_is_distinguished_from_other_normalized_metrics(self):
+        unit, description = metric_amplitude_label(DEFAULT_METRICS, {('EI','EI')}, 'zscore', {})
+        self.assertEqual(unit, 'a.u.')
+        self.assertIn('signed', description)
+        unit, description = metric_amplitude_label(DEFAULT_METRICS, {('EI','EI'),('PPG','HR')}, 'zscore', {})
+        self.assertEqual(unit, 'mixed units')
+        self.assertIn('original signed scale', description)
+
+    def test_amplitude_label_follows_each_normalization_formula(self):
+        for mode, unit in (('zscore', 'σ'), ('zmad', 'σ (MAD)'),
+                           ('robust_iqr', 'σ (IQR)'), ('minmax', 'norm.')):
+            actual, explanation = metric_amplitude_label(DEFAULT_METRICS, set(), mode, {})
+            self.assertEqual(actual, unit)
+            self.assertTrue(explanation)
+
+    def test_identity_units_follow_visible_metrics_and_converted_source_units(self):
+        source = {'EDA': 'µS'}
+        for keys, expected in (({('PPG', 'HR')}, 'bpm'), ({('EDA', 'SCL')}, 'µS'),
+                               ({('EEG', 'AWI'), ('EEG', 'BAR')}, 'a.u.'),
+                               ({('PPG', 'HR'), ('EDA', 'SCL')}, 'mixed units'),
+                               (set(), 'a.u.')):
+            unit, explanation = metric_amplitude_label(DEFAULT_METRICS, keys, 'identity', source)
+            self.assertEqual(unit, expected)
+        definition = MetricDefinition('PPG', 'Added', unit='mV')
+        unit, _ = metric_amplitude_label([definition], {definition.key}, 'identity', {})
+        self.assertEqual(unit, 'mV')
+
     def test_default_pchip_preserves_samples_at_half_second_cadence(self):
         x = np.arange(0., 5., .5)
         y = np.array([1., 2., 1., 3., 2., 4., 3., 2., 1., 2.])

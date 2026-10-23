@@ -39,7 +39,7 @@ class ViewerSettingsTests(unittest.TestCase):
         self.assertEqual(DEFAULT_VIEWER_SETTINGS.display_fps, 30)
 
     def test_count_policies_require_integers(self):
-        for name in ('display_fps', 'metric_history_capacity', 'ingress_chunks_per_tick'):
+        for name in ('display_fps', 'default_eeg_display_channels', 'metric_history_capacity', 'ingress_chunks_per_tick'):
             for value in (1.5, True, '30'):
                 with self.subTest(name=name, value=value), self.assertRaises(ValueError):
                     replace(DEFAULT_VIEWER_SETTINGS, **{name: value})

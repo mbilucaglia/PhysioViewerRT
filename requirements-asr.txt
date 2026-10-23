@@ -1,0 +1,9 @@
+# meegkit public ASR implementation, BSD-3-Clause
+# https://github.com/nbara/python-meegkit
+# Pinned upstream fixes geometric-median nonconvergence and scalar calibration
+# returns in the released 0.1.9. Do not replace with that release.
+meegkit @ https://github.com/nbara/python-meegkit/archive/7f1b3e0cdce57d7e987106a42f505d13064c3339.zip
+# Tested numerical stack.
+numpy>=1.26,<2.4
+# Its public adapter still imports the compatibility modules removed in 0.14.
+pyriemann>=0.7,<0.14

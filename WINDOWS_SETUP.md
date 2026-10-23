@@ -5,7 +5,7 @@ Local Python desktop application for LSL EEG, EDA/GSR and PPG monitoring.
 ## Windows 10/11 quick start
 
 1. Have 64-bit Python 3.11 or 3.12 available. The installer accepts either the `python` command on PATH **or** the optional Windows `py` launcher. It does not require `py.exe` if `python` already works.
-2. Clone or download the `feature/windows-lsl-mvp` branch into a writable folder.
+2. Clone or download the `main` branch into a writable folder.
 3. Double-click `setup_windows.cmd` to create `.venv` and install dependencies.
 4. Double-click `simulate_windows.cmd` to start demonstration EEG/EDA/PPG streams, or start your hardware LSL outlets.
 
@@ -30,6 +30,19 @@ Supported levels: `none`, `mild`, `moderate` (default), `strong`. The `--seed` a
 If the installer cannot locate Python, open Command Prompt and run `python --version`, `where python`, and `py --list`. The command may be unavailable even though Python is installed, if its directory is missing from PATH. Python 3.13+ or 32-bit-only installations are not selected by this MVP installer. If an old/incomplete `.venv` exists, delete that folder and rerun setup.
 
 Internet access is needed for the dependency installation, but not for ordinary local operation. LSL may trigger a Windows Defender Firewall prompt; allow only on trusted/private networks.
+
+## EEG correction and baseline order
+
+Start the EEG stream with its intended channels, source conversion and filter.
+Under the EEG filter settings, press **Train (45 s)** and stay relaxed and still.
+ASR training is independent of EYC and BSL and preserves every selected channel.
+After training enables correction, record EYC (60 s), then BSL (60 s). Both
+baseline analysis and live metrics use the cleaned data. Changing the threshold
+reuses the training recording; EEG BSL references are replayed with the updated
+model. Record/reload EYC if the cleaning settings change and you need a newly
+estimated IAF. See [EEG ASR](docs/EEG_ASR.md).
+
+For the current handoff status and next work, see [TODO](TODO.md).
 
 ## Cross-platform development setup
 

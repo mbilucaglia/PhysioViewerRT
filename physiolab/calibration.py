@@ -19,7 +19,7 @@ def posterior_indices(labels):
     return [i for i, label in enumerate(labels) if str(label).strip().upper() in POSTERIOR]
 
 
-def analyze_eyc(eeg):
+def analyze_eyc(eeg, eeg_asr_model=None):
     """Posterior PSD: Hann Welch 1 s, 50% overlap; spectral CoG 7–13 Hz."""
     x = np.asarray(eeg['data'], dtype=float)
     fs = float(eeg['fs'])
@@ -29,7 +29,17 @@ def analyze_eyc(eeg):
         raise ValueError('EYC requires labeled posterior EEG channels (e.g. O1/O2, POz, P3/P4).')
     if x.ndim != 2 or x.shape[1] != len(names) or fs < 32 or x.shape[0] < 30 * fs:
         raise ValueError('EYC needs at least 30 s of posterior EEG sampled at >= 32 Hz.')
-    data = x[:, idx]
+    # Analyze the same ordered channels after the live preprocessing chain.
+    from .processing import Processor
+    transform = _eeg_transform(eeg, eeg_asr_model)
+    processor = Processor('EEG', fs, len(names), names,
+                          preprocessing=eeg.get('preprocessing'), sample_transform=transform)
+    chunks = []
+    hop = max(1, round(fs*.5))
+    for start in range(0, len(x), hop):
+        processor.push(x[start:start+hop])
+        chunks.append(processor.last_filtered_chunk.copy())
+    data = np.concatenate(chunks)[:, idx]
     if not np.isfinite(data).all():
         raise ValueError('EYC contains non-finite posterior EEG values.')
     n = int(round(fs))
@@ -44,6 +54,7 @@ def analyze_eyc(eeg):
         raise ValueError('No reliable nonzero alpha-band PSD for IAF estimation.')
     cog = float(np.sum(freq[mask] * weight) / total)
     return {
+        'eeg_asr_model_id': eeg_asr_model.model_id if eeg_asr_model else None,
         'iaf_hz': cog, 'alpha_range_hz': [7, 13],
         'posterior_channels': [names[i] for i in idx],
         'psd_hz': freq.tolist(), 'mean_psd': mean_psd.tolist(),
@@ -68,15 +79,27 @@ def summarize_metric(values):
             'valid_windows': len(v)}
 
 
-def analyze_bsl(streams, iaf_hz=10.0):
-    """Summarize EEG, EDA, PPG and EI from time-aligned 0.5-second windows.
+def _eeg_transform(eeg, model):
+    if model is None:
+        return None
+    from .asr_tasks import eeg_configuration
+    from .eeg_asr import StreamingASR
+    if eeg_configuration(eeg) != model.source_configuration:
+        raise ValueError('EEG recording settings differ from ASR training; use matching settings')
+    return StreamingASR(model).process
 
-    HR and SCL are standardized within the complete BSL signals (not
-    relative to an earlier BSL reference). Missing values remain missing.
+
+def analyze_bsl(streams, iaf_hz=10.0, eeg_asr_model=None):
+    """Analyze metric windows and canonical cvxEDA tonic SCL.
+
+    EI uses the latest available inputs and the same stored HR/SCL mean and
+    standard deviation as live processing. Missing estimates remain missing.
     """
     from .processing import Processor
-    from .emotion import baseline_ei
-    summaries, series = {}, {}
+    from .emotion import BaselineEmotionalIndex
+    from .metric_observation import source_configuration
+    summaries, series, source_configurations = {}, {}, {}
+    tonic_metadata = None
     for kind, item in streams.items():
         if kind not in ('EEG','EDA','PPG'):
             continue
@@ -89,47 +112,70 @@ def analyze_bsl(streams, iaf_hz=10.0):
             # Do not fabricate timestamps for multimodal EI alignment.
             continue
         proc = Processor(kind, fs, data.shape[1], item['channels'], iaf_hz=iaf_hz,
-                         preprocessing=item.get('preprocessing'))
+                         preprocessing=item.get('preprocessing'),
+                         sample_transform=_eeg_transform(item, eeg_asr_model) if kind == 'EEG' else None)
+        source_configurations[kind] = source_configuration(
+            kind, fs, item['channels'], proc.preprocessing, item.get('conversion'),
+            item.get('units') or [''] * data.shape[1])
+        if kind == 'EEG' and eeg_asr_model is not None:
+            source_configurations[kind]['asr_model_id'] = eeg_asr_model.model_id
         hop = max(1, round(fs*.5))
         sequence = {}
+        filtered_chunks = []
         for start in range(0, len(data), hop):
             metric = proc.push(data[start:start+hop])
+            if kind == 'EDA':
+                filtered_chunks.append(proc.last_filtered_chunk.copy())
             if metric is None:
                 continue
             index = min(start+hop, len(stamps)) - 1
             t = float(stamps[index])
             for key, val in metric.items():
-                if key == 'IAF' or not isinstance(val, (float,int)):
+                if key == 'IAF' or not (val is None or isinstance(val, (float,int))):
                     continue
-                sequence.setdefault(key, []).append((t, float(val) if np.isfinite(val) else np.nan))
+                sequence.setdefault(key, []).append((t, float(val) if val is not None and np.isfinite(val) else np.nan))
         series[kind] = sequence
         for key, observations in sequence.items():
             summary = summarize_metric([v for _,v in observations])
             if summary is not None:
                 summaries.setdefault(kind, {})[key] = summary
 
+        if kind == 'EDA' and filtered_chunks:
+            from .sc_decomposition import TonicSCProcessor, decompose_baseline, sc_pipeline_metadata
+            from .display_units import source_display_unit
+            unit = source_display_unit(item.get('units', []))
+            tonic = TonicSCProcessor(unit=unit)
+            observations = decompose_baseline(
+                np.concatenate(filtered_chunks), stamps, fs, settings=tonic.settings, unit=unit)
+            summary = summarize_metric([observation.value for observation in observations])
+            if summary is not None:
+                summaries.setdefault(kind, {})['SCL'] = summary
+                sequence['SCL'] = [(observation.window_end, observation.value)
+                                   for observation in observations]
+                tonic_metadata = sc_pipeline_metadata(
+                    tonic, proc.preprocessing, item.get('conversion'))
+
     hr = series.get('PPG', {}).get('HR', [])
     scl = series.get('EDA', {}).get('SCL', [])
     if hr and scl:
-        # Align to half-second bins using original LSL timestamps and preserve
-        # invalid slots; no zip of valid-only lists that shifts missing HR.
-        start = max(hr[0][0], scl[0][0])
-        stop = min(hr[-1][0], scl[-1][0])
-        if stop-start >= 50:
-            grid = np.arange(start, stop, .5)
-            def grid_values(samples):
-                buckets = np.full(len(grid), np.nan)
-                for t, val in samples:
-                    i = int(round((t-start)/.5))
-                    if 0 <= i < len(grid) and abs(t-grid[i]) <= .25:
-                        buckets[i] = val
-                return buckets
-            ei = baseline_ei(grid_values(hr), grid_values(scl))
-            summary = summarize_metric(ei)
-            if summary is not None:
-                summaries['EI'] = {'EI': summary}
-    return {'iaf_hz_used': float(iaf_hz), 'metrics': summaries,
-            'method': '1 s windows / 50% overlap, EI from within-BSL z-scored HR and SCL'}
+        # Replay both metric cadences with the same latest-value policy as live EI.
+        hr_reference = summaries.get('PPG', {}).get('HR')
+        scl_reference = summaries.get('EDA', {}).get('SCL')
+        estimator = BaselineEmotionalIndex(hr_reference, scl_reference)
+        events = [(at, 'PPG', value) for at, value in hr]
+        events.extend((at, 'EDA', value) for at, value in scl)
+        ei_values = []
+        for at, kind, measured in sorted(events, key=lambda event: event[0]):
+            estimator.update(kind, measured, at)
+            value = estimator.value()
+            ei_values.append(np.nan if value is None else value)
+        summary = summarize_metric(ei_values)
+        if summary is not None:
+            summaries['EI'] = {'EI': summary}
+    return {'iaf_hz_used': float(iaf_hz), 'metrics': summaries, 'tonic_sc': tonic_metadata,
+            'source_configurations': source_configurations,
+            'method': 'EEG/HR window metrics; SCL from rolling cvxEDA tonic decomposition; '
+                      'EI from latest available HR and tonic SCL with fixed BSL reference statistics'}
 
 def normalize(value, reference=None, mode='identity'):
     """Reference-frozen transform. No baseline => identity (uncalibrated)."""

@@ -12,39 +12,71 @@ class MetricState:
     def __init__(self, definitions, history_capacity=900):
         self.definitions = validate_metrics(definitions)
         self.keys = [definition.key for definition in self.definitions]
+        self._definitions = {definition.key: definition for definition in self.definitions}
         self.latest = {}
         self.history = {key: deque(maxlen=history_capacity) for key in self.keys}
+        self.observations = {key: deque(maxlen=history_capacity) for key in self.keys}
         self.ei = BaselineEmotionalIndex()
 
     def update(self, kind, metric, at):
         if metric is None:
             return
         at = float(at)
-        self.latest[kind] = metric
+        previous = self.latest.get(kind, {})
+        asynchronous_only = bool(metric.get('_partial')) or (any(
+            item.modality == kind and item.asynchronous and item.name in metric
+            for item in self.definitions) and not any(
+            item.modality == kind and not item.asynchronous and item.name in metric
+            for item in self.definitions))
+        retained = {item.name: previous[item.name] for item in self.definitions
+                    if item.modality == kind and item.asynchronous
+                    and item.name in previous}
+        # Large sample telemetry belongs to acquisition, never retained metric state.
+        fields = {key: value for key, value in metric.items() if not isinstance(value, np.ndarray)}
+        self.latest[kind] = {**(previous if asynchronous_only else retained), **fields}
         for modality, name in self.keys:
             if modality == kind:
+                definition = self._definitions[modality, name]
+                if (definition.asynchronous or asynchronous_only) and name not in metric:
+                    continue
                 value = metric.get(name)
                 value = (float(value) if isinstance(value, (int, float))
                          and np.isfinite(value) else float('nan'))
                 self.history[modality, name].append((at, value))
-        if kind in ('PPG', 'EDA'):
-            name = 'HR' if kind == 'PPG' else 'SCL'
-            self.ei.update(kind, metric.get(name), at)
-            value = self.ei.value(at)
+                provenance = metric.get('_observations', {}).get(name)
+                if provenance is not None:
+                    self.observations[modality, name].append(provenance)
+        name = {'PPG': 'HR', 'EDA': 'SCL'}.get(kind)
+        if name is not None and name in metric:
+            provenance = metric.get('_observations', {}).get(name, {})
+            source_at = float(provenance.get('window_end', metric.get('_tonic_at', at)))
+            self.ei.update(kind, metric[name], source_at)
+            value = self.ei.value()
             self.latest['EI'] = {
                 'EI': value,
-                'status': ('EI from HR/GSR z-scores against BSL' if value is not None
-                           else 'EI needs valid BSL HR/SCL references and fresh signals'),
+                'status': ('EI from HR/tonic SCL z-scores against BSL' if value is not None
+                           else self.ei_unavailable_reason()),
             }
             if ('EI', 'EI') in self.history:
                 self.history['EI', 'EI'].append(
                     (at, float(value) if value is not None else float('nan')))
+
+    def ei_unavailable_reason(self):
+        problem = self.ei.reference_problem()
+        if problem:
+            return problem
+        if 'HR' not in self.ei.latest:
+            return 'EI needs a valid HR measurement'
+        if 'SCL' not in self.ei.latest:
+            return 'EI needs a cvxEDA tonic SCL measurement'
+        return 'EI needs valid HR and tonic SCL measurements'
 
     def reset(self, kind):
         self.latest.pop(kind, None)
         for key in self.keys:
             if key[0] == kind:
                 self.history[key].clear()
+                self.observations[key].clear()
         if kind in ('EDA', 'PPG'):
             self.ei.latest.clear()
             self.latest.pop('EI', None)
@@ -55,7 +87,7 @@ class MetricState:
     def normalized_value(kind, name, value, mode, references):
         if value is None or not isinstance(value, (int, float)) or not np.isfinite(value):
             return None
-        if mode == 'identity' or (kind == 'EEG' and name == 'IAF'):
+        if mode == 'identity' or kind == 'EI' or (kind == 'EEG' and name == 'IAF'):
             return float(value)
         reference = (references or {}).get(kind, {}).get(name)
         if reference is None:

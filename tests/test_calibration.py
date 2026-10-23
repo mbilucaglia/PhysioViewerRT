@@ -2,6 +2,8 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 
@@ -12,6 +14,59 @@ from physiolab.calibration import (
 
 
 class CalibrationTests(unittest.TestCase):
+    def test_bsl_has_no_predecomposition_scl_or_ei_fallback(self):
+        fs = 32.
+        t = np.arange(int(fs * 60)) / fs
+        with patch('physiolab.sc_decomposition.decompose_baseline', return_value=[]):
+            result = analyze_bsl({'EDA': {
+                'fs': fs, 'channels': ['SC'], 'data': (4 + np.sin(t))[:, None],
+                'timestamps': 100. + t}})
+        self.assertNotIn('SCL', result['metrics'].get('EDA', {}))
+        self.assertNotIn('EI', result['metrics'])
+        self.assertIsNone(result['tonic_sc'])
+
+    def test_bsl_ei_uses_same_tonic_reference_factors_and_source_pairing_as_live(self):
+        from physiolab.emotion import emotional_index_z
+        from physiolab.processing import Processor
+        fs = 32.
+        t = np.arange(int(fs * 60)) / fs
+        times = t + 100.
+        pulse = np.sin(2 * np.pi * (1.2 * t + .04 * np.sin(t * .1)))[:, None]
+        sc = (4 + np.sin(t * .1))[:, None]
+        tonic = [SimpleNamespace(window_end=100. + second,
+                                 value=4. + np.sin(second * .1))
+                 for second in range(1, 60)]
+        streams = {
+            'EDA': {'fs': fs, 'channels': ['SC'], 'data': sc, 'timestamps': times},
+            'PPG': {'fs': fs, 'channels': ['Pulse'], 'data': pulse, 'timestamps': times},
+        }
+        with patch('physiolab.sc_decomposition.decompose_baseline', return_value=tonic):
+            result = analyze_bsl(streams)
+        hr_ref = result['metrics']['PPG']['HR']
+        scl_ref = result['metrics']['EDA']['SCL']
+        proc = Processor('PPG', fs, 1, ['Pulse'])
+        hr = []
+        for start in range(0, len(t), 16):
+            metric = proc.push(pulse[start:start + 16])
+            if metric:
+                hr.append((times[start + 15], metric['HR']))
+        expected = []
+        latest = {}
+        events = [(at,'HR',value) for at,value in hr]
+        events.extend((observation.window_end,'SCL',observation.value) for observation in tonic)
+        for at, name, measured in sorted(events, key=lambda event:event[0]):
+            latest[name] = measured
+            if latest.get('HR') is None or latest.get('SCL') is None:
+                continue
+            value = emotional_index_z(
+                normalize(latest['HR'], hr_ref, 'zscore'),
+                normalize(latest['SCL'], scl_ref, 'zscore'))
+            if value is not None:
+                expected.append(value)
+        self.assertAlmostEqual(result['metrics']['EI']['EI']['mu'], np.mean(expected))
+        self.assertEqual(result['metrics']['EI']['EI']['valid_windows'], len(expected))
+        self.assertEqual(set(result['metrics']['EDA']), {'SCL'})
+
     def test_eyc_posterior_center_of_gravity(self):
         fs = 128
         t = np.arange(fs * 60) / fs

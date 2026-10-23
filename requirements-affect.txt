@@ -1,0 +1,3 @@
+# cvxEDA: https://github.com/lciti/cvxEDA (GPL-3.0)
+cvxeda>=1.0.0,<2
+cvxopt>=1.3,<2

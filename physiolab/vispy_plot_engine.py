@@ -4,7 +4,7 @@ The same presentation engine hosts both Raw Data and Metrics.
 """
 import math
 import numpy as np
-from PySide6.QtCore import QRectF, Qt
+from PySide6.QtCore import QEvent, QObject, QRectF, Qt
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QWidget, QSizePolicy, QGridLayout
 
@@ -68,6 +68,20 @@ class _ChannelLabelGutter(QWidget):
 
 
 
+class _CanvasRulerResizeObserver(QObject):
+    """Keep physical scales current even before an OpenGL context is ready."""
+
+    def __init__(self, native, update):
+        super().__init__(native)
+        self.update = update
+        native.installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.Resize:
+            self.update()
+        return False
+
+
 class VisPyPlotEngine:
     """White, borderless, full-canvas OpenGL plot with an optional sweep cursor."""
 
@@ -127,6 +141,8 @@ class VisPyPlotEngine:
         self._axis_duration = 5.
         self._update_rulers()
         self.canvas.events.resize.connect(self._update_rulers)
+        self._ruler_resize_observer = _CanvasRulerResizeObserver(
+            self.canvas.native, self._update_rulers)
 
     def _update_rulers(self, event=None):
         width = max(1, self.canvas.native.width())

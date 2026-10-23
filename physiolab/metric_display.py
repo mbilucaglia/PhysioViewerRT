@@ -5,6 +5,38 @@ interpolation does not increase the physiological sampling resolution.
 """
 import numpy as np
 from scipy.interpolate import PchipInterpolator, CubicSpline
+from .display_units import ARBITRARY_UNIT, source_display_unit
+from .modality_labels import modality_label
+
+
+def metric_amplitude_label(definitions, visible_keys, normalization, source_units):
+    """Unit and explanation for the combined metric amplitude ruler."""
+    normalized = {
+        'zscore': ('σ', 'Baseline standard deviations'),
+        'zmad': ('σ (MAD)', 'Robust baseline scale: 1.4826 × MAD'),
+        'robust_iqr': ('σ (IQR)', 'Robust baseline scale: IQR / 1.349'),
+        'minmax': ('norm.', 'Fraction of the fixed baseline min–max span (1 = full span)'),
+    }
+    if normalization in normalized:
+        if ('EI', 'EI') in visible_keys:
+            if len(visible_keys) == 1:
+                return ARBITRARY_UNIT, 'Original signed Emotional Index'
+            return 'mixed units', normalized[normalization][1] + '; EI uses its original signed scale'
+        return normalized[normalization]
+    if normalization != 'identity':
+        raise ValueError('Unknown metric normalization mode')
+    labels = {}
+    for definition in definitions:
+        if definition.key not in visible_keys:
+            continue
+        unit = definition.unit
+        if unit == 'source units':
+            unit = source_units.get(definition.modality, ARBITRARY_UNIT)
+        labels[definition.key] = source_display_unit([unit])
+    unique = set(labels.values())
+    unit = next(iter(unique)) if len(unique) == 1 else 'mixed units' if unique else ARBITRARY_UNIT
+    details = ', '.join(f'{modality_label(kind)}/{name}: {label}' for (kind, name), label in labels.items())
+    return unit, details or 'Original metric values; unavailable units use a.u.'
 
 
 

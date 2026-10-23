@@ -49,7 +49,9 @@ def eeg_metrics(window, fs, names, iaf_hz=DEFAULT_IAF_HZ):
 
 
 def eda_metrics(window, fs, names, iaf_hz=DEFAULT_IAF_HZ):
-    return {'SCL': float(np.median(window[:, 0])), 'unit': 'source units'}
+    # Tonic SCL is published by the rolling decomposition worker, not this
+    # short-window calculator. Never substitute the median of pre-decomposed SC.
+    return {'status': 'Waiting for cvxEDA tonic SCL decomposition'}
 
 
 def ppg_metrics(window, fs, names, iaf_hz=DEFAULT_IAF_HZ):

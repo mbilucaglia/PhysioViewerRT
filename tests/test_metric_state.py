@@ -43,3 +43,24 @@ class MetricStateTests(unittest.TestCase):
         state.update('EEG', None, 0.)
         self.assertFalse(state.latest)
         self.assertTrue(all(not history for history in state.history.values()))
+
+    def test_ei_unavailable_status_identifies_the_actual_missing_requirement(self):
+        state = MetricState(DEFAULT_METRICS)
+        ref = {'mu':1., 'sigma':1.}
+        state.update('PPG', {'HR':2.}, 1.)
+        self.assertIn('BSL HR reference', state.latest['EI']['status'])
+        state.ei.set_references({'mu':1., 'sigma':0.}, ref)
+        state.update('EDA', {'SCL':2.}, 1.)
+        self.assertIn('no usable variability', state.latest['EI']['status'])
+        state.ei.set_references(ref, ref)
+        state.update('PPG', {'HR':1.}, 2.)
+        state.update('EDA', {'SCL':2.}, 2.)
+        self.assertIsNotNone(state.latest['EI']['EI'])
+        state.update('PPG', {'HR':2.}, 2.5)
+        state.update('EDA', {'SCL':2.}, 2.5)
+        self.assertIsNotNone(state.latest['EI']['EI'])
+        self.assertIn('z-scores', state.latest['EI']['status'])
+
+    def test_ei_original_signed_value_needs_no_extra_display_reference(self):
+        for mode in ('identity','zscore','zmad','robust_iqr','minmax'):
+            self.assertEqual(MetricState.normalized_value('EI','EI',-.4,mode,{}), -.4)

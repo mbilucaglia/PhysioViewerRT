@@ -181,6 +181,10 @@ class LocalLSLIntegrationTests(unittest.TestCase):
                                        for pair in metrics._layers.values() for layer in pair),
                                  metric_programs)
                 for key in window.metric_state.keys:
+                    # Delayed/decomposed metrics have their own startup window;
+                    # test_affect_integration exercises their complete live path.
+                    if any(item.key == key and item.asynchronous for item in window.metric_definitions):
+                        continue
                     self.assertTrue(window.metric_state.history[key], f'No {key} history')
                     self.assertTrue(any(np.isfinite(value) for _, value in window.metric_state.history[key]),
                                     f'No valid {key} estimate with calibration active')
@@ -211,6 +215,44 @@ class LocalLSLIntegrationTests(unittest.TestCase):
                     window.tabs.setCurrentWidget(window.raw_page)
                     publish_for(.4)
                     self.assertTrue(window.raw_vispy_plots[kind].configured)
+                # Source/channel selectors apply directly to active receivers.
+                # No explicit Stop/Play calls are used for these transitions.
+                window.tabs.setCurrentWidget(window.sources_page)
+                previous = window.workers['EEG']
+                picker = window.channel_selectors['EEG']
+                for i in range(len(picker.actions)):
+                    picker.select(i, i in (5, 7))
+                publish_for(1.5)
+                self.assertIsNot(window.workers['EEG'], previous)
+                self.assertEqual(window.workers['EEG'].selected_names, ['F3', 'F4'])
+                self.assertEqual(window.raw_display.history['EEG'][-1][3], ['F3', 'F4'])
+                self.assertFalse(window.pending_source_changes)
+                original_ppg = window.workers['PPG']
+                previous = window.workers['EDA']
+                eeg_uid = window.workers['EEG'].info.uid()
+                combo = window.selectors['EDA']
+                combo.setCurrentIndex(next(i for i in range(combo.count())
+                                           if combo.itemData(i).uid() == eeg_uid))
+                publish_for(1.5)
+                self.assertIsNot(window.workers['EDA'], previous)
+                self.assertEqual(window.workers['EDA'].info.uid(), eeg_uid)
+                window.channel_selectors['EDA'].select(5, True)
+                publish_for(1.5)
+                self.assertEqual(window.workers['EDA'].selected_names, ['F3'])
+                self.assertEqual(window.raw_display.history['EDA'][-1][3], ['F3'])
+                self.assertIs(window.workers['PPG'], original_ppg)
+                window.tabs.setCurrentWidget(window.raw_page)
+                publish_for(.4)
+                self.assertEqual(window.raw_vispy_plots['EEG'].engine.channel_names, ('F3', 'F4'))
+                self.assertEqual(window.raw_vispy_plots['EDA'].engine.channel_names, ('F3',))
+                active = dict(window.workers)
+                for kind in ('PPG', 'EDA'):
+                    window.raw_focus_buttons[kind].click()
+                    publish_for(.15)
+                    self.assertEqual(window.focused_raw_kind, kind)
+                    window.raw_focus_buttons[kind].click()
+                    self.assertIsNone(window.focused_raw_kind)
+                self.assertEqual(window.workers, active)
             for kind in SPECS:
                 window.stop_stream(kind)
             self.assertTrue(pump_until(lambda: not window.workers, 4),

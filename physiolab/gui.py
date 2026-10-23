@@ -3,22 +3,28 @@ import os
 import importlib.util
 import time
 from pathlib import Path
+from dataclasses import replace
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, QDir
 from PySide6.QtUiTools import QUiLoader
+from pylsl import local_clock
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
     QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton,
-    QScrollArea, QSizePolicy, QApplication, QStackedWidget, QSplitter, QDoubleSpinBox, QFrame, QStatusBar, QSpinBox
+    QScrollArea, QSizePolicy, QApplication, QStackedWidget, QSplitter, QDoubleSpinBox, QFrame, QStatusBar, QSpinBox,
+    QProgressDialog
 )
 from .worker import Receiver
 from .processing import validate_preprocessing
 from .channel_selection import validated_indices
 from .lsl_tasks import LSLTask
-from .metric_display import prepare_metric_curve
+from .metric_display import prepare_metric_curve, metric_amplitude_label
+from .scale_rulers import ScaleRuler
+from .branding import apply_window_branding
+from .modality_labels import modality_label
 from .raw_render_worker import RawRenderWorker
 from .raw_snapshot import build_raw_source
 from .vispy_raw import VisPyRawPlot
@@ -31,6 +37,13 @@ from .display_units import DEFAULT_EEG_DISPLAY_STEP, ARBITRARY_UNIT
 from .raw_display_state import RawDisplayState
 from .metric_state import MetricState
 from .calibration_session import CalibrationSession
+from .calibration_tasks import CalibrationAnalysisTask
+from .affect_state import AffectState
+from .affect_widgets import AffectView
+from .asr_widgets import ASRControls
+from .ui_icons import set_action
+from .asr_session import ASRSession
+from .asr_tasks import ASRFitTask, EEGReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
 from .desktop_widgets import CheckChannelDropdown, CalibrationScreen
 from .source_conversion_widgets import SourceConversionControls
@@ -42,12 +55,23 @@ from .calibration import (
 
 
 class MainWindow(QMainWindow):
+
     def __init__(self, settings=DEFAULT_VIEWER_SETTINGS, metric_definitions=DEFAULT_METRICS):
         super().__init__()
         self.settings = settings
         self.raw_display = RawDisplayState(settings)
         self.metric_definitions = validate_metrics(metric_definitions)
         self.metric_state = MetricState(self.metric_definitions, settings.metric_history_capacity)
+        self.asr_session = ASRSession()
+        self.asr_tasks = []
+        self.eeg_reference_tasks = []
+        self.eeg_reference_pending = False
+        self._asr_resume_after_fit = False
+        self.affect_state = AffectState(max_points=settings.metric_history_capacity,
+                                        history_seconds=settings.history_seconds)
+        self._affect_clock_offset = local_clock() - time.monotonic()
+        self._affect_clear_before = float('-inf')
+        self._tonic_live_configuration = None
         self.setWindowTitle('PhysioViewerRT — local LSL monitor')
         self.resize(1450, 940)
         # All geometry, tabs, control placement and palette come from
@@ -55,6 +79,8 @@ class MainWindow(QMainWindow):
         # application state and live rendering widgets to named hosts.
         self.selectors, self.channel_selectors, self.workers = {}, {}, {}
         self.stream_buttons = {}
+        self.pending_source_changes = set()
+        self.source_change_timers = {}
         self.channel_metadata_cache = {}
         self.lsl_tasks = {}
         self._metadata_requests = {}
@@ -75,6 +101,7 @@ class MainWindow(QMainWindow):
         self.vispy_metric_plot = None
         self.metric_gl_bounds = (-settings.default_view_seconds, 0.)
         self.metric_labels, self.metric_status = {}, {}
+        self.metric_ruler_keys = set()
         self.capture = None
         self.loaded_eyc = None
         self.loaded_bsl = None
@@ -85,6 +112,8 @@ class MainWindow(QMainWindow):
         self.iaf_hz = 10.0
         self._load_designer_layout()
         self._connect_designer_controls()
+        self._connect_affect_view()
+        self._connect_asr_view()
         self.update_metrics_availability()
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
@@ -105,7 +134,6 @@ class MainWindow(QMainWindow):
         self.timer.start(settings.timer_interval_ms)
         self.refresh()
 
-
     def _required_ui(self, name, widget_type):
         widget = self.centralWidget().findChild(widget_type, name)
         if widget is None:
@@ -120,7 +148,9 @@ class MainWindow(QMainWindow):
         path = Path(__file__).resolve().parent.parent / 'designer' / 'PhysioViewerRT_ClinicalLayout.ui'
         if not path.is_file():
             raise FileNotFoundError(f'Editable Qt Designer interface not found: {path}')
-        self._ui_form = QUiLoader().load(str(path))
+        loader = QUiLoader()
+        loader.setWorkingDirectory(QDir(str(path.parent)))
+        self._ui_form = loader.load(str(path))
         if self._ui_form is None:
             raise RuntimeError(f'Qt Designer could not load {path}')
         self.setCentralWidget(self._ui_form.takeCentralWidget())
@@ -128,16 +158,267 @@ class MainWindow(QMainWindow):
         # Calibration actions are in Sources; no unused menu strip above tabs.
         self.menuBar().setVisible(False)
         self.setStyleSheet(self._ui_form.styleSheet())
+        apply_window_branding(self)
         self.tabs = self._required_ui('mainTabs', QTabWidget)
         self.sources_page = self._required_ui('sourcesTab', QWidget)
         self.raw_page = self._required_ui('rawDataTab', QWidget)
         self.metrics_page = self._required_ui('metricsTab', QWidget)
+        self.affect_page = self._required_ui('affectTab', QWidget)
         self.tabs.currentChanged.connect(self.tab_changed)
         # Never hard-code tab positions: Qt Designer may reorder the pages.
         # Keep their titles and layout exactly as saved in the .ui file.
         if any(self.tabs.indexOf(page) < 0 for page in
-               (self.sources_page, self.raw_page, self.metrics_page)):
-            raise RuntimeError('Qt Designer mainTabs must contain all three pages')
+               (self.sources_page, self.raw_page, self.metrics_page, self.affect_page)):
+            raise RuntimeError('Qt Designer mainTabs must contain all four pages')
+
+    def _connect_asr_view(self):
+        self.asr_view = ASRControls(self._required_ui('EEGASRPanel', QFrame))
+        self.asr_view.train_requested.connect(self.train_eeg_asr)
+        self.asr_view.train.setText(f'Train ({self.settings.asr_training_seconds:g} s)')
+        self.asr_view.fit_requested.connect(self.fit_eeg_asr)
+        self.asr_view.enabled_changed.connect(self.set_eeg_asr_enabled)
+        self.update_asr_availability()
+
+    def update_asr_availability(self):
+        if not hasattr(self, 'asr_view'):
+            return
+        worker = self.workers.get('EEG')
+        live = getattr(worker, 'source_configuration', None)
+        source_ok, source_status = self.asr_session.source_availability(
+            live if getattr(worker, 'active', False) else None)
+        available, status, _ = self.asr_session.availability(live)
+        self.asr_view.set_source(source_ok, source_status or status, available)
+        model = self.asr_session.model
+        fitted = (model is not None and available and source_ok
+                  and all(getattr(model.settings, key) == value
+                          for key, value in self.asr_view.settings().items()))
+        self.asr_view.set_fit_state(fitted, self.asr_session.busy or self.capture is not None)
+        self.asr_view.set_enabled(self.asr_session.enabled and fitted)
+
+    def train_eeg_asr(self):
+        worker = self.workers.get('EEG')
+        live = getattr(worker, 'source_configuration', None)
+        available, status = self.asr_session.source_availability(
+            live if getattr(worker, 'active', False) else None)
+        if not available or self.capture is not None or self.asr_session.busy:
+            self.statusBar().showMessage(status or 'Finish the current recording or training first.')
+            return
+        duration = max(30., self.settings.asr_training_seconds)
+        metadata = {'fs': float(worker.info.nominal_srate()),
+                    'channels': list(worker.selected_names),
+                    'preprocessing': dict(worker.preprocessing),
+                    'conversion': worker.conversion.metadata(),
+                    'source_units': list(worker.source_units), 'units': list(worker.output_units),
+                    'start_lsl_timestamp': worker.latest_source_timestamp}
+        session = CalibrationSession('ASR', {'EEG': metadata}, time.monotonic()+duration+10.)
+        progress = QProgressDialog('Recording clean EEG… stay relaxed and still.', 'Cancel', 0, 100, self)
+        progress.setWindowTitle('Train ASR · keep and correct all channels')
+        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
+        progress.setAutoClose(False)
+        progress.setAutoReset(False)
+        timer = QTimer(progress)
+        timer.setInterval(100)
+
+        def advance():
+            seconds = session.recorded_seconds('EEG')
+            progress.setValue(min(100, int(100*seconds/duration)))
+            progress.setLabelText(f'Recording clean EEG: {seconds:.1f} / {duration:g} s. Stay relaxed and still.')
+            if self._closing or session.errors or time.monotonic() > session.deadline:
+                progress.reject()
+            elif seconds >= duration:
+                progress.accept()
+
+        self.capture = session
+        self.update_asr_availability()
+        timer.timeout.connect(advance)
+        timer.start()
+        try:
+            result = progress.exec()
+        finally:
+            timer.stop()
+            self.capture = None
+            self.update_asr_availability()
+            for kind in tuple(self.pending_source_changes):
+                self.schedule_source_change(kind)
+        if result != QDialog.DialogCode.Accepted or self._closing:
+            self.statusBar().showMessage('ASR recording cancelled or incomplete; previous model kept.')
+            return
+        try:
+            eeg = session.finish(minimum_seconds=duration)['EEG']
+        except ValueError as exc:
+            self.statusBar().showMessage(str(exc))
+            return
+        if self.asr_session.enabled:
+            self.set_eeg_asr_enabled(False)
+        self.asr_session.set_training(eeg)
+        self.fit_eeg_asr(self.asr_view.settings(), enable_on_success=True)
+
+    def fit_eeg_asr(self, settings, enable_on_success=False):
+        live = getattr(self.workers.get('EEG'), 'source_configuration', None)
+        available, status, _ = self.asr_session.availability(live)
+        if not available or self.asr_session.busy or self.capture is not None:
+            self.asr_view.set_fit_state(False, self.asr_session.busy, status or 'Finish recording first.')
+            return
+        self._asr_resume_after_fit = enable_on_success or self.asr_session.enabled
+        if self.asr_session.enabled:
+            self.set_eeg_asr_enabled(False)
+        task = ASRFitTask(self.asr_session.generation, self.asr_session.training, settings, self)
+        self.asr_session.busy = True
+        self.asr_view.set_fit_state(False, True)
+        self.asr_tasks.append(task)
+        task.completed.connect(self.eeg_asr_fitted)
+        task.finished.connect(lambda t=task: self._asr_task_finished(t))
+        task.start()
+
+    def _asr_task_finished(self, task):
+        if task in self.asr_tasks:
+            self.asr_tasks.remove(task)
+        task.deleteLater()
+
+    def eeg_asr_fitted(self, generation, result, error):
+        self.asr_session.busy = False
+        if self._closing or generation != self.asr_session.generation:
+            return
+        if error is not None:
+            self.asr_view.set_fit_state(False, False, error)
+            return
+        self.asr_session.install_fit(result)
+        self.update_asr_availability()
+        if self._asr_resume_after_fit:
+            self.set_eeg_asr_enabled(True)
+        self._asr_resume_after_fit = False
+        self.statusBar().showMessage('ASR trained independently. All selected EEG channels are preserved.')
+
+    def _apply_asr_metric_references(self):
+        session = self.asr_session
+        session.reference_generation += 1
+        self.eeg_reference_pending = False
+        self.metric_state.reset('EEG')
+        self.affect_state.reset('EEG')
+        if self.loaded_bsl is not None:
+            self.loaded_bsl = {**self.loaded_bsl, 'analysis': session.base_analysis}
+            eeg = session.streams.get('EEG')
+            if eeg is not None:
+                self.eeg_reference_pending = True
+                model = session.model if session.enabled else None
+                task = EEGReferenceTask(session.reference_generation, eeg, session.base_analysis,
+                                        self.iaf_hz, model, self)
+                self.eeg_reference_tasks.append(task)
+                task.completed.connect(self.eeg_references_ready)
+                task.finished.connect(lambda t=task: self._eeg_reference_finished(t))
+                task.start()
+        self.refresh_metrics()
+        self.refresh_affect_references()
+
+    def _eeg_reference_finished(self, task):
+        if task in self.eeg_reference_tasks:
+            self.eeg_reference_tasks.remove(task)
+        task.deleteLater()
+
+    def eeg_references_ready(self, generation, analysis, error):
+        if self._closing or generation != self.asr_session.reference_generation:
+            return
+        self.eeg_reference_pending = False
+        if error:
+            self.statusBar().showMessage(error)
+        elif self.loaded_bsl is not None:
+            if self.asr_session.enabled:
+                self.asr_session.cleaned_analysis = analysis
+            self.loaded_bsl = {**self.loaded_bsl, 'analysis': analysis}
+        self.refresh_metrics()
+        self.refresh_affect_references()
+
+    def set_eeg_asr_enabled(self, enabled):
+        if self.capture is not None:
+            self.asr_view.set_enabled(self.asr_session.enabled)
+            return
+        if enabled:
+            live = getattr(self.workers.get('EEG'), 'source_configuration', None)
+            available, status, _ = self.asr_session.availability(live)
+            if not available:
+                self.asr_view.set_enabled(False)
+                self.statusBar().showMessage(status)
+                return
+        try:
+            self.asr_session.set_enabled(enabled)
+        except ValueError as exc:
+            self.asr_view.set_enabled(False)
+            self.statusBar().showMessage(str(exc))
+            return
+        self._apply_asr_metric_references()
+        self.asr_view.set_enabled(enabled)
+        self.schedule_source_change('EEG')
+
+    def _connect_affect_view(self):
+        self.affect_view = AffectView()
+        host = self._required_ui('affectViewHost', QFrame)
+        layout = QVBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.affect_view)
+        self.affect_view.clear_requested.connect(self.clear_affect_trails)
+        self.affect_view.normalization_changed.connect(lambda _: self.refresh_affect_view())
+        self.affect_view.retention_changed.connect(lambda _: self.refresh_affect_view())
+        self.affect_view.set_active(self.tabs.currentWidget() is self.affect_page)
+        self.sync_affect_sources()
+
+    def sync_affect_sources(self):
+        """Peripheral Affect and EI require both live peripheral receivers."""
+        if not hasattr(self, 'affect_view'):
+            return
+        available = all(getattr(self.workers.get(kind), 'active', False)
+                        for kind in ('PPG', 'EDA'))
+        self.affect_view.set_peripheral_available(available)
+
+    def clear_affect_trails(self):
+        self.affect_state.clear()
+        self._affect_clear_before = local_clock()
+
+    def metric_references(self):
+        """One compatibility policy for both Metrics and Affect normalization."""
+        analysis = (self.loaded_bsl or {}).get('analysis') or {}
+        references = dict(analysis.get('metrics', {}))
+        configurations = analysis.get('source_configurations', {})
+        for kind, baseline in configurations.items():
+            live = getattr(self.workers.get(kind), 'source_configuration', None)
+            if live is not None and live != baseline:
+                references.pop(kind, None)
+        if (self.eeg_reference_pending
+                or not np.isclose(analysis.get('iaf_hz_used', self.iaf_hz), self.iaf_hz)
+                or (self.asr_session.enabled and 'asr_model_id' not in configurations.get('EEG', {}))):
+            references.pop('EEG', None)
+        return references
+
+    def refresh_affect_references(self):
+        analysis = (self.loaded_bsl or {}).get('analysis') or {}
+        metadata = analysis.get('tonic_sc') or {}
+        compatible = bool(metadata.get('configuration_id') and
+                          metadata['configuration_id'] == self._tonic_live_configuration)
+        self.affect_state.set_references(self.metric_references(), compatible)
+
+    def refresh_affect_view(self):
+        self.sync_affect_sources()
+        now = local_clock()
+        snapshot = self.affect_state.snapshot(
+            now, float(self.affect_view.retention.currentData()),
+            self.affect_view.normalization.currentData())
+        if self.eeg_reference_pending:
+            snapshot = replace(snapshot, responses=tuple(
+                replace(response, status='Updating EEG baseline references…')
+                if response.key == 'central' else response for response in snapshot.responses))
+        tonic_status = self.metric_state.latest.get('EDA', {}).get('_tonic_status', '')
+        if tonic_status and tonic_status != 'Tonic SC ready (cvxEDA)':
+            snapshot = replace(snapshot, responses=tuple(
+                replace(response, status=tonic_status)
+                if response.key == 'peripheral' and response.status == 'Waiting for valid metric observations'
+                else response for response in snapshot.responses))
+        # EI keeps the original signed formula. Only convert its clock here;
+        # display normalization must never change positive/negative semantics.
+        ei_points = [(at+self._affect_clock_offset, value)
+                     for at, value in self.metric_state.history.get(('EI', 'EI'), ())
+                     if at+self._affect_clock_offset >= self._affect_clear_before]
+        ei_status = (self.metric_state.latest.get('EI', {}).get('status')
+                     or self.metric_state.ei_unavailable_reason())
+        self.affect_view.update_snapshot(snapshot, ei_points, now, ei_status=ei_status)
 
     def _fill_combo(self, combo, options):
         combo.blockSignals(True)
@@ -153,7 +434,10 @@ class MainWindow(QMainWindow):
         for kind in ('EEG', 'EDA', 'PPG'):
             conversion = SourceConversionControls()
             self.source_conversions[kind] = conversion
-            self._required_ui(f'{kind}SourceLayout', QVBoxLayout).insertWidget(2, conversion)
+            source_layout = self._required_ui(f'{kind}SourceLayout', QVBoxLayout)
+            conversion_position = (source_layout.indexOf(self._required_ui('EEGASRPanel', QFrame))+1
+                                   if kind == 'EEG' else 2)
+            source_layout.insertWidget(conversion_position, conversion)
             combo = self._required_ui(f'{kind}StreamSelector', QComboBox)
             combo.clear()
             self.selectors[kind] = combo
@@ -161,6 +445,12 @@ class MainWindow(QMainWindow):
                 lambda _, k=kind: self.stream_selection_changed(k))
             picker = CheckChannelDropdown(kind)
             self.channel_selectors[kind] = picker
+            picker.selection_changed.connect(lambda k=kind: self.channel_selection_changed(k))
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(self.settings.source_change_debounce_ms)
+            timer.timeout.connect(lambda k=kind: self.apply_pending_source_change(k))
+            self.source_change_timers[kind] = timer
             if kind == 'EEG':
                 row = self._required_ui(f'{kind}Channels', QGridLayout)
                 row.addWidget(picker, 0, 1)
@@ -169,9 +459,8 @@ class MainWindow(QMainWindow):
                 row.insertWidget(1, picker)
             action = self._required_ui(f'{kind}Play', QPushButton)
             self.stream_buttons[kind] = action
-            action.setText('▶ Play')
             action.clicked.connect(lambda _, k=kind: self.toggle_stream(k))
-            action.setToolTip(f'Start/stop local {kind} LSL reception')
+            action.setToolTip(f'Start/stop local {modality_label(kind)} LSL reception')
             self._required_ui(f'{kind}Refresh', QPushButton).clicked.connect(self.refresh)
             self._required_ui(f'{kind}ChooseChannels', QPushButton).setVisible(False)
             choices = self._required_ui(f'{kind}FilterPreset', QComboBox)
@@ -192,8 +481,8 @@ class MainWindow(QMainWindow):
             notch.setToolTip('Used on next stream start, not mid-capture')
         self._required_ui('refreshAllStreams', QPushButton).clicked.connect(self.refresh)
         self.eeg_display_count = self._required_ui('eegDisplayChannelCount', QSpinBox)
-        self.eeg_display_count.setRange(1, 64)
-        self.eeg_display_count.setValue(8)
+        self.eeg_display_count.setRange(1, 1)
+        self.eeg_display_count.setEnabled(False)
         self.eeg_display_count.valueChanged.connect(self.change_eeg_display_count)
         self.calibration_file_labels = {}
         for kind in ('EYC', 'BSL'):
@@ -222,7 +511,7 @@ class MainWindow(QMainWindow):
         self._required_ui('rawZoomPlus', QPushButton).clicked.connect(
             lambda: self.zoom_raw_plots(2.))
         self.raw_live_button = self._required_ui('rawFollowLive', QPushButton)
-        self.raw_live_button.setText('● LIVE — following')
+        set_action(self.raw_live_button, 'Live', 'live')
         self.raw_live_button.clicked.connect(self.resume_raw_live)
         self.raw_live_button.setEnabled(False)
         self.raw_plot_splitter = self._required_ui('rawPlotSplitter', QSplitter)
@@ -231,17 +520,15 @@ class MainWindow(QMainWindow):
         self.raw_plot_splitter.setStretchFactor(0, 4)
         self.raw_plot_splitter.setStretchFactor(1, 1)
         self.raw_plot_splitter.setStretchFactor(2, 1)
-        self.eeg_focus_button = QToolButton()
-        self.eeg_focus_button.setText('Expand EEG')
-        self.eeg_focus_button.setCheckable(True)
-        self.eeg_focus_button.setToolTip(
-            'Give multichannel EEG the full plot area; all streams keep acquiring')
-        self.eeg_focus_button.toggled.connect(self.set_eeg_focus)
-        self._required_ui('EEGPlotHeader', QHBoxLayout).insertWidget(
-            1, self.eeg_focus_button)
+        self.raw_focus_buttons = {}
+        self.focused_raw_kind = None
         for kind in ('EEG', 'PPG', 'EDA'):
+            focus = self._required_ui(f'{kind}Expand', QToolButton)
+            focus.setToolTip(f'Give {modality_label(kind)} the full plot area; all streams keep acquiring')
+            focus.toggled.connect(lambda checked, k=kind: self.set_raw_focus(k, checked))
+            self.raw_focus_buttons[kind] = focus
             plot = pg.PlotWidget(title=(
-                f'{kind} — {self.settings.default_view_seconds:g} s view, '
+                f'{modality_label(kind)} — {self.settings.default_view_seconds:g} s view, '
                 f'{self.settings.history_seconds / 60:g} min history'))
             plot.showGrid(x=True, y=True, alpha=.2)
             plot.setLabel('bottom', 'Elapsed session time', 's')
@@ -279,13 +566,9 @@ class MainWindow(QMainWindow):
             gain.valueChanged.connect(
                 lambda _, k=kind: self.set_raw_vertical_gain(k))
             self.raw_vertical_gains[kind] = gain
-            autoscale = QToolButton()
-            autoscale.setText('Autoscale')
-            autoscale.setEnabled(False)
+            autoscale = self._required_ui(f'{kind}Autoscale', QToolButton)
             autoscale.setToolTip('Fit visible raw/filtered extrema; EEG keeps one shared gain')
             autoscale.clicked.connect(lambda _, k=kind: self.autoscale_raw(k))
-            header = self._required_ui(f'{kind}PlotHeader', QHBoxLayout)
-            header.insertWidget(header.indexOf(gain) + 1, autoscale)
             self.raw_autoscale_buttons[kind] = autoscale
             self._required_ui(f'{kind}AmplitudeMinus', QPushButton).clicked.connect(
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/self.settings.gain_step))
@@ -321,7 +604,7 @@ class MainWindow(QMainWindow):
         self._required_ui('metricsZoomPlus', QPushButton).clicked.connect(
             lambda: self.zoom_metric_plot(2.))
         self.metric_live_button = self._required_ui('metricsFollowLive', QPushButton)
-        self.metric_live_button.setText('● LIVE — following')
+        set_action(self.metric_live_button, 'Live', 'live')
         self.metric_live_button.clicked.connect(self.resume_metric_live)
         self.metric_smoothing = self._required_ui('metricsSmoothing', QComboBox)
         self._fill_combo(self.metric_smoothing, [
@@ -371,7 +654,20 @@ class MainWindow(QMainWindow):
                 pen=None, symbol='o', symbolSize=5,
                 symbolBrush=pg.mkBrush(color), symbolPen=None)
         self.metric_plot_stack = QStackedWidget()
-        self.metric_plot_stack.addWidget(self.metric_plot)
+        fallback = QWidget()
+        fallback_layout = QGridLayout(fallback)
+        fallback_layout.setContentsMargins(0, 0, 0, 0)
+        fallback_layout.setSpacing(2)
+        self.metric_time_ruler = ScaleRuler(Qt.Orientation.Horizontal)
+        self.metric_amplitude_ruler = ScaleRuler(Qt.Orientation.Vertical)
+        fallback_layout.addWidget(self.metric_plot, 0, 0)
+        fallback_layout.addWidget(self.metric_time_ruler, 1, 0)
+        fallback_layout.addWidget(self.metric_amplitude_ruler, 0, 1)
+        fallback_layout.setColumnStretch(0, 1)
+        fallback_layout.setRowStretch(0, 1)
+        self.metric_plot.getViewBox().sigRangeChanged.connect(self.update_metric_rulers)
+        self.metric_plot.getViewBox().sigResized.connect(self.update_metric_rulers)
+        self.metric_plot_stack.addWidget(fallback)
         metrics_host = self._required_ui('metricsPlotHost', QFrame)
         if metrics_host.layout() is None:
             host_layout = QVBoxLayout(metrics_host)
@@ -406,6 +702,7 @@ class MainWindow(QMainWindow):
         else:
             self.loaded_bsl = None
             self.metric_state.ei.set_references(None, None)
+            self.asr_session.set_baseline()
         self.calibration_paths[kind] = None
         self.calibration_file_labels[kind].setText('None selected')
         self.calibration_state.setText(
@@ -413,21 +710,45 @@ class MainWindow(QMainWindow):
             f" | BSL: {'loaded' if self.loaded_bsl else 'none'}")
         self.update_metrics_availability()
         self.refresh_metrics()
+        self.affect_state.clear()
+        self.refresh_affect_references()
+        self.update_asr_availability()
+        self._apply_asr_metric_references()
 
     def update_metrics_availability(self):
-        """Require a real EYC and BSL before showing Metrics."""
+        """Keep both analysis tabs visible, enabling them together after EYC/BSL."""
         eyc = self.loaded_eyc or {}
         bsl = self.loaded_bsl or {}
         iaf = (eyc.get('analysis') or {}).get('iaf_hz')
         refs = (bsl.get('analysis') or {}).get('metrics')
         ready = iaf is not None and np.isfinite(float(iaf)) and bool(refs)
-        index = self.tabs.indexOf(self.metrics_page)
-        if index >= 0:
-            self.tabs.setTabVisible(index, bool(ready))
-            self.tabs.setTabToolTip(index,
-                'Metrics available' if ready else
-                'Record or load EYC and BSL in Sources to enable Metrics')
+        for page in (self.metrics_page, self.affect_page):
+            index = self.tabs.indexOf(page)
+            if index >= 0:
+                self.tabs.setTabVisible(index, True)
+                self.tabs.setTabEnabled(index, bool(ready))
+                self.tabs.setTabToolTip(index, 'Available' if ready else
+                    'Record or load EYC and BSL in Sources to enable analysis')
+        if not ready and self.tabs.currentWidget() in (self.metrics_page, self.affect_page):
+            self.tabs.setCurrentWidget(self.sources_page)
         return bool(ready)
+
+    def sync_eeg_display_count(self, reset_default=False):
+        """Offer only counts available in the EEG panel's selected source channels."""
+        count = len(self.channel_selectors['EEG'].selected_indices())
+        value = (self.settings.default_eeg_display_channels if reset_default
+                 else self.eeg_display_count.value())
+        self.eeg_display_count.setRange(1, max(1, count))
+        self.eeg_display_count.setValue(min(value, max(1, count)))
+        self.eeg_display_count.setEnabled(count > 0)
+        self.eeg_display_count.setToolTip(
+            f'Display up to {count} selected source channels; processing uses all selected channels.'
+            if count else 'Select source channels to enable the display count.')
+
+    def channel_selection_changed(self, kind):
+        if kind == 'EEG':
+            self.sync_eeg_display_count()
+        self.schedule_source_change(kind)
 
     def change_eeg_display_count(self, *_):
         """Only limit waveform channels; do not change LSL processing."""
@@ -438,30 +759,44 @@ class MainWindow(QMainWindow):
         self.curves['EEG'] = []
         self.plots['EEG'].clear()
 
-    def set_eeg_focus(self, focused):
-        """Expand the multichannel plot without changing acquired streams."""
+    @property
+
+    def eeg_focus_button(self):
+        return self.raw_focus_buttons['EEG']
+
+    def set_raw_focus(self, kind, focused):
+        """One shared expansion policy for every raw signal panel."""
         if focused:
-            self._raw_splitter_sizes = self.raw_plot_splitter.sizes()
-        for kind in ('PPG', 'EDA'):
-            self._required_ui(f'{kind}PlotPanel', QWidget).setVisible(not focused)
+            if self.focused_raw_kind is None:
+                self._raw_splitter_sizes = self.raw_plot_splitter.sizes()
+            self.focused_raw_kind = kind
+        elif self.focused_raw_kind == kind:
+            self.focused_raw_kind = None
+        for modality, button in self.raw_focus_buttons.items():
+            selected = self.focused_raw_kind == modality
+            button.blockSignals(True)
+            button.setChecked(selected)
+            button.blockSignals(False)
+            set_action(button, 'Show all' if selected else 'Expand', 'collapse' if selected else 'expand')
+            self._required_ui(f'{modality}PlotPanel', QWidget).setVisible(
+                self.focused_raw_kind is None or selected)
         if not focused and hasattr(self, '_raw_splitter_sizes'):
             self.raw_plot_splitter.setSizes(self._raw_splitter_sizes)
-        self.eeg_focus_button.setText('Show all signals' if focused else 'Expand EEG')
         self.raw_display.dirty = True
 
     def set_plot_paused(self, scope, paused):
         if scope == 'raw':
             self.raw_display.paused = bool(paused)
-            self._required_ui('rawPlotPause', QPushButton).setText(
-                '▶ Resume plotting' if paused else '⏸ Pause plotting')
+            set_action(self._required_ui('rawPlotPause', QPushButton),
+                       'Resume' if paused else 'Pause', 'play' if paused else 'pause')
             if not paused:
                 # Preserve GPU ring contents across plot-only pause/resume.
                 # Replay buffered samples without a blank-frame reset.
                 self.raw_display.dirty = True
         else:
             self.metric_plot_paused = bool(paused)
-            self._required_ui('metricsPlotPause', QPushButton).setText(
-                '▶ Resume plotting' if paused else '⏸ Pause plotting')
+            set_action(self._required_ui('metricsPlotPause', QPushButton),
+                       'Resume' if paused else 'Pause', 'play' if paused else 'pause')
             if not paused:
                 self.metric_presentation_epoch += 1
                 self.metric_dirty = True
@@ -536,9 +871,12 @@ class MainWindow(QMainWindow):
                         for i, action in enumerate(self.channel_selectors[kind].actions):
                             action.setChecked(i in chosen)
                         self.channel_selectors[kind].update_label()
+                        if kind == 'EEG':
+                            self.sync_eeg_display_count()
                         if kind not in self.workers:
                             self.stream_buttons[kind].setEnabled(True)
                             self.stream_buttons[kind].setToolTip('Start selected LSL stream')
+                        self.apply_pending_source_change(kind)
                 if warning:
                     self.statusBar().showMessage(warning)
                 return
@@ -548,6 +886,9 @@ class MainWindow(QMainWindow):
         self.source_conversions[kind].set_source(info.uid() if info is not None else None)
         if info is None:
             self.channel_selectors[kind].set_channels([])
+            if kind == 'EEG':
+                self.sync_eeg_display_count()
+            self.schedule_source_change(kind)
             if kind not in self.workers:
                 self.stream_buttons[kind].setEnabled(False)
             return
@@ -555,26 +896,85 @@ class MainWindow(QMainWindow):
         if identifier in self.channel_metadata_cache:
             names, warning = self.channel_metadata_cache[identifier]
             self.channel_selectors[kind].set_channels(names)
+            if kind == 'EEG':
+                self.sync_eeg_display_count(reset_default=True)
             if kind not in self.workers:
                 self.stream_buttons[kind].setEnabled(True)
                 self.stream_buttons[kind].setToolTip('Start selected LSL stream')
             if warning:
                 self.statusBar().showMessage(warning)
+            self.schedule_source_change(kind)
             return
         # Never open StreamInlet or query its metadata from the GUI thread.
         # Display provisional channel names until asynchronous lookup finishes.
         self.channel_selectors[kind].set_channels(
             [f'Ch{i+1} (loading labels)' for i in range(info.channel_count())]
         )
+        if kind == 'EEG':
+            self.sync_eeg_display_count(reset_default=True)
         if kind not in self.workers:
             self.stream_buttons[kind].setEnabled(False)
             self.stream_buttons[kind].setToolTip('Waiting for channel metadata…')
         if identifier not in self._metadata_requests:
             self._metadata_requests[identifier] = self.queue_lsl_task('metadata', info)
+        self.schedule_source_change(kind)
+
+    def _receiver_asr_matches(self, kind, worker):
+        """Changing the cleaning model requires a new receiver, even on the same source."""
+        if kind != 'EEG':
+            return True
+        requested = self.asr_session.model if self.asr_session.enabled else None
+        active = getattr(worker, 'eeg_asr_model', None)
+        return ((requested.model_id if requested is not None else None)
+                == (active.model_id if active is not None else None))
+
+    def schedule_source_change(self, kind):
+        """Replace an active source asynchronously; coalesce rapid selections."""
+        worker = self.workers.get(kind)
+        info = self.selectors[kind].currentData()
+        was_pending = kind in self.pending_source_changes
+        was_active = worker is not None and worker.active
+        if worker is None and kind not in self.pending_source_changes:
+            self.reset_stream_display(kind)
+            return
+        if (kind not in self.pending_source_changes and not worker.active):
+            return  # An explicit Stop is still finishing; preserve that intent.
+        if (worker is not None and kind not in self.pending_source_changes
+                and info is not None and worker.info.uid() == info.uid()
+                and worker.selected_indices == self.channel_selectors[kind].selected_indices()
+                and self._receiver_asr_matches(kind, worker)):
+            return
+        self.pending_source_changes.add(kind)
+        if self.capture is not None:
+            self.statusBar().showMessage(f'{modality_label(kind)}: selection will apply after calibration')
+            return
+        self.source_change_timers[kind].start()
+        self.stream_buttons[kind].setEnabled(False)
+        self.stream_buttons[kind].setText('Updating…')
+        if worker is not None:
+            worker.request_stop()
+        if not was_pending or was_active:
+            self.reset_stream_display(kind)
+
+    def apply_pending_source_change(self, kind):
+        if (self._closing or kind not in self.pending_source_changes
+                or self.capture is not None or self.source_change_timers[kind].isActive()
+                or kind in self.workers):
+            return
+        info = self.selectors[kind].currentData()
+        if info is None or info.uid() not in self.channel_metadata_cache:
+            return  # Metadata completion will retry using the latest selection.
+        if not self.channel_selectors[kind].selected_indices():
+            self.stream_buttons[kind].setEnabled(True)
+            set_action(self.stream_buttons[kind], 'Stop', 'stop-white')
+            self.statusBar().showMessage(f'{modality_label(kind)}: select channels to resume')
+            return
+        self.pending_source_changes.remove(kind)
+        self.connect_stream(kind)
 
     def toggle_stream(self, kind):
         worker = self.workers.get(kind)
-        if worker is not None and worker.isRunning():
+        if kind in self.pending_source_changes or (worker is not None and worker.isRunning()):
             self.stop_stream(kind)
         else:
             self.connect_stream(kind)
@@ -582,6 +982,11 @@ class MainWindow(QMainWindow):
     def reset_stream_display(self, kind):
         self.raw_display.reset(kind)
         self.metric_state.reset(kind)
+        self.affect_state.reset(kind)
+        self.sync_affect_sources()
+        if kind == 'EDA':
+            self._tonic_live_configuration = None
+            self.refresh_affect_references()
         self.raw_autoscale_buttons[kind].setEnabled(False)
         plot = self.plots[kind]
         plot.clear()
@@ -595,14 +1000,17 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'Calibration in progress',
                                 'Finish or cancel the calibration before stopping a stream.')
             return
+        self.pending_source_changes.discard(kind)
+        self.source_change_timers[kind].stop()
         worker = self.workers.get(kind)
         if worker is None:
-            self.stream_buttons[kind].setText('▶ Play')
+            set_action(self.stream_buttons[kind], 'Play', 'play-white')
             return
         self.stream_buttons[kind].setEnabled(False)
         self.stream_buttons[kind].setText('Stopping…')
         worker.request_stop()
-        self.statusBar().showMessage(f'{kind}: stopping receiver asynchronously…')
+        self.sync_affect_sources()
+        self.statusBar().showMessage(f'{modality_label(kind)}: stopping receiver asynchronously…')
 
     def receiver_finished(self, kind, worker):
         if self.workers.get(kind) is not worker:
@@ -610,12 +1018,17 @@ class MainWindow(QMainWindow):
         self.workers.pop(kind, None)
         self.source_conversions[kind].setEnabled(True)
         self.stream_buttons[kind].setEnabled(True)
-        self.stream_buttons[kind].setText('▶ Play')
+        set_action(self.stream_buttons[kind], 'Play', 'play-white')
         self.reset_stream_display(kind)
+        if kind in self.pending_source_changes:
+            self.stream_buttons[kind].setText('Updating…')
+            self.stream_buttons[kind].setEnabled(False)
+            self.apply_pending_source_change(kind)
+            return
         if worker.active:
-            self.statusBar().showMessage(f'{kind} receiver ended unexpectedly')
+            self.statusBar().showMessage(f'{modality_label(kind)} receiver ended unexpectedly')
         else:
-            self.statusBar().showMessage(f'{kind} reception stopped')
+            self.statusBar().showMessage(f'{modality_label(kind)} reception stopped')
 
     def connect_stream(self, kind):
         if self.capture is not None:
@@ -624,7 +1037,7 @@ class MainWindow(QMainWindow):
             return
         info = self.selectors[kind].currentData()
         if info is None:
-            self.statusBar().showMessage(f'No {kind} stream selected')
+            self.statusBar().showMessage(f'No {modality_label(kind)} stream selected')
             return
         try:
             indices = validated_indices(
@@ -634,7 +1047,7 @@ class MainWindow(QMainWindow):
             previous = self.workers.get(kind)
             if previous is not None and previous.isRunning():
                 QMessageBox.warning(self, 'Receiver active',
-                                    f'Stop {kind} before starting another stream.')
+                                    f'Stop {modality_label(kind)} before starting another stream.')
                 return
             settings = validate_preprocessing(kind,
                 preset=self.filter_choices[kind].currentData(),
@@ -642,9 +1055,11 @@ class MainWindow(QMainWindow):
             worker = Receiver(info, kind, indices,
                               self.channel_selectors[kind].names,
                               preprocessing=settings,
-                              conversion=self.source_conversions[kind].conversion())
+                              conversion=self.source_conversions[kind].conversion(),
+                              eeg_asr_model=(self.asr_session.model
+                                             if kind == 'EEG' and self.asr_session.enabled else None))
         except (ValueError, RuntimeError) as exc:
-            QMessageBox.warning(self, f'{kind} channel selection', str(exc))
+            QMessageBox.warning(self, f'{modality_label(kind)} channel selection', str(exc))
             return
         self.reset_stream_display(kind)
         worker.stream_ready.connect(self.ready_stream)
@@ -653,18 +1068,30 @@ class MainWindow(QMainWindow):
         worker.failure.connect(self.statusBar().showMessage)
         worker.finished.connect(lambda k=kind, w=worker: self.receiver_finished(k, w))
         self.workers[kind] = worker
+        self.sync_affect_sources()
         self.source_conversions[kind].setEnabled(False)
-        self.stream_buttons[kind].setText('■ Stop')
+        set_action(self.stream_buttons[kind], 'Stop', 'stop-white')
         worker.start()
-        self.statusBar().showMessage(f'{kind}: starting selected LSL stream reception')
+        self.statusBar().showMessage(f'{modality_label(kind)}: starting selected LSL stream reception')
 
     def receive(self, kind, raw, processed, names, metric, fs, timestamps, metric_at=None,
                 refresh_labels=True):
+        if kind == 'EEG' and metric is not None and '_eeg_asr_id' in metric:
+            expected = self.asr_session.model.model_id if self.asr_session.enabled else None
+            if metric['_eeg_asr_id'] != expected:
+                return  # Never mix queued data from different ASR processing modes.
         self.append_raw_chunk(kind, raw, processed, names, fs, timestamps)
         if metric is None:
             return
         at = time.monotonic() if metric_at is None else float(metric_at)
         self.metric_state.update(kind, metric, at)
+        if len(timestamps):
+            if '_tonic_pipeline' in metric:
+                configuration = metric['_tonic_pipeline']
+                if configuration != self._tonic_live_configuration:
+                    self._tonic_live_configuration = configuration
+                    self.refresh_affect_references()
+            self.affect_state.update(kind, metric, float(timestamps[-1]))
         if refresh_labels:
             self.refresh_metric_labels()
         self.metric_dirty = True
@@ -673,9 +1100,8 @@ class MainWindow(QMainWindow):
         self.raw_display.set_units(kind, scale, unit)
 
     def displayed_value(self, kind, name, value):
-        references = ((self.loaded_bsl or {}).get('analysis') or {}).get('metrics', {})
         return self.metric_state.normalized_value(
-            kind, name, value, self.normalization.currentData(), references)
+            kind, name, value, self.normalization.currentData(), self.metric_references())
 
     def refresh_metrics(self, *_):
         # Explicit normalization/baseline/source changes require a rebuild.
@@ -685,12 +1111,25 @@ class MainWindow(QMainWindow):
         self.metric_dirty = True
 
     def refresh_metric_labels(self):
+        available = set()
         for (kind, name), label in self.metric_labels.items():
             raw = self.metric_state.latest.get(kind, {}).get(name)
             value = self.displayed_value(kind, name, raw)
             label.setText(f'{name}: {value:.3f}' if value is not None else f'{name}: —')
+            if name != 'IAF' and value is not None:
+                available.add(kind)
         for kind, label in self.metric_status.items():
-            label.setText(self.metric_state.latest.get(kind, {}).get('status', 'Waiting for data'))
+            status = self.metric_state.latest.get(kind, {}).get('status')
+            if kind == 'EEG' and self.eeg_reference_pending:
+                status = 'Updating EEG baseline references…'
+            if kind == 'EI':
+                if kind in available:
+                    status = 'Live · original signed EI'
+                elif not status:
+                    status = self.metric_state.ei_unavailable_reason()
+            if kind in available and (not status or status.startswith('Waiting for cvxEDA')):
+                status = 'Live' if self.normalization.currentData() == 'identity' else 'Live · BSL normalized'
+            label.setText(status or 'Waiting for data')
 
     def set_metric_renderer(self, *_):
         """Swap only Metrics presentation, keeping computation untouched."""
@@ -736,7 +1175,7 @@ class MainWindow(QMainWindow):
     def resume_metric_live(self):
         self.metric_follow_live = True
         self.metric_dirty = True
-        self.metric_live_button.setText('● LIVE — following')
+        set_action(self.metric_live_button, 'Live', 'live')
         self.metric_live_button.setEnabled(False)
         self.update_metric_xrange()
 
@@ -752,7 +1191,7 @@ class MainWindow(QMainWindow):
             self.update_metric_xrange()
         else:
             self.metric_follow_live = False
-            self.metric_live_button.setText('▶ Resume live (paused)')
+            set_action(self.metric_live_button, 'Follow live', 'play')
             self.metric_live_button.setEnabled(True)
 
     def update_metric_xrange(self):
@@ -773,6 +1212,7 @@ class MainWindow(QMainWindow):
         interpolation = self.metric_interpolation.currentData()
         show_markers = self.metric_sample_markers.isChecked()
         gpu = self.vispy_metric_plot if self.metric_renderer_mode == 'vispy' else None
+        ruler_keys = set()
         if gpu and hasattr(gpu, 'set_presentation_signature'):
             gpu.set_presentation_signature((
                 self.normalization.currentData(), method, float(duration),
@@ -815,6 +1255,8 @@ class MainWindow(QMainWindow):
                 interpolation=interpolation, display_hz=20.0,
                 max_gap=1.1,
             )
+            if np.isfinite(measured_y).any():
+                ruler_keys.add(key)
             if gpu:
                 gpu.set_series(
                     key, x, y, measured_x, measured_y,
@@ -832,7 +1274,23 @@ class MainWindow(QMainWindow):
                     markers.clear()
         if gpu:
             gpu.refresh_axes()
+        self.metric_ruler_keys = ruler_keys
+        self.update_metric_rulers()
         self.metric_dirty = False
+
+    def update_metric_rulers(self, *_):
+        unit, description = metric_amplitude_label(
+            self.metric_definitions, self.metric_ruler_keys,
+            self.normalization.currentData(), self.raw_display.units)
+        if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None:
+            self.vispy_metric_plot.set_amplitude_units(unit, description)
+            return
+        box = self.metric_plot.getViewBox()
+        (left, right), (bottom, top) = box.viewRange()
+        rect = box.sceneBoundingRect()
+        self.metric_time_ruler.set_scale((right-left)/max(1., rect.width()), 's')
+        self.metric_amplitude_ruler.set_scale((top-bottom)/max(1., rect.height()), unit)
+        self.metric_amplitude_ruler.setToolTip(description)
 
     def append_raw_chunk(self, kind, raw, processed, names, fs, timestamps):
         self.raw_display.append(kind, raw, processed, names, fs, timestamps)
@@ -899,13 +1357,13 @@ class MainWindow(QMainWindow):
         gain = visible_gain(frame, self.raw_display.view_seconds,
                             self.show_raw.isChecked(), self.show_processed.isChecked(), head)
         if gain is None:
-            self.statusBar().showMessage(f'{kind}: no visible signal variation to autoscale')
+            self.statusBar().showMessage(f'{modality_label(kind)}: no visible signal variation to autoscale')
             return
         control = self.raw_vertical_gains[kind]
         control.setDecimals(max(2, min(12, int(np.ceil(-np.log10(gain)))+3)))
         control.setRange(min(control.minimum(), gain), max(control.maximum(), gain))
         control.setValue(gain)
-        self.statusBar().showMessage(f'{kind}: amplitude fitted to visible extrema')
+        self.statusBar().showMessage(f'{modality_label(kind)}: amplitude fitted to visible extrema')
 
     def set_raw_time_window(self, *_):
         seconds = self.raw_time_window.currentData()
@@ -924,7 +1382,7 @@ class MainWindow(QMainWindow):
 
     def resume_raw_live(self):
         self.raw_display.follow_live = True
-        self.raw_live_button.setText('● LIVE — following')
+        set_action(self.raw_live_button, 'Live', 'live')
         self.raw_live_button.setEnabled(False)
         self.update_raw_xranges()
         self.raw_display.dirty = True
@@ -945,7 +1403,7 @@ class MainWindow(QMainWindow):
             self.update_raw_xranges()
         else:
             self.raw_display.follow_live = False
-            self.raw_live_button.setText('▶ Resume live (paused)')
+            set_action(self.raw_live_button, 'Follow live', 'play')
             self.raw_live_button.setEnabled(True)
             for other, plot in self.plots.items():
                 if other != kind:
@@ -971,6 +1429,8 @@ class MainWindow(QMainWindow):
                     plot.setXRange(*self.raw_display.bounds, padding=0)
 
     def tab_changed(self, index):
+        if hasattr(self, 'affect_view'):
+            self.affect_view.set_active(self.tabs.widget(index) is self.affect_page)
         if self.tabs.widget(index) is self.raw_page:
             self.raw_display.tab_entered_at = time.perf_counter()
             self.raw_display.dirty = True
@@ -979,6 +1439,7 @@ class MainWindow(QMainWindow):
             # tab-change event. The regular timer handles acquisition first
             # and schedules one latest-only background reduction afterwards.
         elif self.tabs.widget(index) is self.metrics_page and not self.metric_plot_paused:
+            self.refresh_metric_labels()
             self.metric_dirty = True
             # Paint after Qt has handled the tab change, on the display timer.
 
@@ -987,6 +1448,9 @@ class MainWindow(QMainWindow):
         started = time.perf_counter()
         incoming = []
         for kind, worker in tuple(self.workers.items()):
+            if kind in self.pending_source_changes and self.capture is None:
+                worker.mailbox.drain(max_chunks=self.settings.ingress_chunks_per_tick)
+                continue  # Discard old-source samples while replacement is pending.
             for chunk in worker.mailbox.drain(max_chunks=self.settings.ingress_chunks_per_tick):
                 incoming.append((chunk.acquired_at, kind, chunk))
         # Chronological ingestion matters for EI when EDA/PPG arrive on
@@ -997,7 +1461,7 @@ class MainWindow(QMainWindow):
                 self.capture_samples(kind, chunk.raw, chunk.timestamps, chunk.names, chunk.fs)
             self.receive(kind, chunk.raw, chunk.filtered, chunk.names, chunk.metric,
                          chunk.fs, chunk.timestamps, metric_at=acquired_at, refresh_labels=False)
-        if incoming:
+        if incoming and self.tabs.currentWidget() is self.metrics_page:
             self.refresh_metric_labels()
         self.performance.measure('ingress_gui', time.perf_counter() - started)
 
@@ -1025,6 +1489,8 @@ class MainWindow(QMainWindow):
                     self.update_metric_xrange()
                     if self.metric_dirty:
                         self.refresh_metric_plot()
+                elif self.tabs.currentWidget() is self.affect_page:
+                    self.refresh_affect_view()
                 self.warm_raw_renderers()
         self.performance.measure('gui_timer_total', time.perf_counter() - started)
         if self.performance.enabled:
@@ -1040,6 +1506,7 @@ class MainWindow(QMainWindow):
         Smaller panels finish first; all work stays on the OpenGL GUI thread.
         """
         if (self.raw_renderer_mode != 'vispy'
+                or self.tabs.currentWidget() not in (self.sources_page, self.raw_page)
                 or os.environ.get('QT_QPA_PLATFORM', '').lower() == 'offscreen'):
             return
         candidates = []
@@ -1213,7 +1680,18 @@ class MainWindow(QMainWindow):
         self.performance.measure('raw_qt_paint', time.perf_counter() - started)
 
     def ready_stream(self, kind, channels, fs):
-        self.statusBar().showMessage(f'{kind} ready: {len(channels)} channels at {fs:g} Hz')
+        if kind == 'EEG':
+            worker = self.workers.get(kind)
+            if self.asr_session.enabled and getattr(worker, 'eeg_asr_model', None) is None:
+                self.asr_session.set_enabled(False)
+                self._apply_asr_metric_references()
+                self.reset_stream_display('EEG')
+            self.update_asr_availability()
+        if kind == 'EDA':
+            metadata = getattr(self.workers.get(kind), 'tonic_metadata', None) or {}
+            self._tonic_live_configuration = metadata.get('configuration_id')
+        self.refresh_affect_references()
+        self.statusBar().showMessage(f'{modality_label(kind)} ready: {len(channels)} channels at {fs:g} Hz')
 
     def capture_samples(self, kind, samples, timestamps, channels, fs):
         if self.capture is not None:
@@ -1257,6 +1735,8 @@ class MainWindow(QMainWindow):
         result = screen.exec()
         session = self.capture
         self.capture = None
+        for modality in tuple(self.pending_source_changes):
+            self.schedule_source_change(modality)
         if kind == 'EYC':
             QMessageBox.information(self, 'EYC finished', 'Open your eyes.')
         if result != QDialog.DialogCode.Accepted:
@@ -1268,10 +1748,13 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'Recording incomplete', str(exc))
             return
         try:
-            analysis = self.analyze_calibration(kind, streams)
+            analysis = self.analyze_calibration_background(kind, streams)
         except Exception as exc:
             QMessageBox.warning(self, 'Calibration analysis failed', str(exc))
             return
+        # Activate the completed recording before optional inspection/saving.
+        # ASR fitting must not depend on whether the user saves an NPZ file.
+        self.apply_calibration(kind, {'analysis': analysis}, streams=streams)
         self.inspect_calibration(kind, analysis)
         answer = QMessageBox.question(
             self, f'Save {kind} calibration?', 'Save recorded calibration data and analysis?',
@@ -1291,18 +1774,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, 'Save failed', str(exc))
             return
-        # Once the file is written, a display/UI exception is not a
-        # calibration save failure. Keep the saved file and report separately.
-        try:
-            self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
-        except Exception as exc:
-            self.statusBar().showMessage(f'Saved {kind}: {filename}')
-            QMessageBox.warning(
-                self, 'Calibration saved; display update failed',
-                f'{kind} was saved successfully to:\n{filename}\n\n'
-                f'The interface could not refresh: {exc}'
-            )
-            return
+        self.set_calibration_file(kind, filename)
         self.statusBar().showMessage(f'Saved {kind}: {filename}')
 
     def analyze_calibration(self, kind, streams):
@@ -1311,6 +1783,32 @@ class MainWindow(QMainWindow):
                 raise ValueError('An EEG stream is required')
             return analyze_eyc(streams['EEG'])
         return analyze_bsl(streams, iaf_hz=self.iaf_hz)
+
+    def analyze_calibration_background(self, kind, streams):
+        """Keep reception, raw plots and countdown/UI events responsive."""
+        progress = QProgressDialog(f'Analyzing {kind} calibration…', '', 0, 0, self)
+        progress.setWindowTitle('Calibration analysis')
+        progress.setCancelButton(None)
+        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
+        progress.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
+        task = CalibrationAnalysisTask(kind, streams, self.iaf_hz, self,
+            eeg_asr_model=self.asr_session.model if self.asr_session.enabled else None)
+        outcome = []
+
+        def completed(result, error):
+            outcome.extend((result, error))
+            progress.accept()
+
+        task.completed.connect(completed)
+        task.start()
+        progress.exec()
+        task.wait()
+        task.deleteLater()
+        if not outcome:
+            raise RuntimeError('Calibration analysis interrupted')
+        if outcome[1] is not None:
+            raise ValueError(outcome[1])
+        return outcome[0]
 
     def inspect_calibration(self, kind, analysis):
         dlg = QDialog(self)
@@ -1333,7 +1831,7 @@ class MainWindow(QMainWindow):
             view.setReadOnly(True)
             lines = [f"IAF used: {analysis['iaf_hz_used']:.2f} Hz", ""]
             for modality, fields in analysis['metrics'].items():
-                lines.append(f"{modality}")
+                lines.append(modality_label(modality))
                 for name, stats in fields.items():
                     lines.append(
                         f"  {name}: μ={stats['mu']:.5g} σ={stats['sigma']:.5g} "
@@ -1348,7 +1846,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(close)
         dlg.exec()
 
-    def apply_calibration(self, kind, meta, filename=None):
+    def set_calibration_file(self, kind, filename):
+        self.calibration_paths[kind] = filename
+        file_label = self.calibration_file_labels[kind]
+        file_label.setText(Path(filename).name if filename else 'Loaded (unsaved)')
+        file_label.setToolTip(filename or 'Calibration active but not saved to a file')
+        if kind == 'BSL':
+            self.asr_session.filename = filename
+
+    def apply_calibration(self, kind, meta, filename=None, streams=None):
         if kind == 'EYC':
             self.loaded_eyc = meta
             self.iaf_hz = float(meta['analysis']['iaf_hz'])
@@ -1357,21 +1863,23 @@ class MainWindow(QMainWindow):
                     worker.iaf_hz = self.iaf_hz
         else:
             self.loaded_bsl = meta
+            self.asr_session.set_baseline(meta.get('analysis'), streams, filename)
             references = (meta.get('analysis') or {}).get('metrics', {})
             self.metric_state.ei.set_references(
                 references.get('PPG', {}).get('HR'),
                 references.get('EDA', {}).get('SCL'),
             )
-        self.calibration_paths[kind] = filename
-        file_label = self.calibration_file_labels[kind]
-        file_label.setText(Path(filename).name if filename else 'Loaded (unsaved)')
-        file_label.setToolTip(filename or 'Calibration active but not saved to a file')
+        self.set_calibration_file(kind, filename)
         self.calibration_state.setText(
             f"EYC: {self.iaf_hz:.2f} Hz"
             f" | BSL: {'loaded' if self.loaded_bsl else 'none'}"
         )
         self.update_metrics_availability()
         self.refresh_metrics()
+        self.affect_state.clear()
+        self.refresh_affect_references()
+        self.update_asr_availability()
+        self._apply_asr_metric_references()
 
     def load_existing(self, kind):
         filename, _ = QFileDialog.getOpenFileName(
@@ -1381,22 +1889,23 @@ class MainWindow(QMainWindow):
             return
         try:
             meta, streams = load_calibration(filename, kind)
-            # EI_matrix changed to the MATLAB axis/quadrant convention.
-            # Reanalyze saved BSL recordings to avoid using historical EI
-            # reference statistics computed with the old angular formula.
-            # EYC is unchanged and can use its saved result.
-            analysis = (self.analyze_calibration(kind, streams)
-                        if kind == 'BSL'
-                        else meta.get('analysis') or self.analyze_calibration(kind, streams))
+            # Replay raw recordings through the current preprocessing chain for
+            # both EYC PSD and BSL metric references; saved results may differ.
+            analysis = self.analyze_calibration_background(kind, streams)
             self.inspect_calibration(kind, analysis)
-            self.apply_calibration(kind, {'analysis': analysis}, filename=filename)
+            self.apply_calibration(kind, {'analysis': analysis}, filename=filename, streams=streams)
             self.statusBar().showMessage(f'Loaded {kind}: {filename}')
         except Exception as exc:
             QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
 
     def closeEvent(self, event):
         self._closing = True
+        for timer in self.source_change_timers.values():
+            timer.stop()
+        self.pending_source_changes.clear()
         self.timer.stop()
+        for task in list(self.asr_tasks) + list(self.eeg_reference_tasks):
+            task.wait()
         for task in list(self.lsl_tasks.values()):
             task.wait(3000)
         self.raw_render_worker.stop()
@@ -1404,6 +1913,7 @@ class MainWindow(QMainWindow):
             glplot.close()
         if self.vispy_metric_plot is not None:
             self.vispy_metric_plot.close()
+        self.affect_view.close()
         for worker in self.workers.values():
             worker.stop()
         super().closeEvent(event)

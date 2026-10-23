@@ -9,6 +9,32 @@ from physiolab.vispy_metrics import VisPyMetricPlot
 
 
 class MetricReconfigurationTests(unittest.TestCase):
+    def test_time_and_amplitude_rulers_track_view_without_replacing_programs(self):
+        plot = self.plot
+        plot.widget.resize(1000, 500)
+        plot.widget.show()
+        self.app.processEvents()
+        programs = tuple(layer.visual.shared_program for layer in plot._layers[self.key])
+        plot.set_amplitude_units('σ', 'Baseline standard deviations')
+        plot.set_xrange(0., 10.)
+        plot.set_series(self.key, [0., .5, 1.], [0., 3., 8.], [0., .5, 1.], [0., 3., 8.])
+        self.app.processEvents()
+        engine = plot.engine
+        self.assertFalse(engine.amplitude_ruler.isHidden())
+        self.assertEqual(engine.amplitude_ruler._unit, 'σ')
+        self.assertEqual(engine.time_footer._unit, 's')
+        low, high = engine.y_bounds
+        bar = engine.amplitude_ruler.bar
+        self.assertAlmostEqual(bar.value / bar.pixels,
+                               (high-low)/engine.canvas.native.height())
+        time_bar = engine.time_footer.bar
+        self.assertAlmostEqual(time_bar.value/time_bar.pixels,
+                               10./engine.canvas.native.width())
+        plot.set_amplitude_units('norm.', 'Fixed baseline min–max span')
+        self.assertEqual(engine.amplitude_ruler._unit, 'norm.')
+        self.assertEqual(programs, tuple(layer.visual.shared_program
+                                        for layer in plot._layers[self.key]))
+
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])

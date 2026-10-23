@@ -1,12 +1,13 @@
 """Reusable desktop widgets without acquisition or application session state."""
 import time
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import QToolButton, QMenu, QDialog, QVBoxLayout, QLabel, QPushButton
 from .calibration import DURATION_SECONDS
 
 
 class CheckChannelDropdown(QToolButton):
     """Checkbox popup: EEG multiple, EDA/PPG exactly one."""
+    selection_changed = Signal()
 
     def __init__(self, kind, parent=None):
         super().__init__(parent)
@@ -39,6 +40,7 @@ class CheckChannelDropdown(QToolButton):
         else:
             self.actions[index].setChecked(checked)
         self.update_label()
+        self.selection_changed.emit()
 
     def selected_indices(self):
         return [i for i, action in enumerate(self.actions) if action.isChecked()]

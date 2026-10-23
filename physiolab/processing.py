@@ -14,7 +14,8 @@ METRIC_STARTUP_SECONDS = 1.
 
 
 class Processor:
-    def __init__(self, kind, fs, channels, names, iaf_hz=DEFAULT_IAF_HZ, preprocessing=None):
+    def __init__(self, kind, fs, channels, names, iaf_hz=DEFAULT_IAF_HZ, preprocessing=None,
+                 sample_transform=None):
         self.kind, self.fs, self.channels, self.names = kind, float(fs), channels, names
         if not np.isfinite(self.fs) or self.fs <= 0:
             raise ValueError('Sampling rate must be finite and positive')
@@ -32,6 +33,8 @@ class Processor:
         self._raw_history = SampleRing(self.max_samples, channels)
         self._filtered_history = SampleRing(self.max_samples, channels)
         self.last_filtered_chunk = np.empty((0, channels))
+        self.last_preprocessed_chunk = np.empty((0, channels))
+        self.sample_transform = sample_transform
         self.since_metric = 0
         self.last_metric = {}
 
@@ -45,6 +48,11 @@ class Processor:
             y, self.zi = sosfilt(self.sos, x, axis=0, zi=self.zi)
         else:
             y = x.copy()
+        self.last_preprocessed_chunk = y
+        if self.sample_transform is not None:
+            y = np.asarray(self.sample_transform(y), dtype=float)
+            if y.shape != x.shape or not np.isfinite(y).all():
+                raise ValueError('Sample transform must preserve finite samples and channel shape')
         self._raw_history.append(x)
         self._filtered_history.append(y)
         self.last_filtered_chunk = y

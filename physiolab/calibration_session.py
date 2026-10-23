@@ -44,6 +44,10 @@ class CalibrationSession:
             item['chunks'].append(arr.copy())
             item['times'].append(ts.copy())
 
+    def recorded_seconds(self, kind):
+        item = self.streams.get(kind)
+        return sum(len(chunk) for chunk in item['chunks'])/item['fs'] if item else 0.
+
     def finish(self, minimum_seconds=55.):
         if self.errors:
             raise ValueError('\n'.join(self.errors))

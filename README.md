@@ -13,7 +13,20 @@ then `start_windows.cmd`. In Sources, refresh LSL, select the source and channel
 for each modality, and press Play. Raw Data shows the live waveforms; gain,
 channel count, sweep duration, and plot pause change the display only.
 
+The Affect tab shows Central/Peripheral trajectories and the original signed
+Emotional Index. Record or load EYC and BSL first. SC decomposition starts on the
+first one-second update, using the available history without edge exclusion. See [Affect visualization](docs/AFFECT_VISUALIZATION_DESIGN.md).
+
+Metrics exposes one **SCL**, the tonic cvxEDA result. EI and the Peripheral
+response use that same decomposed SCL and matching baseline references.
+
+**ASR** is under the EEG filter settings in Sources. Press **Train (45 s)** to record an independent clean EEG sample and enable
+correction, preserving every channel. EYC/BSL and live metrics use the cleaned
+signal. Threshold changes reuse the training sample. See [EEG ASR](docs/EEG_ASR.md).
+
 See [WINDOWS_SETUP.md](WINDOWS_SETUP.md) for calibration and detailed controls.
+
+For continuation on another PC, see the setup steps and prioritized tasks in [TODO.md](TODO.md).
 
 ## Extending and maintaining the app
 

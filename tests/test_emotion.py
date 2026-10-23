@@ -27,15 +27,15 @@ class EmotionalIndexRegressionTests(unittest.TestCase):
                 self.assertAlmostEqual(
                     emotional_index_z(hr_z, gsr_z), matlab_ei, places=12
                 )
-        self.assertIsNone(emotional_index_z(0., 0.))
+        self.assertAlmostEqual(emotional_index_z(0., 0.), -1.5)
 
     def test_matlab_ei_axis_order_and_quadrant_sign(self):
         self.assertAlmostEqual(emotional_index_z(1., 1.), .75)
         self.assertAlmostEqual(emotional_index_z(1., -1.), .25)
         self.assertAlmostEqual(emotional_index_z(-1., -1.), -.25)
         self.assertAlmostEqual(emotional_index_z(-1., 1.), -.75)
-        self.assertIsNone(emotional_index_z(0., 1.))
-        self.assertIsNone(emotional_index_z(0., -1.))
+        self.assertEqual(emotional_index_z(0., 1.), -1.)
+        self.assertEqual(emotional_index_z(0., -1.), 0.)
 
     def test_matlab_ei_matrix_epoch_vector_and_zero_guard(self):
         hr = np.array([1., 1., -1., -1., 0., 0., np.nan])
@@ -108,7 +108,7 @@ class EmotionalIndexRegressionTests(unittest.TestCase):
         model.update('PPG', 75., 1.)
         model.update('EDA', 2.5, 1.1)
         self.assertAlmostEqual(model.value(1.1), expected)
-        self.assertIsNone(model.value(2.2))
+        self.assertAlmostEqual(model.value(200.), expected)
 
     def test_missing_or_zero_variance_bsl_rejects_ei(self):
         valid_hr = {'mu': 70., 'sigma': 5.}

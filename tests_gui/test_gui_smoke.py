@@ -47,8 +47,144 @@ class FakeReceiver:
         self.active = False
         return True
 
+    def request_stop(self):
+        self.active = False
+
 
 class GuiSmokeTests(unittest.TestCase):
+    def test_hidden_metric_readouts_defer_updates_but_ingestion_continues(self):
+        self.window.tabs.setCurrentWidget(self.window.sources_page)
+        receiver = FakeReceiver(32.)
+        self.window.workers['EEG'] = receiver
+        raw = np.ones((16, 1))
+        receiver.mailbox.put(AcquisitionChunk(raw, raw, ['F3'],
+            {'AWI': 2., 'BAR': .5}, 32., np.arange(16)/32., time.monotonic()))
+        with patch.object(self.window, 'refresh_metric_labels') as labels:
+            self.window.poll_receivers()
+            labels.assert_not_called()
+        self.assertEqual(self.window.metric_state.latest['EEG']['AWI'], 2.)
+        self.window.tabs.setTabVisible(self.window.tabs.indexOf(self.window.metrics_page), True)
+        self.window.tabs.setCurrentWidget(self.window.metrics_page)
+        self.assertIn('2.000', self.window.metric_labels['EEG', 'AWI'].text())
+
+    def test_only_active_plot_view_is_rendered(self):
+        with patch.object(self.window, 'draw') as raw, \
+                patch.object(self.window, 'refresh_metric_plot') as metrics, \
+                patch.object(self.window, 'refresh_affect_view') as affect:
+            self.window.tabs.setCurrentWidget(self.window.sources_page)
+            self.window.render_frame()
+            raw.assert_not_called()
+            metrics.assert_not_called()
+            affect.assert_not_called()
+            self.window.tabs.setCurrentWidget(self.window.affect_page)
+            self.window.render_frame()
+            affect.assert_called_once()
+            raw.assert_not_called()
+            metrics.assert_not_called()
+
+    def test_metric_ruler_units_follow_visible_series_and_normalization(self):
+        now = time.monotonic()
+        hr = self.window.metric_state.history['PPG', 'HR']
+        hr.extend([(now-.5, 70.), (now, 72.)])
+        original = list(hr)
+        self.window.refresh_metric_plot()
+        self.assertEqual(self.window.metric_amplitude_ruler._unit, 'bpm')
+        self.assertEqual(self.window.metric_time_ruler._unit, 's')
+        for mode, unit in (('zscore', 'σ'), ('zmad', 'σ (MAD)'),
+                           ('robust_iqr', 'σ (IQR)'), ('minmax', 'norm.')):
+            self.window.normalization.setCurrentIndex(self.window.normalization.findData(mode))
+            self.window.refresh_metric_plot()
+            self.assertEqual(self.window.metric_amplitude_ruler._unit, unit)
+        self.assertEqual(list(hr), original)
+        self.window.normalization.setCurrentIndex(self.window.normalization.findData('identity'))
+        self.window.raw_display.units['EDA'] = 'µS'
+        self.window.metric_state.history['EDA', 'SCL'].extend([(now-.5, 1.), (now, 2.)])
+        self.window.refresh_metric_plot()
+        self.assertEqual(self.window.metric_amplitude_ruler._unit, 'mixed units')
+        self.window.metric_checks['PPG', 'HR'].setChecked(False)
+        self.assertEqual(self.window.metric_amplitude_ruler._unit, 'µS')
+
+    def prepare_selected_receiver(self, kind, uid='old', channels=3):
+        info = FakeInfo(uid, channels)
+        names = [f'{uid}-{i}' for i in range(channels)]
+        self.window.channel_metadata_cache[uid] = (names, '')
+        self.window.selectors[kind].addItem(uid, info)
+        worker = FakeReceiver(32.)
+        worker.info = info
+        worker.selected_indices = self.window.channel_selectors[kind].selected_indices()
+        worker.selected_names = [names[i] for i in worker.selected_indices]
+        self.window.workers[kind] = worker
+        return worker
+
+    def test_channel_changes_reconnect_once_using_latest_choice(self):
+        old = self.prepare_selected_receiver('EEG')
+        other = FakeReceiver(32.)
+        self.window.workers['PPG'] = other
+        samples = np.ones((2, 3))
+        self.window.receive('EEG', samples, samples, old.selected_names, None, 32., [100., 100.03])
+        picker = self.window.channel_selectors['EEG']
+        picker.select(0, False)
+        picker.select(1, False)
+        self.assertFalse(old.active)
+        self.assertFalse(self.window.raw_display.history['EEG'])
+        self.assertEqual(picker.selected_indices(), [2])
+        self.window.source_change_timers['EEG'].stop()
+        with patch.object(self.window, 'connect_stream') as connect:
+            self.window.receiver_finished('EEG', old)
+            connect.assert_called_once_with('EEG')
+        self.assertNotIn('EEG', self.window.pending_source_changes)
+        self.assertIs(self.window.workers['PPG'], other)
+
+    def test_stream_switch_waits_for_new_metadata_then_reconnects(self):
+        old = self.prepare_selected_receiver('EDA')
+        self.window.selectors['EDA'].addItem('new', FakeInfo('new', 2))
+        with patch.object(self.window, 'queue_lsl_task', return_value=77):
+            self.window.selectors['EDA'].setCurrentIndex(1)
+        self.window.source_change_timers['EDA'].stop()
+        with patch.object(self.window, 'connect_stream') as connect:
+            self.window.receiver_finished('EDA', old)
+            connect.assert_not_called()
+            self.window.lsl_task_completed(77, (['new-a', 'new-b'], ''), None)
+            connect.assert_called_once_with('EDA')
+        self.assertEqual(self.window.channel_selectors['EDA'].names, ['new-a', 'new-b'])
+
+    def test_stop_cancels_pending_automatic_reconnect(self):
+        old = self.prepare_selected_receiver('EEG')
+        self.window.channel_selectors['EEG'].select(1, False)
+        self.window.stop_stream('EEG')
+        with patch.object(self.window, 'connect_stream') as connect:
+            self.window.receiver_finished('EEG', old)
+            self.window.apply_pending_source_change('EEG')
+            connect.assert_not_called()
+        self.assertFalse(self.window.pending_source_changes)
+
+    def test_source_change_is_deferred_during_calibration(self):
+        old = self.prepare_selected_receiver('EEG')
+        self.window.capture = object()
+        self.window.channel_selectors['EEG'].select(1, False)
+        self.assertTrue(old.active)
+        self.assertIn('EEG', self.window.pending_source_changes)
+        self.window.capture = None
+        self.window.schedule_source_change('EEG')
+        self.assertFalse(old.active)
+
+    def test_ppg_and_eda_expand_and_restore_without_stopping_acquisition(self):
+        from PySide6.QtWidgets import QWidget
+        self.window.tabs.setCurrentWidget(self.window.raw_page)
+        original = dict(self.window.workers)
+        for kind in ('PPG', 'EDA'):
+            button = self.window.raw_focus_buttons[kind]
+            button.setChecked(True)
+            self.assertEqual(self.window.focused_raw_kind, kind)
+            for modality in ('EEG', 'PPG', 'EDA'):
+                self.assertEqual(self.window.findChild(QWidget, f'{modality}PlotPanel').isHidden(),
+                                 modality != kind)
+            button.setChecked(False)
+            self.assertIsNone(self.window.focused_raw_kind)
+            for modality in ('EEG', 'PPG', 'EDA'):
+                self.assertFalse(self.window.findChild(QWidget, f'{modality}PlotPanel').isHidden())
+        self.assertEqual(self.window.workers, original)
+
     def test_conversion_editor_keeps_settings_per_source_and_compact_numbers(self):
         from physiolab.source_conversion_widgets import SourceConversionControls
         controls = SourceConversionControls()
@@ -103,9 +239,10 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.poll_receivers()
         self.assertEqual(len(self.window.raw_display.history['EEG']), 1)
         self.assertEqual(self.window.metric_state.latest['EEG']['BAR'], 1.4)
-        self.assertIn('0.200', self.window.metric_labels[('EEG', 'AWI')].text())
         self.window.render_frame()
-        self.window.tabs.setCurrentIndex(2)
+        self.window.tabs.setTabVisible(self.window.tabs.indexOf(self.window.metrics_page), True)
+        self.window.tabs.setCurrentWidget(self.window.metrics_page)
+        self.assertIn('0.200', self.window.metric_labels[('EEG', 'AWI')].text())
         self.window.render_frame()
         self.assertEqual(self.window.metric_state.history[('EEG', 'AWI')][-1][1], .2)
 
@@ -177,7 +314,7 @@ class GuiSmokeTests(unittest.TestCase):
             stamps = np.arange(32) / 32.
             raw = np.ones((32, 1))
             window.receive('EEG', raw, raw, ['F3'], {'THETA': 4.2}, 32., stamps)
-            self.assertEqual(len(window.metric_checks), 7)
+            self.assertEqual(len(window.metric_checks), len(DEFAULT_METRICS) + len(extra))
             self.assertIn('4.200', window.metric_labels['EEG', 'THETA'].text())
             self.assertEqual(window.metric_state.history['EEG', 'THETA'][-1][1], 4.2)
             self.assertIn(('EDA', 'SCR'), window.metric_curves)
@@ -327,6 +464,9 @@ class GuiSmokeTests(unittest.TestCase):
             def refresh_axes(self):
                 pass
 
+            def set_amplitude_units(self, unit, description=''):
+                self.amplitude_unit = unit
+
             def close(self):
                 pass
 
@@ -357,7 +497,7 @@ class GuiSmokeTests(unittest.TestCase):
         from PySide6.QtWidgets import QSplitter, QDoubleSpinBox
         self.assertEqual(
             [self.window.tabs.tabText(i) for i in range(self.window.tabs.count())],
-            ['Sources', 'Raw Data', 'Metrics']
+            ['Sources', 'Raw Data', 'Metrics', 'Affect']
         )
         self.assertIsInstance(self.window.raw_plot_splitter, QSplitter)
         self.assertEqual(self.window.raw_plot_splitter.count(), 3)
@@ -407,30 +547,91 @@ class GuiSmokeTests(unittest.TestCase):
 
     def test_metrics_requires_two_real_baselines(self):
         tabs = self.window.tabs
-        index = tabs.indexOf(self.window.metrics_page)
-        self.assertFalse(tabs.isTabVisible(index))
+        def check(ready):
+            for page in (self.window.metrics_page, self.window.affect_page):
+                index = tabs.indexOf(page)
+                self.assertTrue(tabs.isTabVisible(index))
+                self.assertEqual(tabs.isTabEnabled(index), ready)
+        check(False)
         self.window.apply_calibration('EYC', {'analysis': {'iaf_hz': 10.5}})
-        self.assertFalse(tabs.isTabVisible(index))
+        check(False)
         self.window.apply_calibration('BSL', {'analysis': {
             'metrics': {'EEG': {'BAR': {'mu': 1., 'sigma': 1.}}}
         }})
-        self.assertTrue(tabs.isTabVisible(index))
+        check(True)
         self.window.clear_calibration('EYC')
-        self.assertFalse(tabs.isTabVisible(index))
+        check(False)
         self.window.apply_calibration('EYC', {'analysis': {'iaf_hz': 10.5}})
-        self.assertTrue(tabs.isTabVisible(index))
+        check(True)
         self.window.clear_calibration('BSL')
-        self.assertFalse(tabs.isTabVisible(index))
+        check(False)
+
+    def test_peripheral_affect_needs_both_receivers(self):
+        view = self.window.affect_view
+        self.assertTrue(view.ei_card.isHidden())
+        self.window.workers['PPG'] = FakeReceiver(128.)
+        self.window.sync_affect_sources()
+        self.assertTrue(view.ei_card.isHidden())
+        self.window.workers['EDA'] = FakeReceiver(32.)
+        self.window.sync_affect_sources()
+        self.assertFalse(view.ei_card.isHidden())
+        self.window.workers['PPG'].active = False
+        self.window.sync_affect_sources()
+        self.assertTrue(view.ei_card.isHidden())
+
+    def test_ei_readout_remains_visible_without_additional_display_reference(self):
+        self.window.metric_state.latest['EI'] = {'EI':.3, 'status':'Live EI'}
+        self.window.normalization.setCurrentIndex(self.window.normalization.findData('zscore'))
+        self.window.refresh_metric_labels()
+        self.assertIn('0.300', self.window.metric_labels['EI','EI'].text())
+        self.assertNotIn('Waiting', self.window.metric_status['EI'].text())
 
     def test_preprocessing_settings_and_display_count(self):
         self.assertEqual(self.window.filter_choices['EEG'].currentData(), 'default')
         self.assertTrue(self.window.filter_notches['EEG'].isChecked())
         self.window.filter_choices['EEG'].setCurrentIndex(1)
         self.assertEqual(self.window.filter_choices['EEG'].currentData(), 'wide')
-        self.assertEqual(self.window.eeg_display_count.value(), 8)
+        self.assertFalse(self.window.eeg_display_count.isEnabled())
+        self.prepare_selected_receiver('EEG', channels=32)
+        self.assertEqual(self.window.eeg_display_count.value(),
+                         self.window.settings.default_eeg_display_channels)
         self.window.eeg_display_count.setValue(12)
         self.assertEqual(self.window.eeg_display_count.value(), 12)
         self.assertNotIn('EEG', self.window.raw_display.references)
+
+    def test_eeg_display_count_follows_selected_source_and_channel_subset(self):
+        self.prepare_selected_receiver('EEG', uid='eeg', channels=32)
+        count = self.window.eeg_display_count
+        self.assertEqual(count.maximum(), 32)
+        count.setValue(12)
+        self.window.workers.pop('EEG')
+        for uid in ('SC', 'PPG'):
+            self.window.channel_metadata_cache[uid] = ([uid], '')
+            self.window.selectors['EEG'].addItem(uid, FakeInfo(uid, 1))
+            self.window.selectors['EEG'].setCurrentIndex(self.window.selectors['EEG'].count()-1)
+            self.assertEqual(count.value(), 1)
+            self.assertEqual(count.maximum(), 1)
+            count.setValue(8)
+            self.assertEqual(count.value(), 1)
+        self.window.selectors['EEG'].setCurrentIndex(0)
+        self.assertEqual(count.value(), self.window.settings.default_eeg_display_channels)
+        picker = self.window.channel_selectors['EEG']
+        for index in range(4, 32):
+            picker.select(index, False)
+        self.assertEqual(count.value(), 4)
+        self.assertEqual(count.maximum(), 4)
+        for index in range(4):
+            picker.select(index, False)
+        self.assertFalse(count.isEnabled())
+        picker.select(0, True)
+        self.assertTrue(count.isEnabled())
+        self.assertEqual(count.value(), 1)
+
+    def test_eeg_display_count_uses_source_size_before_channel_metadata_arrives(self):
+        with patch.object(self.window, 'queue_lsl_task', return_value=77):
+            self.window.selectors['EEG'].addItem('SC', FakeInfo('SC', 1))
+        self.assertEqual(self.window.eeg_display_count.value(), 1)
+        self.assertEqual(self.window.eeg_display_count.maximum(), 1)
 
     def test_designer_tab_reordering_keeps_correct_display_handlers(self):
         tabs = self.window.tabs

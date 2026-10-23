@@ -147,3 +147,27 @@ valid input. Centered bins prevent that boundary effect; line endpoints keep the
 measured LSL timestamps, real gaps remain disconnected, and only the arriving
 sample's segment is replaced. Regression tests cover jitter at EEG, PPG and EDA
 sample rates as well as tab dwell and receiver stop/restart.
+
+Every raw panel now has Expand / Show all signals controls. Expansion changes
+panel visibility and available plotting area only; receivers, metric calculations
+and source selections continue unchanged.
+
+Metrics uses external time and amplitude rulers in both VisPy and the fallback
+renderer. Time is seconds. Amplitude shows baseline σ for z-score, σ (MAD) for
+z-MAD, σ (IQR) for robust IQR, and norm. for fixed min–max baseline fractions.
+Original mode resolves units from visible finite metric series and converted
+source units; unlike units are explicitly labeled mixed units, with metric/unit
+details in the tooltip. Rulers track current viewport size/range and display
+settings without changing observations or allocating new GPU programs.
+
+
+## Inactive tabs and GPU preparation
+
+Only the active Raw Data, Metrics, or Affect page paints live data. Metric readout
+labels also defer live updates while hidden, then catch up on entry. Acquisition,
+source-time histories, SC decomposition, and metric calculations continue across
+tabs so returning to a view uses current data and preserves the affect trails.
+Raw GPU warm-up is separate from plotting: Sources and Raw Data may prepare one
+spare channel pair per timer tick. It is suspended while Metrics or Affect is
+active. Existing GPU resources remain allocated across tab changes; suppressing
+hidden repainting does not discard the linked shaders or preallocated channels.

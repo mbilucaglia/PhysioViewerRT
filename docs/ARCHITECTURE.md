@@ -28,6 +28,12 @@ they must not change the samples passed to physiological processing.
 | Diagnostics and test sources | `performance.py`, `synthetic.py` | Optional timing summaries and reproducible demonstration inputs. |
 
 The Designer project under `designer/` controls widget layout and appearance.
+Static action icons are shared SVG assets referenced directly by the `.ui` and
+by `ui_icons.py` for running/paused states. EEG ASR is a minimal Designer-owned
+Sources control. Train captures fresh EEG independently of BSL/EYC; threshold
+edits reuse that training sample. Baseline analysis and live metrics both follow
+filtering and optional channel-preserving ASR. Separate background EEG reference
+replay tracks processing-mode and IAF changes without retraining the model. The former standalone ASR tab and diagnostic preview have been removed.
 Qt handles application widgets, pylsl handles LSL transport, VisPy handles GPU
 rendering, and NumPy/SciPy handle numerical operations. Reuse those libraries
 before adding custom infrastructure.
@@ -127,3 +133,29 @@ Calibration files store converted arrays together with gain, offset, output unit
 original channel units and resulting units. Loading a saved file analyzes those
 arrays directly; it does not apply the conversion again. Older calibration files
 without these optional metadata fields remain readable.
+
+## Live source/channel changes and panel focus
+
+Changing Stream or Channels for an active modality schedules an asynchronous
+receiver replacement. `ViewerSettings.source_change_debounce_ms` coalesces rapid
+selections; metadata completion and receiver shutdown both retry the same pending
+intent using the latest choices. Old raw/metric histories are cleared immediately
+and old receiver mailboxes are discarded while replacement is pending. Other
+modalities keep their receivers. Explicit Stop cancels an automatic reconnect;
+changes to an already stopped modality do not start acquisition. Empty channel
+selections wait for a valid selection. Calibration defers replacement until the
+capture finishes, so one recording never mixes channel/source configurations.
+
+`set_raw_focus` implements expansion for EEG, PPG and EDA. Each panel's Expand
+button uses the same policy, preserves the original splitter sizes, and restores
+all panels through Show all signals. Hidden signals continue acquisition.
+
+The implemented Affect tab is described in [Affect visualization](AFFECT_VISUALIZATION_DESIGN.md).
+`AffectState` owns source-time pairing, baseline normalization and bounded trails;
+`AffectView` presents persistent VisPy geometry and the original signed EI. The
+cvxEDA adapter runs on the receiver thread and produces the canonical tonic `SCL`
+metric with source-window provenance. Live and BSL processing share that adapter.
+`CalibrationAnalysisTask` performs baseline analysis away from the GUI thread.
+Peripheral coordinates require compatible tonic pipeline and input metadata;
+EI uses the same decomposed SCL and matching baseline statistics. No median SCL
+fallback is exposed in Metrics, Affect, or calibration.
