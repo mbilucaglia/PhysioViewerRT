@@ -353,7 +353,7 @@ QCheckBox[metricSelector="true"]:checked { background: #eeecfa; border-color: #d
               <item row="0" column="0">
                <widget class="QCheckBox" name="EEGASREnable">
                 <property name="text">
-                 <string>ASR artifact correction</string>
+                 <string>Apply ASR</string>
                 </property>
                 <property name="enabled">
                  <bool>false</bool>

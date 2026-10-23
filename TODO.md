@@ -67,6 +67,32 @@ $env:QT_QPA_PLATFORM = 'windows'
 .venv\Scripts\python.exe -m unittest tests_gui.test_asr_integration -v
 ```
 
+## Second-PC ASR follow-up — 23 October 2026
+
+- [x] Installed Python 3.12 and updated all requirements on the second Windows PC.
+      The missing ASR backend now imports successfully; pip check passes.
+      This is a local environment repair, not a change to the pinned backend.
+- [x] Clarified the existing checkbox as **Apply ASR**, with a tooltip and an
+      explicit ASR-off status. Turning it off retains the selected EEG filters.
+- [x] Passed nine ASR processing tests and nine ASR GUI/integration tests.
+- [x] Launched the native desktop app, trained ASR for 45 seconds using clean
+      synthetic 32-channel EEG at 256 Hz, and verified enabling/disabling ASR.
+      Observed live VisPy/OpenGL EEG rendering on this PC.
+- [x] Restarted the simulator with strong artifacts and captured native screenshots.
+      Red is raw EEG; black includes filters and, when enabled, ASR.
+      The on/off images show different time intervals and do not quantify ASR
+      attenuation. See [ASR on](docs/demos/asr-second-pc/asr-on.jpg),
+      [ASR off](docs/demos/asr-second-pc/asr-off.jpg),
+      [artifacts with ASR](docs/demos/asr-second-pc/strong-artifacts-asr-on.jpg),
+      and [artifacts without ASR](docs/demos/asr-second-pc/strong-artifacts-asr-off.jpg).
+- [ ] Replay the same artifact-contaminated recording with ASR on/off and compare
+      matched time windows at identical gain; quantify attenuation and preservation.
+- [ ] Complete high-DPI and full Train → EYC → BSL → Metrics/Affect validation
+      on this PC. The live check above covered EEG acquisition, ASR and Raw Data.
+
+The viewer and synthetic publishers were stopped at the end of the session.
+Restart the app and train a fresh ASR model next time; models remain in memory only.
+
 ## Prioritized next tasks
 
 - [ ] Validate with real EEG, SC and PPG hardware: units/gain/offset, clean ASR

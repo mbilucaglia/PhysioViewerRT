@@ -23,6 +23,7 @@ class ASRControls(QObject):
         self._threshold_timer.setInterval(400)
         self._threshold_timer.timeout.connect(self._request_fit)
         self.cutoff.valueChanged.connect(self._threshold_changed)
+        self.enable.setToolTip('Train ASR first. Check to apply artifact correction; uncheck to bypass ASR and keep the selected EEG filters.')
         self.enable.toggled.connect(self.enabled_changed)
         self._sync()
 
@@ -51,6 +52,8 @@ class ASRControls(QObject):
         self.enable.blockSignals(False)
         if self.enable.isChecked():
             self.status.setText('ASR active · EEG metrics use the cleaned signal and matching BSL.')
+        elif self._fitted and not self._busy:
+            self.status.setText('ASR off · selected EEG filters remain active. Check Apply ASR to enable correction.')
 
     def _sync(self):
         self.enable.setEnabled(self._compatible and self._fitted and not self._busy)
