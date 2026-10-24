@@ -116,3 +116,28 @@ Restart the app and train a fresh ASR model next time; models remain in memory o
       clean-signal preservation, baseline normalization and affect trajectories.
 - [ ] Verify high-DPI layouts and native GPU rendering on the second PC, then
       capture an updated demo of Train → EYC → BSL → Metrics/Affect.
+
+## Brainstorming — 24 October 2026 (ideas only)
+
+These are exploratory ideas, not agreed requirements or scheduled implementation.
+The measures, statistical assumptions and presentation still need discussion.
+
+- **ASR training-quality / effectiveness popup.** After training, show a summary
+  of the quality of the training EEG and how suitable the fitted model may be
+  for subsequent ASR processing. Explore what useful indicators could be shown
+  (for example usable clean duration, residual contamination or model stability).
+  Training-data quality is the intended reading of "WiFi of the data"; confirm
+  that wording with the author. Keep training quality distinct from demonstrated
+  future artifact-removal performance, which needs separate validation.
+- **Baseline-relative uncertainty in Metrics or Affect.** Alongside a z-score
+  or another baseline-normalized metric, explore answering: "How confident are
+  we that this observed value differs from the baseline reference / zero?"
+  One proposed direction is fitting a probability density to baseline data
+  (beta distribution was suggested as a possibility, not a selected model) and
+  describing how unusual the observation is under that baseline distribution.
+  Open questions: density versus percentile/tail probability versus an interval
+  for the baseline-relative effect; which distribution suits each metric and
+  its domain; how to handle baseline sample size, overlapping/time-correlated
+  windows, and repeated live comparisons. A density value alone should not be
+  labeled as the probability that an effect is real. Define the intended
+  interpretation before choosing an estimator or a UI confidence indicator.
