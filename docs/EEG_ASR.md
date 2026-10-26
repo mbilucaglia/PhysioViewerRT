@@ -83,3 +83,11 @@ boundaries are retained; continuous conversion/filtering happens before window
 selection, and ASR is not applied to the training input. The library must still
 retain at least 30 clean seconds for fitting. Validate screening and calibration
 success on representative real EEG before relying on the quality flag.
+
+
+Changing the ASR cutoff preserves the learned calibration and updates only its
+rejection threshold matrix. The initial training caches RMS distribution factors
+using the pinned backend routines. Threshold changes do not record EEG, repeat
+clean-window selection, or fit calibration again. Matching EYC/BSL references
+are replayed because correction behavior has changed. Raw-only EEG is centered
+on raw values; cleaned-only and overlaid raw/cleaned views center on cleaned EEG.

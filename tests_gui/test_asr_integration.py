@@ -77,8 +77,11 @@ class ASRIntegrationTests(unittest.TestCase):
                 self.assertEqual(window.loaded_bsl['analysis']['iaf_hz_used'], 11.)
                 self.assertEqual(window.asr_session.model.model_id, model_id)
                 window.asr_view.cutoff.setValue(25.)
-                self.assertTrue(self.pump(lambda: window.asr_session.busy))
-                self.assertTrue(self.pump(lambda: not window.asr_session.busy))
+                old_training = window.asr_session.training
+                with patch('physiolab.gui.ASRFitTask', side_effect=AssertionError('Threshold must not retrain')):
+                    self.assertTrue(self.pump(lambda: window.asr_session.model.settings.cutoff == 25.))
+                self.assertIs(window.asr_session.training, old_training)
+                self.assertFalse(window.asr_session.busy)
                 self.assertTrue(self.pump(lambda: not window.eeg_reference_pending))
                 self.assertEqual(window.asr_session.model.settings.cutoff, 25.)
                 self.assertTrue(window.asr_session.enabled)

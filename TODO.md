@@ -1,5 +1,21 @@
 # PhysioViewerRT handoff — 23 October 2026
 
+## Threshold updates and EEG display — 26 October 2026
+
+- [x] Cutoff changes reuse the learned mixing matrix, retained calibration and
+      cached RMS distribution factors. Only the rejection threshold matrix is
+      rebuilt; no new recording or backend refit. EYC/BSL references still replay
+      against the changed cleaning behavior. Older models without cached factors
+      require one new training session rather than silently refitting.
+- [x] EEG channel centering follows visible traces: raw-only anchors to raw;
+      cleaned-only and both anchor to cleaned. Switching traces invalidates old
+      render geometry and redraws a paused view without changing stored samples.
+
+- Validation: 212 core tests passed; full GUI suite passed 116 tests with two
+  offscreen GL skips. Five native checks passed, including actual viewport-median
+  centering during pause in both renderers and threshold updates guarded against
+  any ASR fitting call. Updated thresholds match full-refit results numerically.
+
 ## High priority — real-data ASR reliability and feedback
 
 - [x] Adaptive ASR training accumulates at least 60 seconds of accepted

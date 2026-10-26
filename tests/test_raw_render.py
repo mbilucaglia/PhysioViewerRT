@@ -35,6 +35,20 @@ class RawRenderTests(unittest.TestCase):
         self.assertTrue(np.isfinite(raw).all())
         self.assertTrue(np.isfinite(processed).all())
 
+    def test_centering_anchors_raw_only_to_raw_and_cleaned_or_both_to_cleaned(self):
+        times = np.arange(256)/128.
+        waveform = np.sin(2*np.pi*4*times)[:,None]
+        raw, cleaned = 100.+waveform, 3.+waveform*.5
+        chunks = [(times, raw, cleaned, ['Fp1'],128.)]
+        offsets = np.zeros(1)
+        raw_view = prepare_raw_window(chunks,0.,2.,0.,shared_scale=1.,center_trace='raw')
+        clean_view = prepare_raw_window(chunks,0.,2.,0.,shared_scale=1.,center_trace='filtered')
+        np.testing.assert_allclose(np.median(raw_view[1],axis=0), offsets, atol=1e-10)
+        np.testing.assert_allclose(np.median(clean_view[2],axis=0), offsets, atol=1e-10)
+        # Both traces retain a common center so their true offset difference stays visible.
+        np.testing.assert_allclose(clean_view[1]-clean_view[2], raw-cleaned, atol=1e-10)
+        np.testing.assert_array_equal(raw, 100.+waveform)
+
     def test_fixed_reference_is_reused(self):
         history = self.chunks(seconds=8)
         original = prepare_raw_window(history, 1., 4., 100.)

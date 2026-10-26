@@ -19,6 +19,7 @@ class RawSourceRequest:
     max_channels: int = RAW_DISPLAY_POLICY.max_single_channels
     shared_scale: object = None
     fit_traces: bool = False
+    center_trace: str = 'raw'
 
 
 @dataclass(frozen=True)

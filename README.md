@@ -28,7 +28,7 @@ a manual zoom. These controls do not change values or normalization.
 
 **ASR** is under the EEG filter settings in Sources. Press **Train (auto · ≥60 s)** to record an independent clean EEG sample and enable
 correction, preserving every channel. EYC/BSL and live metrics use the cleaned
-signal. Threshold changes reuse the training sample. The Raw Data ASR indicator
+signal. Threshold changes update cached rejection thresholds without retraining. The Raw Data ASR indicator
 reports off, waiting, monitoring, correcting or bypassed. Its green LED pulses
 for 0.5 seconds after backend reconstruction; monitoring stays gray. ASR changes filtered
 traces; the Raw trace preserves original input. See [EEG ASR](docs/EEG_ASR.md).
@@ -81,3 +81,11 @@ boundaries are retained; continuous conversion/filtering happens before window
 selection, and ASR is not applied to the training input. The library must still
 retain at least 30 clean seconds for fitting. Validate screening and calibration
 success on representative real EEG before relying on the quality flag.
+
+
+Changing the ASR cutoff preserves the learned calibration and updates only its
+rejection threshold matrix. The initial training caches RMS distribution factors
+using the pinned backend routines. Threshold changes do not record EEG, repeat
+clean-window selection, or fit calibration again. Matching EYC/BSL references
+are replayed because correction behavior has changed. Raw-only EEG is centered
+on raw values; cleaned-only and overlaid raw/cleaned views center on cleaned EEG.

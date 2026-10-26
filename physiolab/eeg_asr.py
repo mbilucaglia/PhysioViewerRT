@@ -4,7 +4,7 @@ https://github.com/nbara/python-meegkit
 Inputs are converted and high-pass filtered by the application's existing stage.
 No EEG filtering or reconstruction mathematics is reimplemented here.
 """
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from hashlib import sha256
 from importlib.metadata import version
 import json
@@ -69,6 +69,9 @@ class ASRModel:
     clean_seconds: float
     backend_version: str
     input_scale: float = 1.
+    threshold_center: object = None
+    threshold_spread: object = None
+    threshold_basis: object = None
 
     def __post_init__(self):
         if not math.isfinite(self.input_scale) or self.input_scale <= 0:
@@ -95,6 +98,22 @@ class ASRModel:
             object.__setattr__(self, field, array)
         if np.linalg.matrix_rank(self.M) != n or np.linalg.matrix_rank(self.T) != n:
             raise ASRError('ASR model matrices are rank deficient')
+        cached = [self.threshold_center, self.threshold_spread, self.threshold_basis]
+        if any(value is not None for value in cached):
+            if any(value is None for value in cached):
+                raise ASRError('Incomplete ASR threshold calibration statistics')
+            for name, shape in (('threshold_center', (n,)), ('threshold_spread', (n,)),
+                                ('threshold_basis', (n,n))):
+                array = np.array(getattr(self, name), dtype=float, copy=True)
+                if array.shape != shape or not np.isfinite(array).all():
+                    raise ASRError('Invalid ASR threshold calibration statistics')
+                array.setflags(write=False)
+                object.__setattr__(self, name, array)
+            if np.any(self.threshold_spread < 0):
+                raise ASRError('Invalid ASR threshold dispersion')
+            expected = (self.threshold_center+self.settings.cutoff*self.threshold_spread)[:,None]*self.threshold_basis
+            if not np.allclose(self.T, expected, rtol=1e-7, atol=1e-10):
+                raise ASRError('ASR threshold matrix differs from cached calibration statistics')
         if self.A[0] == 0:
             raise ASRError('ASR spectral filter denominator is invalid')
         if not all(math.isfinite(v) and v >= 30 for v in (self.baseline_seconds, self.clean_seconds)):
@@ -118,6 +137,9 @@ class ASRModel:
                   'settings': asdict(self.settings), 'baseline_seconds': self.baseline_seconds,
                   'clean_seconds': self.clean_seconds, 'input_scale': self.input_scale,
                   **{field: getattr(self, field).tolist() for field in ('M', 'T', 'A', 'B')}}
+        if self.threshold_center is not None:
+            result.update({field: getattr(self, field).tolist() for field in
+                ('threshold_center', 'threshold_spread', 'threshold_basis')})
         if include_id:
             result['model_id'] = self.model_id
         return result
@@ -132,15 +154,51 @@ class ASRModel:
                          data['source_configuration'], ASRSettings(**data['settings']),
                          *(data[field] for field in ('M', 'T', 'A', 'B')),
                          float(data['baseline_seconds']), float(data['clean_seconds']),
-                         str(data['backend_version']), float(data.get('input_scale', 1.)))
+                         str(data['backend_version']), float(data.get('input_scale', 1.)),
+                         *(data.get(key) for key in ('threshold_center', 'threshold_spread', 'threshold_basis')))
         except (KeyError, TypeError) as exc:
             raise ASRError('Invalid ASR calibration metadata') from exc
         if 'model_id' in data and data['model_id'] != result.model_id:
             raise ASRError('ASR calibration fingerprint does not match its coefficients')
         return result
 
+    def with_cutoff(self, cutoff):
+        settings = replace(self.settings, cutoff=float(cutoff))
+        if settings.cutoff == self.settings.cutoff:
+            return self
+        if self.threshold_center is None:
+            raise ASRError('This older model lacks cached threshold statistics; train once with this version')
+        threshold = (self.threshold_center+settings.cutoff*self.threshold_spread)[:,None]*self.threshold_basis
+        return replace(self, settings=settings, T=threshold)
+
     def metadata(self):
-        return {key: value for key, value in self.to_dict().items() if key not in ('M', 'T', 'A', 'B')}
+        return {key: value for key, value in self.to_dict().items() if key not in ('M', 'T', 'A', 'B', 'threshold_center', 'threshold_spread', 'threshold_basis')}
+
+
+def _cache_threshold_statistics(clean, calibrator, fs, settings):
+    """Cache the pinned backend's distribution factors once, during training.
+
+    meegkit returns M/T but not its RMS location/dispersion. Use its same
+    routines on the same retained data and M; cutoff changes need only algebra.
+    No global monkeypatching of backend functions or source modification.
+    """
+    import importlib
+    backend = importlib.import_module('meegkit.asr')
+    mixing = calibrator.state_['M']
+    filtered, _ = backend.yulewalk_filter(clean, fs, ab=None)
+    eigenvalues, basis = backend.linalg.eigh(mixing)
+    basis = basis[:, np.argsort(eigenvalues)].T
+    window = int(backend._round_half_away(settings.window_seconds*fs))
+    offsets = backend._rms_window_offsets(filtered.shape[1], window, calibrator.win_overlap)
+    squared = (basis@filtered)**2
+    cumulative = np.zeros((len(mixing), filtered.shape[1]+1))
+    np.cumsum(squared, axis=1, out=cumulative[:,1:])
+    rms = np.sqrt((cumulative[:,offsets+window]-cumulative[:,offsets])/window)
+    center, spread = np.zeros(len(mixing)), np.zeros(len(mixing))
+    for channel in reversed(range(len(mixing))):
+        center[channel], spread[channel], _, _ = backend.fit_eeg_distribution(
+            rms[channel], calibrator.min_clean_fraction, calibrator.max_dropout_fraction, step_sizes=[.01,.01])
+    return center, spread, basis
 
 
 def fit_asr(baseline, fs, channels, source_config, settings=None):
@@ -168,7 +226,8 @@ def fit_asr(baseline, fs, channels, source_config, settings=None):
             raise ASRError('ASR retained less than 30 seconds of clean EEG training data; record a cleaner/longer training recording')
         return ASRModel(float(fs), channels, source_config, settings,
                         backend.state_['M'], backend.state_['T'], *backend.ab_,
-                        len(data) / fs, clean.shape[-1] / fs, version('meegkit'), input_scale)
+                        len(data) / fs, clean.shape[-1] / fs, version('meegkit'), input_scale,
+                        *_cache_threshold_statistics(clean, backend, fs, settings))
     except ASRError:
         raise
     except Exception as exc:

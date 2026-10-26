@@ -112,6 +112,25 @@ class EEGASRTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             fit_training_asr(eeg)
 
+    def test_cutoff_update_matches_refit_without_relearning_or_changing_calibration(self):
+        for cutoff in (5., 25.):
+            expected = fit_asr(self.filtered, self.fs, self.names, self.config, ASRSettings(cutoff=cutoff))
+            with patch('physiolab.eeg_asr._backend', side_effect=AssertionError('No fitting permitted')):
+                updated = self.model.with_cutoff(cutoff)
+            np.testing.assert_allclose(updated.T, expected.T, rtol=1e-10, atol=1e-12)
+            for name in ('M', 'A', 'B', 'threshold_center', 'threshold_spread', 'threshold_basis'):
+                np.testing.assert_array_equal(getattr(updated,name), getattr(self.model,name))
+            self.assertEqual(updated.clean_seconds, self.model.clean_seconds)
+            self.assertEqual(updated.baseline_seconds, self.model.baseline_seconds)
+            self.assertNotEqual(updated.model_id, self.model.model_id)
+            restored = ASRModel.from_dict(updated.to_dict())
+            np.testing.assert_array_equal(restored.with_cutoff(20.).T, self.model.T)
+        legacy = self.model.to_dict()
+        for name in ('threshold_center', 'threshold_spread', 'threshold_basis', 'model_id'):
+            legacy.pop(name)
+        with self.assertRaisesRegex(ASRError, 'lacks cached threshold'):
+            ASRModel.from_dict(legacy).with_cutoff(25.)
+
     def test_invalid_baseline_and_configuration_are_rejected(self):
         for data, fs, names in ((self.filtered[:100], self.fs, self.names),
                                 (np.ones_like(self.filtered), self.fs, self.names),

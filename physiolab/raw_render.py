@@ -12,13 +12,15 @@ from .render_policy import RAW_DISPLAY_POLICY
 def prepare_raw_window(chunks, left, right, origin, reference=None,
                        max_points=RAW_DISPLAY_POLICY.max_points,
                        max_channels=RAW_DISPLAY_POLICY.max_single_channels,
-                       decimation_span=None, shared_scale=None, fit_traces=False):
+                       decimation_span=None, shared_scale=None, fit_traces=False, center_trace='raw'):
     """Return time and display-scaled traces for a raw modality.
 
     A result is (time, raw_traces, filtered_traces, centers, scales,
     labels). The output has at most max_points samples and max_channels
     channels. Fixed scaling is reused when supplied.
     """
+    if center_trace not in ('raw', 'filtered'):
+        raise ValueError('Unknown centering trace')
     if not chunks or origin is None or right <= left:
         return None
     t_min, t_max = origin + left, origin + right
@@ -102,7 +104,8 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
         # the GUI after this first frame and reused thereafter.
         if len(x) < 2:
             return None
-        centers = np.median(x, axis=0)
+        anchor = y if center_trace == 'filtered' else x
+        centers = np.median(anchor, axis=0)
         scales = np.std(x, axis=0)
         # Avoid extreme gains from near-flat startup samples. The floor
         # is relative to the observed signal level, with an absolute

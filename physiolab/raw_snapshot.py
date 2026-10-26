@@ -9,7 +9,7 @@ from .render_policy import RAW_DISPLAY_POLICY
 
 def build_raw_source(chunks, *, left, right, origin, reference=None,
                      vispy=False, latest=None, replay_history=False, sweep_seconds=5.,
-                     max_channels=RAW_DISPLAY_POLICY.max_single_channels, shared_scale=None, fit_traces=False):
+                     max_channels=RAW_DISPLAY_POLICY.max_single_channels, shared_scale=None, fit_traces=False, center_trace='raw'):
     """Select intersecting chunks and define the worker's viewport.
 
     The GPU path starts from a short live tail on a fresh sweep and
@@ -45,4 +45,5 @@ def build_raw_source(chunks, *, left, right, origin, reference=None,
         max_channels=max_channels,
         shared_scale=shared_scale,
         fit_traces=fit_traces,
+        center_trace=center_trace,
     )

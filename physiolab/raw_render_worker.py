@@ -57,6 +57,7 @@ class RawRenderWorker(QThread):
                         max_channels=source.max_channels,
                         shared_scale=source.shared_scale,
                         fit_traces=source.fit_traces,
+                        center_trace=source.center_trace,
                     )
                 except (ValueError, IndexError):
                     frames[kind] = None

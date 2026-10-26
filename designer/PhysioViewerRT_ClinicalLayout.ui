@@ -522,6 +522,9 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                              <property name="maximumWidth">
                               <number>105</number>
                              </property>
+                             <property name="toolTip">
+                              <string>Adjust ASR rejection sensitivity using the existing learned calibration. Changing the cutoff updates thresholds without retraining.</string>
+                             </property>
                             </widget>
                            </item>
                           </layout>
@@ -1547,6 +1550,9 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                     <property name="text">
                      <string>Raw (red)</string>
                     </property>
+                    <property name="toolTip">
+                     <string>Show original input. When only raw EEG is visible, channel labels center on raw EEG.</string>
+                    </property>
                    </widget>
                   </item>
                   <item>
@@ -1555,7 +1561,7 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      <string>Processed (black)</string>
                     </property>
                     <property name="toolTip">
-                     <string>Signal after the selected filters and optional ASR correction.</string>
+                     <string>Show filtered EEG, including ASR when enabled. When visible, EEG channel labels center on this cleaned trace, including when raw is also shown.</string>
                     </property>
                    </widget>
                   </item>

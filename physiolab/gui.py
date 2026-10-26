@@ -308,6 +308,32 @@ class MainWindow(QMainWindow):
         if not available or self.asr_session.busy or self.capture is not None:
             self.asr_view.set_fit_state(False, self.asr_session.busy, status or 'Finish recording first.')
             return
+        if self.asr_session.model is not None:
+            try:
+                old = self.asr_session.model
+                if any(getattr(old.settings, key) != value for key, value in settings.items() if key != 'cutoff'):
+                    raise ValueError('Changing ASR calibration settings requires a new training recording')
+                updated = old.with_cutoff(settings.get('cutoff', old.settings.cutoff))
+            except ValueError as exc:
+                self.asr_view.cutoff.blockSignals(True)
+                self.asr_view.cutoff.setValue(old.settings.cutoff)
+                self.asr_view.cutoff.blockSignals(False)
+                self.update_asr_availability()
+                self.statusBar().showMessage(str(exc))
+                return
+            self.asr_session.model = updated
+            self.asr_session.cleaned_analysis = None
+            if updated is not old:
+                self._apply_asr_metric_references()
+                if self.asr_session.enabled:
+                    self.schedule_source_change('EEG')
+            if enable_on_success and not self.asr_session.enabled:
+                self.set_eeg_asr_enabled(True)
+            self.update_asr_availability()
+            self.statusBar().showMessage('ASR threshold updated; learned calibration preserved.')
+            if self._asr_report_dialog is not None and self._asr_report_dialog.isVisible():
+                self.show_asr_training_report()
+            return
         if self._asr_report_dialog is not None:
             self._asr_report_dialog.close()
         self._asr_resume_after_fit = enable_on_success or self.asr_session.enabled
@@ -654,6 +680,9 @@ class MainWindow(QMainWindow):
         self.show_processed = self._required_ui('showFiltered', QCheckBox)
         self.show_raw.setChecked(True)
         self.show_processed.setChecked(True)
+        self._raw_trace_selection_refresh = False
+        self.show_raw.toggled.connect(self.raw_trace_selection_changed)
+        self.show_processed.toggled.connect(self.raw_trace_selection_changed)
         self.raw_renderer_choice = self._required_ui('rawRendererChoice', QComboBox)
         self._fill_combo(self.raw_renderer_choice, [
             ('pyqtgraph (original)', 'pyqtgraph'),
@@ -1627,6 +1656,11 @@ class MainWindow(QMainWindow):
         # Manual GPU panning is excluded from this first A/B experiment.
         if mode == 'vispy':
             self.resume_raw_live()
+        else:
+            # A paused renderer switch cannot rely on a subsequent live tick
+            # to replace the fallback plot's initial empty (-5, 0) range.
+            for plot in self.plots.values():
+                plot.setXRange(*self.raw_display.bounds, padding=0)
         self.raw_display.dirty = True
         self.statusBar().showMessage(
             'Raw Data renderer: ' + ('VisPy / OpenGL (experimental)'
@@ -1799,7 +1833,8 @@ class MainWindow(QMainWindow):
             self.update_raw_xranges()
             if not popup_open:
                 if (self.tabs.currentWidget() is self.raw_page
-                        and (not self.raw_display.paused or self.raw_display.autoscale_requests)):
+                        and (not self.raw_display.paused or self.raw_display.autoscale_requests
+                             or self._raw_trace_selection_refresh)):
                     if now >= self.raw_display.interacting_until:
                         # The precise GUI timer caps frequency; the in-flight
                         # ticket prevents overlapping preparation requests.
@@ -1845,6 +1880,14 @@ class MainWindow(QMainWindow):
                 self.performance.measure('raw_gpu_warmup_' + kind,
                                          time.perf_counter() - started)
                 break
+
+    def raw_trace_selection_changed(self):
+        self.raw_display.references.pop('EEG', None)
+        self.raw_display.frames.pop('EEG', None)
+        self.raw_display.invalidate()
+        self._raw_trace_selection_refresh = True
+        if 'EEG' in self.raw_vispy_plots:
+            self.raw_vispy_plots['EEG'].invalidate_history()
 
     def draw(self):
         """Submit a lightweight snapshot; never reduce data on the GUI thread."""
@@ -1896,6 +1939,7 @@ class MainWindow(QMainWindow):
                 max_channels=display_count,
                 shared_scale=self.raw_display.display_scales.get(kind),
                 fit_traces=kind in ('PPG', 'EDA'),
+                center_trace=('filtered' if kind == 'EEG' and self.show_processed.isChecked() else 'raw'),
             )
             if source is not None:
                 sources[kind] = source
@@ -1915,13 +1959,15 @@ class MainWindow(QMainWindow):
         if not self.raw_display.accepts(response.ticket, response.version):
             return
         if (self.tabs.currentWidget() is not self.raw_page
-                or (self.raw_display.paused and not self.raw_display.autoscale_requests)
+                or (self.raw_display.paused and not self.raw_display.autoscale_requests
+                    and not self._raw_trace_selection_refresh)
                 or QApplication.activePopupWidget() is not None
                 or time.monotonic() < self.raw_display.interacting_until):
             self.raw_display.dirty = True
             return
         presentation_head = (self.raw_display.bounds[1] if response.presentation_head is None
                              else response.presentation_head)
+        self._raw_trace_selection_refresh = False
         for kind, frame in response.frames.items():
             if not self.raw_plot_visible(kind) or frame is None:
                 continue

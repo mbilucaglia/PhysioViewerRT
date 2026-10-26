@@ -25,8 +25,8 @@ class LiveFeedbackTests(unittest.TestCase):
                 'tonic_sc': {'configuration_id': 'test-pipeline'}}}
             w._tonic_live_configuration = 'test-pipeline'
             w.refresh_affect_references()
-            w.metric_state.update('PPG', {'HR': 1.}, time.monotonic())
-            w.metric_state.update('EDA', {'SCL': 1.}, time.monotonic())
+            w.metric_state.update('PPG', {'HR': 1.}, time.monotonic()-1.)
+            w.metric_state.update('EDA', {'SCL': 1.}, time.monotonic()-1.)
             expected = (emotional_index_z(1., 1.)-.2)/.1
             with patch.object(w, 'sync_affect_sources', lambda: None):
                 w.affect_view.set_peripheral_available(True)
@@ -44,6 +44,63 @@ class LiveFeedbackTests(unittest.TestCase):
                 w.refresh_affect_view()
                 self.assertIsNone(w.affect_view.ei_plot.current)
                 self.assertFalse(w.metric_state.history['EI', 'EI'])
+        finally:
+            w.close()
+            self.app.processEvents()
+
+    def test_trace_selection_invalidates_old_center_and_refreshes_even_when_paused(self):
+        with patch.object(MainWindow,'refresh',lambda self:None):
+            w = MainWindow()
+        try:
+            w.raw_display.paused = True
+            w.raw_display.references['EEG'] = ([100.], [1.])
+            before = w.raw_display.epoch
+            w.show_processed.setChecked(False)
+            self.assertNotIn('EEG', w.raw_display.references)
+            self.assertGreater(w.raw_display.epoch, before)
+            self.assertTrue(w._raw_trace_selection_refresh)
+            w.show_raw.setChecked(False)
+            w.show_processed.setChecked(True)
+            self.assertTrue(w._raw_trace_selection_refresh)
+        finally:
+            w.close()
+            self.app.processEvents()
+
+    def test_selected_trace_centers_redraw_while_paused_in_both_renderers(self):
+        import numpy as np
+        from pylsl import local_clock
+        with patch.object(MainWindow,'refresh',lambda self:None):
+            w = MainWindow()
+        def pump(predicate):
+            deadline = time.monotonic()+4.
+            while time.monotonic() < deadline:
+                self.app.processEvents()
+                if predicate():
+                    return True
+                time.sleep(.005)
+            return False
+        try:
+            w.show()
+            w.tabs.setCurrentWidget(w.raw_page)
+            times = np.arange(1280)/256.
+            wave = np.column_stack((np.sin(2*np.pi*4*times),np.sin(2*np.pi*6*times)))
+            w.receive('EEG',100.+wave,3.+wave*.5,['Fp1','Fp2'],None,256.,local_clock()-5.+times)
+            self.assertTrue(pump(lambda: 'EEG' in w.raw_display.frames))
+            modes = (0,1) if os.environ.get('QT_QPA_PLATFORM') == 'windows' else (0,)
+            for renderer in modes:
+                w.raw_renderer_choice.setCurrentIndex(renderer)
+                w.raw_display.paused = True
+                for raw_visible, clean_visible, expected in ((True,False,100.),(False,True,3.),(True,True,3.)):
+                    w.show_raw.setChecked(raw_visible)
+                    w.show_processed.setChecked(clean_visible)
+                    w.raw_trace_selection_changed()
+                    self.assertTrue(pump(lambda: 'EEG' in w.raw_display.frames
+                        and not w._raw_trace_selection_refresh), f'Paused selection did not redraw: renderer={renderer}, raw={raw_visible}, clean={clean_visible}, bounds={w.raw_display.bounds}, x={w.plots["EEG"].viewRange()[0]}')
+                    centers = w.raw_display.frames['EEG'][3]
+                    np.testing.assert_allclose(centers,expected,atol=1.)
+                    frame = w.raw_display.frames['EEG']
+                    active = frame[2] if clean_visible else frame[1]
+                    np.testing.assert_allclose(np.median(active,axis=0),np.arange(len(centers))*6.,atol=1e-8)
         finally:
             w.close()
             self.app.processEvents()
