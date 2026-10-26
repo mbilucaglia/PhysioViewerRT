@@ -299,6 +299,20 @@ class GuiSmokeTests(unittest.TestCase):
         arrangement.menus['values'].actions()[-1].trigger()
         self.assertIs(arrangement.container.widget(0), arrangement.panels['trends'])
 
+    def test_sources_footer_uses_available_height_instead_of_trailing_blank_row(self):
+        from PySide6.QtWidgets import QWidget, QPushButton
+        self.window.resize(1920,1000)
+        self.window.show()
+        self.window.tabs.setCurrentWidget(self.window.sources_page)
+        self.app.processEvents()
+        controller = self.window._responsive_sources
+        grid = controller.grid
+        content = self.window.findChild(QWidget,'sourcesScrollContent')
+        footer = self.window.findChild(QPushButton,'refreshAllStreams')
+        self.assertGreaterEqual(footer.geometry().bottom(), content.height()-grid.contentsMargins().bottom()-2)
+        last_row = grid.getItemPosition(grid.indexOf(footer))[0]
+        self.assertTrue(all(grid.rowStretch(row)==0 for row in range(last_row,grid.rowCount())))
+
     def test_conversion_editor_keeps_settings_per_source_and_compact_numbers(self):
         from physiolab.source_conversion_widgets import SourceConversionControls
         controls = SourceConversionControls()

@@ -303,3 +303,13 @@ The measures, statistical assumptions and presentation still need discussion.
 - Validation: full GUI suite 108 tests, 106 passed and two offscreen OpenGL
       skips. Cross-tab tests compare actual icon images and button states. Native
       checks exercised Metrics vertical zoom/Fit and preserved manual view state.
+
+
+## Sources trailing space — 26 October 2026
+
+- [x] Remove the expanding empty grid row below Refresh. Extra viewport height
+      now goes to occupied source-card rows; Baselines and Refresh remain at the
+      bottom. Keep cards in one/two/three columns and retain small-window scrolling.
+- [x] Encode the wide default row stretch in Qt Designer and use the same policy
+      in the responsive controller. Regression checks footer position and absence
+      of trailing expanding rows. Native maximized and small 150% previews passed.

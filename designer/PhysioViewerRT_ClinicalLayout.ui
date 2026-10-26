@@ -217,7 +217,7 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
            <enum>QFrame::NoFrame</enum>
           </property>
           <widget class="QWidget" name="sourcesScrollContent">
-           <layout class="QGridLayout" name="sourcesLayout" columnstretch="1,1,1" rowstretch="0,0,0,0,1">
+           <layout class="QGridLayout" name="sourcesLayout" columnstretch="1,1,1" rowstretch="0,1,0,0">
             <property name="bottomMargin">
              <number>16</number>
             </property>
@@ -243,7 +243,7 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
               </property>
              </widget>
             </item>
-            <item row="1" column="0" colspan="1" rowspan="1" alignment="Qt::AlignTop">
+            <item row="1" column="0" colspan="1" rowspan="1">
              <widget class="QGroupBox" name="eegSourceGroup">
               <property name="title">
                <string>EEG • LSL source</string>
@@ -668,7 +668,7 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
               </layout>
              </widget>
             </item>
-            <item row="1" column="1" colspan="1" rowspan="1" alignment="Qt::AlignTop">
+            <item row="1" column="1" colspan="1" rowspan="1">
              <widget class="QGroupBox" name="ppgSourceGroup">
               <property name="title">
                <string>PPG • LSL source</string>
@@ -874,7 +874,7 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
               </layout>
              </widget>
             </item>
-            <item row="1" column="2" colspan="1" rowspan="1" alignment="Qt::AlignTop">
+            <item row="1" column="2" colspan="1" rowspan="1">
              <widget class="QGroupBox" name="edaSourceGroup">
               <property name="title">
                <string>SC • LSL source</string>
@@ -1075,7 +1075,7 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
               </layout>
              </widget>
             </item>
-            <item row="2" column="0" colspan="3" rowspan="1" alignment="Qt::AlignTop">
+            <item row="2" column="0" colspan="3" rowspan="1">
              <widget class="QGroupBox" name="baselineGroup">
               <property name="title">
                <string>Baselines</string>

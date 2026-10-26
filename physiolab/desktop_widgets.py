@@ -125,8 +125,14 @@ class ResponsiveSources(QObject):
                 position = ((0, 0, 1, 3) if index == 0 else
                             (1, index - 1, 1, 1) if index <= 3 else
                             (index - 2, 0, 1, 3))
-            self.grid.addWidget(widget, *position, Qt.AlignmentFlag.AlignTop)
-        self.grid.setRowStretch(len(self.entries) if columns == 1 else 4, 1)
+            if index in (0, len(self.entries)-1):
+                self.grid.addWidget(widget, *position, Qt.AlignmentFlag.AlignTop)
+            else:
+                self.grid.addWidget(widget, *position)
+        # Extra height belongs to the source cards, never an empty trailing row.
+        rows = (1,) if columns == 3 else (1, 2) if columns == 2 else (1, 2, 3, 4)
+        for row in rows:
+            self.grid.setRowStretch(row, 1)
 
 
 

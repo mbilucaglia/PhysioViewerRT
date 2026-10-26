@@ -167,7 +167,7 @@ Designer owns toolbar groups and styling in PhysioViewerRT_ClinicalLayout.ui
 and AffectControls.ui. A widget marked with the wrapControls property has its
 preview grid replaced at startup by flow_layout.FlowLayout. This preserves each
 label/control group, signal connection and named widget while allowing groups to
-wrap using Qt size hints. Sources uses its existing one/two-column controller;
+wrap using Qt size hints. Sources uses its one/two/three-column controller;
 Affect cards adapt to viewport width. Scroll areas keep controls reachable when
 window height is limited. New controls should join an appropriate Designer group
 rather than adding a new permanent row or hard-coded screen coordinates.
@@ -197,3 +197,8 @@ Metrics vertical zoom/Fit changes presentation bounds only. The manual range is
 held through new observations and renderer changes until Auto range is enabled.
 In auto mode the GPU range expands for arriving values; Fit tightens it to the
 visible finite observations. CPU and GPU rendering share the same UI controls.
+
+
+Sources distributes surplus height to occupied source rows. Never add an empty
+stretch row below its footer: it creates a large unused area when maximized.
+Intro/footer rows keep natural height, and card rows may grow within the viewport.
