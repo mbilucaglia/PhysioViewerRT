@@ -63,6 +63,8 @@ QGroupBox { padding: 10px 10px 8px; margin-top: 16px; }
 QGroupBox#EEGProcessingPanel, QGroupBox#PPGProcessingPanel, QGroupBox#EDAProcessingPanel { background: #fafafe; border-color: #e5e3f1; }
 QFrame#EEGASRPanel { border: none; background: transparent; }
 QTabBar::tab { padding: 8px 18px; }
+
+QPushButton#rawPlotPause, QPushButton#metricsPlotPause { color: #312b79; background: #eeecfa; border-color: #d4ceee; font-weight: 600; }
 </string>
   </property>
   <property name="geometry">
@@ -204,7 +206,7 @@ QTabBar::tab { padding: 8px 18px; }
            <enum>QFrame::NoFrame</enum>
           </property>
           <widget class="QWidget" name="sourcesScrollContent">
-           <layout class="QGridLayout" name="sourcesLayout" columnstretch="1,1" rowstretch="0,1,1,0">
+           <layout class="QGridLayout" name="sourcesLayout" columnstretch="1,1,1" rowstretch="0,0,0,0,1">
             <property name="bottomMargin">
              <number>16</number>
             </property>
@@ -220,7 +222,7 @@ QTabBar::tab { padding: 8px 18px; }
             <property name="spacing">
              <number>10</number>
             </property>
-            <item row="0" column="0" colspan="2">
+            <item row="0" column="0" colspan="3" rowspan="1" alignment="Qt::AlignTop">
              <widget class="QLabel" name="sourcesIntro">
               <property name="wordWrap">
                <bool>true</bool>
@@ -230,7 +232,7 @@ QTabBar::tab { padding: 8px 18px; }
               </property>
              </widget>
             </item>
-            <item row="1" column="0" colspan="1">
+            <item row="1" column="0" colspan="1" rowspan="1" alignment="Qt::AlignTop">
              <widget class="QGroupBox" name="eegSourceGroup">
               <property name="title">
                <string>EEG • LSL source</string>
@@ -637,7 +639,7 @@ QTabBar::tab { padding: 8px 18px; }
               </layout>
              </widget>
             </item>
-            <item row="1" column="1" colspan="1">
+            <item row="1" column="1" colspan="1" rowspan="1" alignment="Qt::AlignTop">
              <widget class="QGroupBox" name="ppgSourceGroup">
               <property name="title">
                <string>PPG • LSL source</string>
@@ -837,7 +839,7 @@ QTabBar::tab { padding: 8px 18px; }
               </layout>
              </widget>
             </item>
-            <item row="2" column="0" colspan="1">
+            <item row="1" column="2" colspan="1" rowspan="1" alignment="Qt::AlignTop">
              <widget class="QGroupBox" name="edaSourceGroup">
               <property name="title">
                <string>SC • LSL source</string>
@@ -1032,7 +1034,7 @@ QTabBar::tab { padding: 8px 18px; }
               </layout>
              </widget>
             </item>
-            <item row="2" column="1" colspan="1">
+            <item row="2" column="0" colspan="3" rowspan="1" alignment="Qt::AlignTop">
              <widget class="QGroupBox" name="baselineGroup">
               <property name="title">
                <string>Baselines</string>
@@ -1145,7 +1147,7 @@ QTabBar::tab { padding: 8px 18px; }
               </layout>
              </widget>
             </item>
-            <item row="3" column="0" colspan="2">
+            <item row="3" column="0" colspan="3" rowspan="1" alignment="Qt::AlignTop">
              <widget class="QPushButton" name="refreshAllStreams">
               <property name="icon">
                <iconset>
@@ -1298,6 +1300,27 @@ QTabBar::tab { padding: 8px 18px; }
                     </property>
                     <property name="text">
                      <string>Live</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="rawPlotPause">
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/pause.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                    <property name="text">
+                     <string>Pause</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Pause the display. Acquisition, filters, ASR and metrics continue. Press Play to resume.</string>
                     </property>
                    </widget>
                   </item>
@@ -1457,27 +1480,6 @@ QTabBar::tab { padding: 8px 18px; }
                    <widget class="QCheckBox" name="showFiltered">
                     <property name="text">
                      <string>Filtered (black)</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="rawPlotPause">
-                    <property name="toolTip">
-                     <string>Pause display updates while acquisition continues</string>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/pause.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                    <property name="text">
-                     <string>Pause</string>
                     </property>
                    </widget>
                   </item>
@@ -2010,6 +2012,9 @@ QTabBar::tab { padding: 8px 18px; }
             </item>
            </layout>
           </widget>
+          <property name="fitViewport" stdset="0">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
        </layout>
@@ -2164,6 +2169,27 @@ QTabBar::tab { padding: 8px 18px; }
                        </property>
                       </widget>
                      </item>
+                     <item>
+                      <widget class="QPushButton" name="metricsPlotPause">
+                       <property name="icon">
+                        <iconset>
+                         <normaloff>../assets/icons/pause.svg</normaloff>
+                        </iconset>
+                       </property>
+                       <property name="iconSize">
+                        <size>
+                         <width>16</width>
+                         <height>16</height>
+                        </size>
+                       </property>
+                       <property name="text">
+                        <string>Pause</string>
+                       </property>
+                       <property name="toolTip">
+                        <string>Pause the display. Acquisition, filters, ASR and metrics continue. Press Play to resume.</string>
+                       </property>
+                      </widget>
+                     </item>
                     </layout>
                    </widget>
                   </item>
@@ -2285,27 +2311,6 @@ QTabBar::tab { padding: 8px 18px; }
                        </property>
                        <property name="maximumWidth">
                         <number>32</number>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QPushButton" name="metricsPlotPause">
-                       <property name="toolTip">
-                        <string>Pause display updates while acquisition continues</string>
-                       </property>
-                       <property name="icon">
-                        <iconset>
-                         <normaloff>../assets/icons/pause.svg</normaloff>
-                        </iconset>
-                       </property>
-                       <property name="iconSize">
-                        <size>
-                         <width>16</width>
-                         <height>16</height>
-                        </size>
-                       </property>
-                       <property name="text">
-                        <string>Pause</string>
                        </property>
                       </widget>
                      </item>
@@ -2885,6 +2890,9 @@ QTabBar::tab { padding: 8px 18px; }
             </item>
            </layout>
           </widget>
+          <property name="fitViewport" stdset="0">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
        </layout>
@@ -2927,6 +2935,9 @@ QTabBar::tab { padding: 8px 18px; }
             </item>
            </layout>
           </widget>
+          <property name="fitViewport" stdset="0">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
        </layout>

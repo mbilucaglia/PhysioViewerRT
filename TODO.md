@@ -187,3 +187,17 @@ The measures, statistical assumptions and presentation still need discussion.
       extended hardware sessions and active-data visual checks remain open.
 - Validation: full GUI suite 90 tests, 88 passed / two native OpenGL skips;
       the additional resize/connection regression test passed separately.
+
+
+## Maximized-window fitting — 26 October 2026
+
+- [x] Let Raw Data, Metrics and Affect plots shrink from preferred height to
+      the available viewport, so fitting content does not force a scrollbar.
+      Preserve scrolling when controls/plots genuinely need more space.
+- [x] Adapt Sources to one, two or three columns. Wide windows show EEG, PPG
+      and SC side by side, with natural-height cards rather than stretched boxes.
+      The wide default and viewport-fit flags are defined in Qt Designer.
+- Native maximized 1920×1009 client-area checks: all four tabs fit with zero
+      horizontal/vertical scroll range. Smaller windows retain scrolling.
+- [x] Put Raw Data and Metrics Play/Pause beside Live, with matching icons
+      and labels. Display pause keeps acquisition and ASR processing running.

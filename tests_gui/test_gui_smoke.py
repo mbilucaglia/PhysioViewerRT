@@ -658,11 +658,11 @@ class GuiSmokeTests(unittest.TestCase):
     def test_plot_pause_does_not_stop_lsl_ingress(self):
         from PySide6.QtWidgets import QPushButton
         self.window.tabs.setCurrentIndex(1)
-        self.window.set_plot_paused('raw', True)
+        button = self.window.centralWidget().findChild(QPushButton, 'rawPlotPause')
+        self.assertEqual(button.text(), 'Pause')
+        button.click()
         self.assertTrue(self.window.raw_display.paused)
-        button = self.window.centralWidget().findChild(
-            QPushButton, 'rawPlotPause')
-        self.assertIn('Resume', button.text())
+        self.assertEqual(button.text(), 'Play')
         n = 256
         stamps = 100. + np.arange(n) / 256.
         wave = np.sin(np.arange(n)/25.)[:, None]
@@ -674,8 +674,9 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.render_frame()
         self.assertIsNone(self.window.raw_display.inflight_ticket)
         self.assertTrue(worker.active)
-        self.window.set_plot_paused('raw', False)
+        button.click()
         self.assertFalse(self.window.raw_display.paused)
+        self.assertEqual(button.text(), 'Pause')
 
     def test_raw_scroll_event_does_not_force_synchronous_plotting(self):
         self.window.raw_view_scrolled()

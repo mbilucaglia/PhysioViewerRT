@@ -82,7 +82,7 @@ class CheckChannelDropdown(QToolButton):
 
 
 class ResponsiveSources(QObject):
-    """Reflow the Designer grid into one column when its cards need more room."""
+    """Reflow the Designer grid into one, two or three columns as space allows."""
 
     def __init__(self, scroll):
         super().__init__(scroll)
@@ -91,6 +91,7 @@ class ResponsiveSources(QObject):
         self.entries = [(self.grid.itemAt(i).widget(), self.grid.getItemPosition(i))
                         for i in range(self.grid.count())]
         self.compact = None
+        self.columns = None
         scroll.viewport().installEventFilter(self)
         self.reflow()
 
@@ -101,19 +102,32 @@ class ResponsiveSources(QObject):
 
     def reflow(self):
         cards = [widget for widget, (_, _, _, span) in self.entries if span == 1]
-        required = 2 * max(widget.minimumSizeHint().width() for widget in cards) + 64
-        compact = self.scroll.viewport().width() < required
-        if compact == self.compact:
+        card_width = max(widget.minimumSizeHint().width() for widget in cards)
+        width = self.scroll.viewport().width()
+        columns = 3 if width >= 3 * card_width + 64 else 2 if width >= 2 * card_width + 64 else 1
+        if columns == self.columns:
             return
-        self.compact = compact
+        self.columns, self.compact = columns, columns == 1
         for widget, _ in self.entries:
             self.grid.removeWidget(widget)
         for row in range(7):
             self.grid.setRowStretch(row, 0)
-        self.grid.setColumnStretch(1, 0 if compact else 1)
+        for column in range(3):
+            self.grid.setColumnStretch(column, 1 if column < columns else 0)
         for index, (widget, position) in enumerate(self.entries):
-            self.grid.addWidget(widget, index, 0, 1, 1) if compact else self.grid.addWidget(widget, *position)
-        self.grid.setRowStretch(len(self.entries) if compact else 4, 1)
+            if columns == 1:
+                position = (index, 0, 1, 1)
+            elif columns == 2:
+                position = ((0, 0, 1, 2) if index == 0 else
+                            ((index - 1) // 2 + 1, (index - 1) % 2, 1, 1) if index <= 4 else
+                            (3, 0, 1, 2))
+            elif columns == 3:
+                position = ((0, 0, 1, 3) if index == 0 else
+                            (1, index - 1, 1, 1) if index <= 3 else
+                            (index - 2, 0, 1, 3))
+            self.grid.addWidget(widget, *position, Qt.AlignmentFlag.AlignTop)
+        self.grid.setRowStretch(len(self.entries) if columns == 1 else 4, 1)
+
 
 
 class CalibrationScreen(QDialog):

@@ -47,3 +47,43 @@ class FlowLayoutTests(unittest.TestCase):
             host.close()
             host.deleteLater()
             self.app.processEvents()
+
+
+    def test_plot_preferred_height_does_not_force_scrolling_when_it_can_fit(self):
+        from PySide6.QtCore import QSize
+        from PySide6.QtWidgets import QScrollArea, QVBoxLayout
+        from physiolab.flow_layout import fit_scroll_page
+
+        class Plot(QWidget):
+            def sizeHint(self):
+                return QSize(400, 1200)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        host = QWidget()
+        outer = QVBoxLayout(host)
+        toolbar = QWidget()
+        grid = QGridLayout(toolbar)
+        button = QPushButton('View')
+        grid.addWidget(button, 0, 0)
+        install_flow(toolbar)
+        outer.addWidget(toolbar)
+        plot = Plot()
+        plot.setMinimumHeight(100)
+        outer.addWidget(plot, 1)
+        scroll.setWidget(host)
+        fit_scroll_page(scroll)
+        scroll.show()
+        try:
+            for height in (600, 80, 600):
+                scroll.resize(800, height)
+                self.app.processEvents()
+                if height == 600:
+                    self.assertEqual(scroll.verticalScrollBar().maximum(), 0)
+                    self.assertEqual(host.height(), scroll.viewport().height())
+                else:
+                    self.assertGreater(scroll.verticalScrollBar().maximum(), 0)
+        finally:
+            scroll.close()
+            scroll.deleteLater()
+            self.app.processEvents()

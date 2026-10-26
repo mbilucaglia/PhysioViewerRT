@@ -43,7 +43,7 @@ from .affect_state import AffectState
 from .affect_widgets import AffectView
 from .asr_widgets import ASRControls
 from .asr_quality import training_report
-from .flow_layout import install_designer_flows, install_flow, AdaptiveCardRow
+from .flow_layout import install_designer_flows, install_flow, AdaptiveCardRow, fit_scroll_page
 from .ui_icons import set_action
 from .asr_session import ASRSession
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
@@ -123,6 +123,9 @@ class MainWindow(QMainWindow):
         self._connect_affect_view()
         self._connect_asr_view()
         install_designer_flows(self)
+        for scroll in self.findChildren(QScrollArea):
+            if scroll.property("fitViewport"):
+                fit_scroll_page(scroll)
         self.update_metrics_availability()
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
@@ -851,7 +854,7 @@ class MainWindow(QMainWindow):
         if scope == 'raw':
             self.raw_display.paused = bool(paused)
             set_action(self._required_ui('rawPlotPause', QPushButton),
-                       'Resume' if paused else 'Pause', 'play' if paused else 'pause')
+                       'Play' if paused else 'Pause', 'play' if paused else 'pause')
             if not paused:
                 # Preserve GPU ring contents across plot-only pause/resume.
                 # Replay buffered samples without a blank-frame reset.
@@ -859,7 +862,7 @@ class MainWindow(QMainWindow):
         else:
             self.metric_plot_paused = bool(paused)
             set_action(self._required_ui('metricsPlotPause', QPushButton),
-                       'Resume' if paused else 'Pause', 'play' if paused else 'pause')
+                       'Play' if paused else 'Pause', 'play' if paused else 'pause')
             if not paused:
                 self.metric_presentation_epoch += 1
                 self.metric_dirty = True
