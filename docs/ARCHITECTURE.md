@@ -207,7 +207,17 @@ Intro/footer rows keep natural height, and card rows may grow within the viewpor
 
 ## Raw display clock, cursors and recording references
 
-The earlier 250 ms presentation clock and receiver policy are restored after
+Each signal now owns its own presentation clock and viewport. The common
+session origin is preserved, but a delayed source cannot stall other panels.
+RawFrameRequest/RawFrameResult carry a presentation_heads map, and both the
+snapshot viewport and cursor use the matching source head. The legacy shared
+bounds remain overview state; signal presentation must use viewport(kind).
+Clock phase corrections adjust speed rather than freezing at a stale target,
+and never advance beyond actual acquired samples. Timebase changes retain
+each source head and initial references. See PERIPHERAL_PLAYBACK_TIMING.md
+for pre-Hampel/Off/Hampel measurements and regression coverage.
+
+The earlier 250 ms presentation delay and receiver policy were restored after
 the 50 ms/fastest-source experiment regressed user playback. The short-block
 PPG/SC change and per-frame shader panning are removed. Denoising, baseline
 processing and metric cadence are unchanged. Each VisPy cursor is clamped to

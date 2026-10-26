@@ -69,4 +69,5 @@ class RawRenderWorker(QThread):
                 queued_at=request.queued_at,
                 ready_at=time.perf_counter(),
                 presentation_head=request.presentation_head,
+                presentation_heads=request.presentation_heads,
             ))

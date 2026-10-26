@@ -29,6 +29,7 @@ class RawFrameRequest:
     sources: dict
     queued_at: float
     presentation_head: Optional[float] = None
+    presentation_heads: Optional[dict] = None
 
 
 @dataclass(frozen=True)
@@ -40,3 +41,4 @@ class RawFrameResult:
     queued_at: Optional[float] = None
     ready_at: Optional[float] = None
     presentation_head: Optional[float] = None
+    presentation_heads: Optional[dict] = None

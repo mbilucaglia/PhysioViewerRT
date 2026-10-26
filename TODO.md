@@ -1,6 +1,25 @@
 # PhysioViewerRT handoff — 23 October 2026
 
 
+## Independent clocks for Hampel/timebase playback — 26 October 2026
+
+- [x] Reproduce the regression against the actual pre-Hampel snapshot, current
+      Off and both Hampel, with live EEG ASR and repeated timebase changes.
+      Shared slowest-source gating stalled other panels when SC waited for its
+      three future samples; reducer computation itself was around/below 1 ms.
+- [x] Give each modality its own clock/viewport and carry per-source heads through
+      frame preparation. Delayed SC cannot hold EEG/PPG back. Keep the 250 ms
+      buffer, actual timestamps, cursor-to-drawn-sample clamp and startup-only
+      centering. No denoising or baseline computation changes.
+- [x] Native benchmark p95 draw gaps with both Hampel improved from about 67 ms
+      to 37–39 ms; Off was about 37 ms after the fix. Timebases 5/10/30/5/15 s
+      were exercised with full seeded history and 32 EEG channels acquired,
+      eight displayed. These local synthetic measurements need device confirmation.
+- [x] Core: 233 passed. Native timebase/cursor tests passed; fallback handoff
+      passed with one native-only pixel check skipped. Save comparison results in
+      docs/PERIPHERAL_PLAYBACK_TIMING.md/json and tools/benchmark_timebase_switches.py.
+- [ ] Confirm the improvement on the user's actual streams and PC.
+
 ## Playback recovery and startup-only centering — 26 October 2026
 
 - [x] Revert the failed 50 ms/fastest-stream timing and small PPG/SC delivery

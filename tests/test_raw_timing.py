@@ -79,7 +79,8 @@ class RawTimingTests(unittest.TestCase):
         self.assertAlmostEqual(clock.head, 99.75)
         heads = [clock.advance(1.+i/30.) for i in range(120)]
         self.assertTrue(np.all(np.diff(heads) >= 0))
-        self.assertLessEqual(heads[-1], 99.83+1e-9)
+        self.assertLessEqual(heads[-1],100.+1e-9)
+        self.assertGreater(heads[-1],99.83)
 
 
 if __name__ == '__main__':

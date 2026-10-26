@@ -27,6 +27,8 @@ class RawDisplayState:
         self.origin = self.latest_time = self.last_received_at = None
         self.last_sample = {}
         self.clock = SmoothViewportClock(settings.presentation_delay_seconds)
+        self.source_clocks = {}
+        self.source_bounds = {}
         self.committed_head = None
         self.references = {}
         self.initial_references = {}
@@ -47,6 +49,9 @@ class RawDisplayState:
 
     def set_window(self, seconds):
         self.view_seconds = float(seconds)
+        self.bounds = (self.bounds[1]-self.view_seconds,self.bounds[1])
+        self.source_bounds = {kind:(bounds[1]-self.view_seconds,bounds[1])
+                              for kind,bounds in self.source_bounds.items()}
         self.invalidate()
 
     def set_units(self, kind, scales, unit):
@@ -60,6 +65,8 @@ class RawDisplayState:
         self.autoscale_requests.discard(kind)
         self.history[kind].clear()
         self.last_sample.pop(kind, None)
+        self.source_clocks.pop(kind,None)
+        self.source_bounds.pop(kind,None)
         self.references.pop(kind, None)
         self.initial_references.pop(kind,None)
         self.initial_center_trace.pop(kind,None)
@@ -94,9 +101,13 @@ class RawDisplayState:
                     floor=np.maximum(np.max(np.abs(first_raw),axis=0)*1e-6,1e-9)
                     scales=np.maximum(np.std(first_raw,axis=0),floor)
                 self.initial_references[kind]=(centers,scales)
+        received = time.monotonic() if received_at is None else float(received_at)
+        source_clock = self.source_clocks.setdefault(kind,
+            SmoothViewportClock(self.settings.presentation_delay_seconds))
+        source_clock.observe(float(t[-1]),received)
         if self.latest_time is None or float(t[-1]) > self.latest_time:
             self.latest_time = float(t[-1])
-            self.last_received_at = time.monotonic() if received_at is None else received_at
+            self.last_received_at = received
             self.clock.observe(self.latest_time, self.last_received_at)
         cutoff = self.latest_time-self.settings.history_seconds
         chunks = self.history[kind]
@@ -111,8 +122,12 @@ class RawDisplayState:
         centers,scales=reference
         return (centers[:,:count] if centers.ndim==2 else centers[:count],scales[:count])
 
+    def viewport(self,kind):
+        return self.source_bounds.get(kind,self.bounds)
+
     def advance(self, now):
         head = self.clock.advance(now)
+        own_heads = {kind:clock.advance(now) for kind,clock in self.source_clocks.items()}
         # Acquisition time continues while a tab is hidden or plotting paused.
         # Only the viewport freezes; resuming must not slew through old time.
         if head is None or self.origin is None or not self.follow_live or self.paused:
@@ -128,6 +143,16 @@ class RawDisplayState:
         bounds = (end-self.view_seconds, end)
         changed = bounds != self.bounds
         self.bounds = bounds
+        for kind,own_head in own_heads.items():
+            if own_head is None:
+                continue
+            end = min(own_head,self.last_sample[kind])-self.origin
+            previous = self.source_bounds.get(kind)
+            if previous is not None:
+                end = max(end,previous[1])
+            own_bounds = (end-self.view_seconds,end)
+            changed |= own_bounds != previous
+            self.source_bounds[kind] = own_bounds
         return changed
 
     def request_autoscale(self, kind):
@@ -142,7 +167,8 @@ class RawDisplayState:
         self.inflight_ticket = self.ticket
         return RawFrameRequest(self.ticket, self.epoch, sources,
                                time.perf_counter() if queued_at is None else queued_at,
-                               self.bounds[1])
+                               self.bounds[1],{kind:source.right for kind,source in sources.items()
+                                               if hasattr(source,'right')})
 
     def accepts(self, ticket, version):
         if ticket != self.inflight_ticket:

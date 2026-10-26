@@ -17,9 +17,9 @@ Raw Data centers each signal once when acquisition starts. **Center** in each
 EEG/PPG/SC panel explicitly recenters the visible data; **Fit** adjusts amplitude
 only. Drift, trace toggles and channel-display changes do not automatically
 recenter the recording. Cursors stay at each signal's actual drawn samples.
-The earlier 250 ms display timing and receiver block policy are restored after
-the low-buffer experiment regressed real-device playback. Denoisers and their
-lookahead remain unchanged.
+Each signal has its own 250 ms presentation buffer and display clock, so a
+Hampel-delayed SC stream cannot stall EEG or PPG. Denoisers and their lookahead
+remain unchanged. See [playback timing diagnosis](docs/PERIPHERAL_PLAYBACK_TIMING.md).
 
 The Affect tab shows Central/Peripheral trajectories and Emotional Index.
 Every displayed metric follows that tab's selected normalization using its own

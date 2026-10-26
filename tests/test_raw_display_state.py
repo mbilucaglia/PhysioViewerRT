@@ -29,6 +29,48 @@ class RawDisplayStateTests(unittest.TestCase):
         state.append('EEG',x+100.,x+100.,['C']*8,10.,102.+np.arange(4)/10.)
         np.testing.assert_array_equal(state.recording_reference('EEG',8)[0],centers+100.)
 
+    def test_hampel_delay_on_neighbors_cannot_stall_eeg_timebase(self):
+        traces=[]
+        for reduction in (False,True):
+            state=RawDisplayState();sent={k:0 for k in ('EEG','PPG','EDA')};heads=[]
+            for i in range(360):
+                now=i/30.
+                for kind,fs,phase in (('EEG',256.,0.),('PPG',128.,.02),('EDA',32.,.1)):
+                    batch=max(0,int((now-phase)/.2))
+                    end=max(0,int(batch*.2*fs)-(3 if reduction and kind!='EEG' else 0))
+                    if end>sent[kind]:
+                        times=100.+np.arange(sent[kind],end)/fs
+                        values=np.zeros((len(times),1))
+                        state.append(kind,values,values,[kind],fs,times,received_at=now)
+                        sent[kind]=end
+                state.advance(now)
+                if now>3.:
+                    heads.append(state.viewport('EEG')[1])
+            traces.append(heads)
+            self.assertTrue(np.all(np.diff(heads)>0.))
+        np.testing.assert_allclose(traces[0],traces[1],atol=1e-12)
+
+    def test_timebase_change_preserves_per_source_heads_and_startup_centers(self):
+        state=RawDisplayState()
+        for kind,end in (('EEG',1.),('PPG',.9),('EDA',.8)):
+            times=100.+np.arange(0.,end,.1);values=np.ones((len(times),1))
+            state.append(kind,values,values,[kind],10.,times,received_at=1.)
+        state.advance(1.)
+        before={kind:state.viewport(kind)[1] for kind in state.last_sample}
+        references={kind:state.recording_reference(kind,1)[0].copy() for kind in state.last_sample}
+        for duration in (10.,30.,5.,15.):
+            state.set_window(duration)
+            for kind in before:
+                low,high=state.viewport(kind)
+                self.assertEqual(high,before[kind]);self.assertEqual(high-low,duration)
+                np.testing.assert_array_equal(state.recording_reference(kind,1)[0],references[kind])
+
+    def test_frame_request_carries_each_source_timebase_head(self):
+        from types import SimpleNamespace
+        state=RawDisplayState()
+        request=state.begin_frame({'EEG':SimpleNamespace(right=10.),'EDA':SimpleNamespace(right=9.9)},queued_at=1.)
+        self.assertEqual(request.presentation_heads,{'EEG':10.,'EDA':9.9})
+
     def test_ingress_owns_samples_and_discards_duplicate_timestamps(self):
         state = RawDisplayState()
         source = self.append(state, 'EEG', [100., 100.1])

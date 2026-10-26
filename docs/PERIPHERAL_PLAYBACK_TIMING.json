@@ -1,0 +1,515 @@
+{
+  "setup": {
+    "eeg_acquired_channels": 32,
+    "eeg_displayed_channels": 8,
+    "eeg_fs": 256,
+    "ppg_fs": 128,
+    "sc_fs": 32,
+    "ASR": true,
+    "presentation_buffer_seconds": 0.25,
+    "timebase_sequence_seconds": [
+      5,
+      10,
+      30,
+      5,
+      15
+    ],
+    "history_seconds": 60,
+    "trial_seconds": 23,
+    "measurement": "native canvas draw events; synthetic local LSL"
+  },
+  "cases": {
+    "pre-hampel": {
+      "draw_interval_p95_ms": {
+        "EEG": 44.2991950010764,
+        "PPG": 46.940849996462916,
+        "EDA": 47.184195000954745
+      },
+      "reducer_cpu_ms": {},
+      "timebase_transitions": [
+        {
+          "duration": 10.0,
+          "action_ms": 0.4090999937034212,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 66.04759999754606,
+              "draw_interval_p95_ms": 36.39824999845586,
+              "max_draw_interval_ms": 41.47470000316389
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 62.837299999955576,
+              "draw_interval_p95_ms": 37.89190999959828,
+              "max_draw_interval_ms": 45.6080000003567
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 64.49479999719188,
+              "draw_interval_p95_ms": 37.87680000095861,
+              "max_draw_interval_ms": 47.22789999505039
+            }
+          }
+        },
+        {
+          "duration": 30.0,
+          "action_ms": 0.39339999784715474,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 52.85330000333488,
+              "draw_interval_p95_ms": 37.07688999857055,
+              "max_draw_interval_ms": 104.30839999753516
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 49.67970000143396,
+              "draw_interval_p95_ms": 37.50455999979749,
+              "max_draw_interval_ms": 104.80040000402369
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 51.29619999934221,
+              "draw_interval_p95_ms": 37.41194999602157,
+              "max_draw_interval_ms": 105.10570000042208
+            }
+          }
+        },
+        {
+          "duration": 5.0,
+          "action_ms": 0.4276000036043115,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 35.89520000241464,
+              "draw_interval_p95_ms": 65.52048000448849,
+              "max_draw_interval_ms": 100.33710000425344
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 32.82230000331765,
+              "draw_interval_p95_ms": 65.7461599985254,
+              "max_draw_interval_ms": 100.40099999605445
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 34.401400000206195,
+              "draw_interval_p95_ms": 65.67903999821283,
+              "max_draw_interval_ms": 100.64609999972163
+            }
+          }
+        },
+        {
+          "duration": 15.0,
+          "action_ms": 0.4134999981033616,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 36.368300003232434,
+              "draw_interval_p95_ms": 51.277689998460104,
+              "max_draw_interval_ms": 68.86389999999665
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 33.10510000301292,
+              "draw_interval_p95_ms": 49.39689499915403,
+              "max_draw_interval_ms": 68.55259999429109
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 34.76799999771174,
+              "draw_interval_p95_ms": 51.03416500242017,
+              "max_draw_interval_ms": 68.46910000604112
+            }
+          }
+        }
+      ]
+    },
+    "current-off": {
+      "draw_interval_p95_ms": {
+        "EEG": 38.64513999724294,
+        "PPG": 39.236900000832975,
+        "EDA": 39.007039996795356
+      },
+      "reducer_cpu_ms": {},
+      "timebase_transitions": [
+        {
+          "duration": 10.0,
+          "action_ms": 0.37059999885968864,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 44.20749999553664,
+              "draw_interval_p95_ms": 36.02185499621555,
+              "max_draw_interval_ms": 105.32500000408618
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 38.65159999986645,
+              "draw_interval_p95_ms": 36.26440999978512,
+              "max_draw_interval_ms": 108.74239999975543
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 40.61250000086147,
+              "draw_interval_p95_ms": 36.20922000300197,
+              "max_draw_interval_ms": 109.45690000517061
+            }
+          }
+        },
+        {
+          "duration": 30.0,
+          "action_ms": 0.3589999978430569,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 41.088400001171976,
+              "draw_interval_p95_ms": 36.96330000202579,
+              "max_draw_interval_ms": 43.152899997949135
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 37.93320000113454,
+              "draw_interval_p95_ms": 37.24509999738075,
+              "max_draw_interval_ms": 48.43619999883231
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 39.58689999853959,
+              "draw_interval_p95_ms": 37.002659998688614,
+              "max_draw_interval_ms": 50.463999999919906
+            }
+          }
+        },
+        {
+          "duration": 5.0,
+          "action_ms": 0.36130000080447644,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 33.02399999665795,
+              "draw_interval_p95_ms": 50.235574995531245,
+              "max_draw_interval_ms": 77.4225999994087
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 29.569500002253335,
+              "draw_interval_p95_ms": 55.001725001784436,
+              "max_draw_interval_ms": 78.24969999637688
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 31.330999998317566,
+              "draw_interval_p95_ms": 55.52953499536664,
+              "max_draw_interval_ms": 78.3367999974871
+            }
+          }
+        },
+        {
+          "duration": 15.0,
+          "action_ms": 0.36040000122739,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 59.619899999233894,
+              "draw_interval_p95_ms": 39.40792999637779,
+              "max_draw_interval_ms": 67.19869999506045
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 56.372799997916445,
+              "draw_interval_p95_ms": 42.85846999700874,
+              "max_draw_interval_ms": 67.26079999498324
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 58.06559999473393,
+              "draw_interval_p95_ms": 42.71230000158534,
+              "max_draw_interval_ms": 67.80979999894043
+            }
+          }
+        }
+      ]
+    },
+    "current-hampel": {
+      "draw_interval_p95_ms": {
+        "EEG": 66.96380000357749,
+        "PPG": 67.47580000228481,
+        "EDA": 67.61410000035539
+      },
+      "reducer_cpu_ms": {
+        "EDA": {
+          "median": 0.21114999617566355,
+          "p95": 0.5542749997403006,
+          "max": 0.8518000031472184
+        },
+        "PPG": {
+          "median": 0.25740000273799524,
+          "p95": 0.8849500009091571,
+          "max": 2.8547999972943217
+        }
+      },
+      "timebase_transitions": [
+        {
+          "duration": 10.0,
+          "action_ms": 0.3794999938691035,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 51.059599994914606,
+              "draw_interval_p95_ms": 67.12423999779276,
+              "max_draw_interval_ms": 131.46530000085477
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 47.66729999391828,
+              "draw_interval_p95_ms": 67.0628299951204,
+              "max_draw_interval_ms": 140.05490000272403
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 49.50809999718331,
+              "draw_interval_p95_ms": 67.17103000191854,
+              "max_draw_interval_ms": 141.71280000300612
+            }
+          }
+        },
+        {
+          "duration": 30.0,
+          "action_ms": 0.5189000003156252,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 45.25239999929909,
+              "draw_interval_p95_ms": 68.14346000319347,
+              "max_draw_interval_ms": 101.18320000037784
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 41.56450000300538,
+              "draw_interval_p95_ms": 68.24737999850186,
+              "max_draw_interval_ms": 101.2711000003037
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 43.525000000954606,
+              "draw_interval_p95_ms": 68.25354000320658,
+              "max_draw_interval_ms": 101.1759000029997
+            }
+          }
+        },
+        {
+          "duration": 5.0,
+          "action_ms": 0.3691000019898638,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 35.29300000082003,
+              "draw_interval_p95_ms": 65.2455200033728,
+              "max_draw_interval_ms": 108.41090000030817
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 32.29970000393223,
+              "draw_interval_p95_ms": 65.26125999953365,
+              "max_draw_interval_ms": 109.74749999877531
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 33.784200000809506,
+              "draw_interval_p95_ms": 65.30996000219602,
+              "max_draw_interval_ms": 109.8850999987917
+            }
+          }
+        },
+        {
+          "duration": 15.0,
+          "action_ms": 0.3769000031752512,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 37.287899998773355,
+              "draw_interval_p95_ms": 66.91669000065302,
+              "max_draw_interval_ms": 99.13159999996424
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 32.69990000262624,
+              "draw_interval_p95_ms": 68.28035000144155,
+              "max_draw_interval_ms": 99.71940000104951
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 34.28160000476055,
+              "draw_interval_p95_ms": 68.09626999820465,
+              "max_draw_interval_ms": 99.83859999920242
+            }
+          }
+        }
+      ]
+    },
+    "fixed-off": {
+      "draw_interval_p95_ms": {
+        "EEG": 36.610069999005646,
+        "PPG": 37.00602000171784,
+        "EDA": 36.90374999641789
+      },
+      "reducer_cpu_ms": {},
+      "timebase_transitions": [
+        {
+          "duration": 10.0,
+          "action_ms": 0.4202999989502132,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 56.13859999721171,
+              "draw_interval_p95_ms": 36.40361000507255,
+              "max_draw_interval_ms": 42.387500005133916
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 53.34039999434026,
+              "draw_interval_p95_ms": 36.71822999458527,
+              "max_draw_interval_ms": 45.57740000018384
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 54.773599993495736,
+              "draw_interval_p95_ms": 36.70912999805296,
+              "max_draw_interval_ms": 45.54199999984121
+            }
+          }
+        },
+        {
+          "duration": 30.0,
+          "action_ms": 0.44640000123763457,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 52.10310000256868,
+              "draw_interval_p95_ms": 36.024900000484195,
+              "max_draw_interval_ms": 47.16809999808902
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 47.879700003250036,
+              "draw_interval_p95_ms": 36.39560000010533,
+              "max_draw_interval_ms": 45.51310000533704
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 49.66140000033192,
+              "draw_interval_p95_ms": 36.64269999717362,
+              "max_draw_interval_ms": 48.62999999750173
+            }
+          }
+        },
+        {
+          "duration": 5.0,
+          "action_ms": 0.38130000029923394,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 40.297999999893364,
+              "draw_interval_p95_ms": 37.04712000035215,
+              "max_draw_interval_ms": 47.00059999595396
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 36.769999998796266,
+              "draw_interval_p95_ms": 36.12816499990004,
+              "max_draw_interval_ms": 57.20639999344712
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 38.62739999749465,
+              "draw_interval_p95_ms": 36.65722999612626,
+              "max_draw_interval_ms": 57.98099999810802
+            }
+          }
+        },
+        {
+          "duration": 15.0,
+          "action_ms": 0.42299999768147245,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 34.52380000089761,
+              "draw_interval_p95_ms": 36.40019000195024,
+              "max_draw_interval_ms": 46.93119999865303
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 31.64459999970859,
+              "draw_interval_p95_ms": 36.74793999962275,
+              "max_draw_interval_ms": 53.90610000176821
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 33.15509999811184,
+              "draw_interval_p95_ms": 36.87761499786574,
+              "max_draw_interval_ms": 54.46400000073481
+            }
+          }
+        }
+      ]
+    },
+    "fixed-hampel": {
+      "draw_interval_p95_ms": {
+        "EEG": 37.05160999525104,
+        "PPG": 39.32144000209519,
+        "EDA": 39.42775000105029
+      },
+      "reducer_cpu_ms": {
+        "EDA": {
+          "median": 0.23890000011306256,
+          "p95": 0.7424899980833284,
+          "max": 1.1094000001321547
+        },
+        "PPG": {
+          "median": 0.2558999985922128,
+          "p95": 1.0458500000822823,
+          "max": 2.1617999955196865
+        }
+      },
+      "timebase_transitions": [
+        {
+          "duration": 10.0,
+          "action_ms": 0.4576999999699183,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 34.30809999554185,
+              "draw_interval_p95_ms": 36.30561499921896,
+              "max_draw_interval_ms": 44.420699996408075
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 31.040900001244154,
+              "draw_interval_p95_ms": 38.62482499680482,
+              "max_draw_interval_ms": 44.36539999733213
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 32.88009999960195,
+              "draw_interval_p95_ms": 38.49370000389172,
+              "max_draw_interval_ms": 44.30690000299364
+            }
+          }
+        },
+        {
+          "duration": 30.0,
+          "action_ms": 0.4388999950606376,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 59.45409999549156,
+              "draw_interval_p95_ms": 36.548975000187056,
+              "max_draw_interval_ms": 143.43920000101207
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 56.28689999866765,
+              "draw_interval_p95_ms": 38.844225002321764,
+              "max_draw_interval_ms": 135.8784999974887
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 57.93249999987893,
+              "draw_interval_p95_ms": 38.83209999912651,
+              "max_draw_interval_ms": 139.98539999738568
+            }
+          }
+        },
+        {
+          "duration": 5.0,
+          "action_ms": 0.43119999463669956,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 44.4705999980215,
+              "draw_interval_p95_ms": 37.94059500032745,
+              "max_draw_interval_ms": 58.830699999816716
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 41.628699997090735,
+              "draw_interval_p95_ms": 39.82490500275162,
+              "max_draw_interval_ms": 59.12160000298172
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 43.07459999836283,
+              "draw_interval_p95_ms": 39.81542000328773,
+              "max_draw_interval_ms": 59.16199999774108
+            }
+          }
+        },
+        {
+          "duration": 15.0,
+          "action_ms": 0.4410999972606078,
+          "streams": {
+            "EEG": {
+              "first_new_timebase_draw_ms": 42.41850000107661,
+              "draw_interval_p95_ms": 36.23225000192178,
+              "max_draw_interval_ms": 50.60740000044461
+            },
+            "EDA": {
+              "first_new_timebase_draw_ms": 39.55439999845112,
+              "draw_interval_p95_ms": 39.67571500033955,
+              "max_draw_interval_ms": 53.39960000128485
+            },
+            "PPG": {
+              "first_new_timebase_draw_ms": 40.97149999870453,
+              "draw_interval_p95_ms": 39.579914997739245,
+              "max_draw_interval_ms": 53.220399997371715
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1824,7 +1824,7 @@ class MainWindow(QMainWindow):
         elif self.raw_renderer_mode == 'pyqtgraph' and changed:
             for kind, plot in self.plots.items():
                 if self.raw_plot_visible(kind):
-                    plot.setXRange(*self.raw_display.bounds, padding=0)
+                    plot.setXRange(*self.raw_display.viewport(kind), padding=0)
 
     def tab_changed(self, index):
         if hasattr(self, 'affect_view'):
@@ -1977,7 +1977,7 @@ class MainWindow(QMainWindow):
             if self.raw_renderer_mode == 'vispy':
                 # Two consecutive sweep cycles are needed: the completed
                 # cycle remains visible to the right of the advancing head.
-                _, high = self.raw_display.bounds
+                _, high = self.raw_display.viewport(kind)
                 low = high - RAW_DISPLAY_POLICY.history_cycles * self.raw_display.view_seconds
             else:
                 low, high = self.plots[kind].viewRange()[0]
@@ -2040,6 +2040,7 @@ class MainWindow(QMainWindow):
             return
         presentation_head = (self.raw_display.bounds[1] if response.presentation_head is None
                              else response.presentation_head)
+        presentation_heads = getattr(response,'presentation_heads',None) or {}
         self._raw_trace_selection_refresh = False
         for kind, frame in response.frames.items():
             if not self.raw_plot_visible(kind) or frame is None:
@@ -2067,7 +2068,7 @@ class MainWindow(QMainWindow):
                     frame, 0., self.raw_display.view_seconds,
                     show_raw=self.show_raw.isChecked(),
                     show_filtered=self.show_processed.isChecked(),
-                    sweep_head=presentation_head,
+                    sweep_head=presentation_heads.get(kind,presentation_head),
                     nominal_fs=(self.raw_display.history[kind][-1][4]
                                 if self.raw_display.history[kind] else None),
                 )
@@ -2116,7 +2117,7 @@ class MainWindow(QMainWindow):
             self.raw_display.committed_head = committed_head
             for kind, renderer in self.raw_vispy_plots.items():
                 if self.raw_plot_visible(kind) and renderer.configured:
-                    renderer.set_sweep_head(committed_head)
+                    renderer.set_sweep_head(presentation_heads.get(kind,committed_head))
         self.performance.measure('raw_qt_paint', time.perf_counter() - started)
 
     def ready_stream(self, kind, channels, fs):
