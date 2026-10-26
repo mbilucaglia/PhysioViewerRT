@@ -13,16 +13,18 @@ then `start_windows.cmd`. In Sources, refresh LSL, select the source and channel
 for each modality, and press Play. Raw Data shows the live waveforms; gain,
 channel count, sweep duration, and plot pause change the display only.
 
-The Affect tab shows Central/Peripheral trajectories and Emotional Index
-z-scored against its own fixed baseline EI distribution. Record or load EYC and BSL first. SC decomposition starts on the
+The Affect tab shows Central/Peripheral trajectories and Emotional Index.
+Every displayed metric follows that tab's selected normalization using its own
+fixed baseline distribution. Record or load EYC and BSL first. SC decomposition starts on the
 first one-second update, using the available history without edge exclusion. See [Affect visualization](docs/AFFECT_VISUALIZATION_DESIGN.md).
 
 Metrics exposes one **SCL**, the tonic cvxEDA result. EI and the Peripheral
 response use that same decomposed SCL and matching baseline references.
 Metric readouts/rulers follow the selected normalization: original values retain
 their source units; z-score uses baseline standard deviations; robust modes use
-their respective baseline scale and min–max uses the baseline span. EI always
-uses its own BSL z-score, independently of the selector. Metrics **Auto range**
+their respective baseline scale and min–max uses the baseline span. EI follows
+the same selector as the other metrics. Its internal formula still requires HR
+and SCL z-scores; that computation is separate from display normalization. Metrics **Auto range**
 continuously fits the vertical display range; **Fit** fits once and **−/+** hold
 a manual zoom. These controls do not change values or normalization.
 

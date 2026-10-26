@@ -6,15 +6,13 @@ from physiolab.metric_catalog import DEFAULT_METRICS, MetricDefinition
 
 
 class MetricDisplayTests(unittest.TestCase):
-    def test_ei_ruler_uses_baseline_sigma_and_reports_actual_mixed_scales(self):
-        for mode in ('identity', 'zscore', 'zmad', 'robust_iqr', 'minmax'):
-            unit, description = metric_amplitude_label(DEFAULT_METRICS, {('EI','EI')}, mode, {})
-            self.assertEqual(unit, 'σ')
-            self.assertIn('own fixed BSL', description)
+    def test_ei_ruler_follows_the_same_normalization_as_other_metrics(self):
         keys = {('EI','EI'),('PPG','HR')}
-        self.assertEqual(metric_amplitude_label(DEFAULT_METRICS, keys, 'zscore', {})[0], 'σ')
-        for mode in ('identity', 'zmad', 'robust_iqr', 'minmax'):
-            self.assertEqual(metric_amplitude_label(DEFAULT_METRICS, keys, mode, {})[0], 'mixed units')
+        for mode, unit in (('identity','a.u.'),('zscore','σ'),('zmad','σ (MAD)'),
+                           ('robust_iqr','σ (IQR)'),('minmax','norm.')):
+            self.assertEqual(metric_amplitude_label(DEFAULT_METRICS,{('EI','EI')},mode,{})[0],unit)
+            expected = 'mixed units' if mode == 'identity' else unit
+            self.assertEqual(metric_amplitude_label(DEFAULT_METRICS,keys,mode,{})[0],expected)
 
     def test_amplitude_label_follows_each_normalization_formula(self):
         for mode, unit in (('zscore', 'σ'), ('zmad', 'σ (MAD)'),

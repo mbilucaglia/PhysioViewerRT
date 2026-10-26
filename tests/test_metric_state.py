@@ -61,10 +61,17 @@ class MetricStateTests(unittest.TestCase):
         self.assertIsNotNone(state.latest['EI']['EI'])
         self.assertIn('z-scores', state.latest['EI']['status'])
 
-    def test_ei_is_zscored_once_against_its_own_baseline_in_every_display_mode(self):
-        refs = {'EI': {'EI': {'mu': .2, 'sigma': .1}}}
-        for mode in ('identity','zscore','zmad','robust_iqr','minmax'):
-            self.assertAlmostEqual(MetricState.normalized_value('EI','EI',.5,mode,refs), 3.)
-            self.assertIsNone(MetricState.normalized_value('EI','EI',.5,mode,{}))
-        refs['EI']['EI']['sigma'] = 0.
-        self.assertIsNone(MetricState.normalized_value('EI','EI',.5,'zscore',refs))
+    def test_ei_display_follows_selected_normalization_like_other_metrics(self):
+        refs = {'EI': {'EI': {'mu': .2, 'sigma': .1, 'median': .1,
+            'mad': .2, 'iqr': .3, 'minimum': -.2, 'maximum': .2}}}
+        expected = {'identity': .5, 'zscore': 3., 'zmad': .4/(1.4826*.2),
+                    'robust_iqr': .4/(.3/1.349), 'minmax': 1.75}
+        for mode, value in expected.items():
+            self.assertAlmostEqual(MetricState.normalized_value('EI','EI',.5,mode,refs), value)
+            actual = MetricState.normalized_value('EI','EI',.5,mode,{})
+            self.assertEqual(actual, .5 if mode == 'identity' else None)
+        for mode, field in (('zscore','sigma'),('zmad','mad'),('robust_iqr','iqr')):
+            broken = {'EI': {'EI': {**refs['EI']['EI'], field: 0.}}}
+            self.assertIsNone(MetricState.normalized_value('EI','EI',.5,mode,broken))
+        broken = {'EI': {'EI': {'minimum': 1., 'maximum': 1.}}}
+        self.assertIsNone(MetricState.normalized_value('EI','EI',.5,'minmax',broken))

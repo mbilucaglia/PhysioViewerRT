@@ -66,22 +66,33 @@ Peripheral selects the last HR at or before the tonic interval end within a
 one-second tolerance. It never substitutes current HR for delayed tonic SC. The
 model retains bounded raw pairs, so display ticks only reproject/fade them.
 
-## Separate baseline Emotional Index
+## Emotional Index
 
-The second card retains the raw angular EI computation from HR and decomposed
-SCL, each standardized against its own fixed BSL statistics. It recomputes on
-each new input using the latest available other input. Metrics and Affect then
-display `(raw EI − BSL EI mean) / BSL EI standard deviation`, exactly once.
-The baseline EI summary is computed from the same HR/SCL baseline observation
-cadence. Missing or degenerate EI variance makes the display unavailable.
+The EI formula uses HR and canonical decomposed SCL, each z-scored against its
+own fixed BSL mean and standard deviation. This internal operation is required
+to compute raw EI and is independent of every display normalization selector.
+The estimator recomputes on each input using the latest available other input;
+the baseline EI summary uses that same observation cadence. Raw EI is retained
+in history like any other metric, without extra normalization or clipping.
 
-Zero now means mean baseline EI; a positive value means above that mean. It
-does not redefine EI as valence or arousal. The card says **Baseline EI z-score**
-and omits a repeated σ suffix. The gauge/history expand beyond ±1 as needed.
-The EI scale remains fixed to z-score when either normalization selector changes.
-Metric rulers/readouts name the actual scale, reporting mixed units when needed.
-Invalid observations break the history line. Source/pipeline compatibility is
-shared with peripheral metrics, and changed HR/SCL references clear old EI inputs.
+Metrics applies its selected display method to EI using the raw EI baseline
+distribution, including Original (identity), z-score, robust MAD/IQR or min–max.
+Affect independently applies its own selected method to all four plane axes
+and EI. Affect intentionally offers the four baseline-normalized methods; its
+circumplex does not offer an original-unit mode with unlike physical axes.
+Changing the Metrics selector must not change the Affect EI display.
+
+The card is labeled **Emotional Index**, with no special standardized-EI label.
+Its note follows the selected method: zero is the BSL EI mean for z-score, the
+median for robust MAD/IQR, and the minimum for min–max (one is the fixed BSL
+maximum). These numerical references do not establish emotional neutrality.
+Min–max values can fall outside [0,1]; no data are clipped to the baseline span.
+The gauge/history expand as needed. Missing EI references or unusable spread
+for the selected method make normalized values unavailable, rather than
+substituting another normalization. Original EI in Metrics requires no extra
+EI display reference, though computing it still requires HR/SCL BSL references.
+Invalid observations break the line. Shared source/pipeline compatibility and
+changed HR/SCL references prevent old EI inputs from crossing processing modes.
 
 The card exposes HRz, SCLz and raw EI for diagnostics. The raw formula approaches
 ±1 when positive SCLz dominates small HRz and has an angular wrap at HRz = 0;

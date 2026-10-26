@@ -112,7 +112,7 @@
         <item>
          <widget class="QLabel" name="eiEyebrow">
           <property name="text">
-           <string>BASELINE RESPONSE</string>
+           <string>HR + SCL</string>
           </property>
           <property name="wordWrap">
            <bool>true</bool>
@@ -193,7 +193,17 @@
        <string>Awaiting compatible HR and tonic SCL</string>
       </property>
       <property name="toolTip">
-       <string>Unsmoothed inputs to the angular EI formula. Positive SCLz much larger than HRz can give raw EI near ±1. Displayed EI = (raw EI − BSL EI mean) / BSL EI standard deviation.</string>
+       <string>The EI formula uses HR and tonic SCL z-scored against their BSL references. Its resulting raw EI is then displayed using the selected normalization, just like the other metrics.</string>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="eiNormalizationNote">
+      <property name="text">
+       <string>0 = baseline mean.</string>
       </property>
       <property name="wordWrap">
        <bool>true</bool>

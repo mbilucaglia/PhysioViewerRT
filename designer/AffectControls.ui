@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <ui version="4.0">
  <class>AffectControls</class>
  <widget class="QFrame" name="AffectControls">
@@ -41,7 +41,11 @@
        </widget>
       </item>
       <item>
-       <widget class="QComboBox" name="affectNormalization" />
+       <widget class="QComboBox" name="affectNormalization">
+        <property name="toolTip">
+         <string>Display normalization for every Affect metric, including EI. Each metric uses its own fixed BSL distribution. Independent of the Metrics tab.</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>

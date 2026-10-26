@@ -152,7 +152,8 @@ all panels through Show all signals. Hidden signals continue acquisition.
 
 The implemented Affect tab is described in [Affect visualization](AFFECT_VISUALIZATION_DESIGN.md).
 `AffectState` owns source-time pairing, baseline normalization and bounded trails;
-`AffectView` presents persistent VisPy geometry and the original signed EI. The
+`AffectView` presents persistent VisPy geometry and EI normalized with the Affect
+selector. Raw EI is retained in metric state; Metrics uses its own selector. The
 cvxEDA adapter runs on the receiver thread and produces the canonical tonic `SCL`
 metric with source-window provenance. Live and BSL processing share that adapter.
 `CalibrationAnalysisTask` performs baseline analysis away from the GUI thread.

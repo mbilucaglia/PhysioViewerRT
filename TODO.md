@@ -1,5 +1,23 @@
 # PhysioViewerRT handoff — 23 October 2026
 
+## EI normalization correction — 26 October 2026
+
+- [x] Keep required HR/SCL baseline z-scores inside the raw EI formula.
+      Normalize resulting EI like every other metric using the selected display
+      method and the EI baseline distribution. Metrics and Affect selectors are
+      independent; EI is no longer forced to a second z-score.
+- [x] Remove special standardized-EI labeling. Keep the card named Emotional
+      Index, explain the selected method's numerical zero and fixed min/max
+      endpoints, and use normalization-specific units without clipping values.
+- [x] Preserve raw EI history and baseline computation; missing/degenerate EI
+      spread affects only normalized views. Designer controls/tooltips and tests
+      cover independent selectors, robust scales and out-of-baseline min–max.
+
+- Validation: 212 core tests passed; 73 focused core/GUI checks passed with two
+  offscreen GL skips; 12 native Affect checks passed, including live LSL input.
+  Native preview inspected. Selector combinations, missing/zero baseline spread,
+  retained raw EI and unbounded min–max values are covered.
+
 ## Next development priority — PPG and SC preprocessing
 
 User priority, 26 October 2026: implement further peripheral preprocessing before
@@ -75,12 +93,12 @@ no peripheral-cleaning behavior has changed in this priority update.
 - Raw Data ASR indicator reports actual worker execution: idle, off, waiting,
   monitoring, correcting, or bypassed. Green indicates recent reconstruction,
   not guaranteed artifact-removal effectiveness.
-- Raw EI retains the angular HRz/SCLz formula. Metrics and Affect display
-  (raw EI − baseline EI mean) / baseline EI standard deviation, with no ±1 clip.
+- Raw EI retains the angular HRz/SCLz formula. Metrics and Affect apply their
+  respective selected display normalization to EI, with no ±1 clip.
 - EI input references follow live peripheral pipeline compatibility; changing
   baseline clears old EI observations. Affect exposes HRz/SCLz/raw EI diagnostics.
-- Metric readouts and rulers show normalization-specific units. EI always uses σ;
-  original HR/SCL use bpm/source units. Different scales are explicitly identified.
+- Metric readouts and rulers show normalization-specific units for every metric,
+  including EI. Original HR/SCL use bpm/source units; mixed units are identified.
 - Metrics Auto range continuously fits Y; Fit is a one-time fit and −/+ hold a
   manual zoom. These affect display only, independently of normalization.
 - Real hardware ASR efficacy still needs a controlled artifact comparison with
@@ -92,7 +110,7 @@ no peripheral-cleaning behavior has changed in this priority update.
   and BrainLab assets live in the repository and Designer UI.
 - Shared raw amplitude/time rulers, per-signal expansion/autoscale controls,
   multichannel EEG display and asynchronous source/channel reconfiguration.
-- Central AWI/BAR and Peripheral HR/SCL trajectories, plus EI z-scored against its own BSL distribution.
+- Central AWI/BAR and Peripheral HR/SCL trajectories, plus EI following the selected display normalization.
   Peripheral response and EI require live PPG and SC; both analysis tabs remain
   visible but disabled until EYC and BSL are available.
 - One canonical SCL from cvxEDA decomposition, shared by Metrics, EI and baseline

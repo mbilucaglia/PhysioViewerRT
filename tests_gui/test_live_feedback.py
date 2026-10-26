@@ -14,36 +14,55 @@ class LiveFeedbackTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_ei_baseline_scale_matches_metrics_and_affect_for_every_selector(self):
+    def test_ei_follows_each_views_selected_normalization_independently(self):
+        from physiolab.calibration import normalize
         with patch.object(MainWindow, 'refresh', lambda self: None):
             w = MainWindow()
         try:
             ref = {'mu': 0., 'sigma': 1., 'median': 0., 'mad': 1., 'iqr': 1., 'minimum': -2., 'maximum': 2.}
-            w.loaded_bsl = {'analysis': {'metrics': {
-                'PPG': {'HR': ref}, 'EDA': {'SCL': ref},
-                'EI': {'EI': {'mu': .2, 'sigma': .1}}},
-                'tonic_sc': {'configuration_id': 'test-pipeline'}}}
+            ei_ref = {'mu': .2, 'sigma': .1, 'median': .1, 'mad': .2,
+                      'iqr': .3, 'minimum': -.1, 'maximum': .1}
+            w.loaded_bsl = {'analysis': {'metrics': {'PPG': {'HR':ref},
+                'EDA': {'SCL':ref}, 'EI': {'EI':ei_ref}},
+                'tonic_sc': {'configuration_id':'test-pipeline'}}}
             w._tonic_live_configuration = 'test-pipeline'
             w.refresh_affect_references()
-            w.metric_state.update('PPG', {'HR': 1.}, time.monotonic()-1.)
-            w.metric_state.update('EDA', {'SCL': 1.}, time.monotonic()-1.)
-            expected = (emotional_index_z(1., 1.)-.2)/.1
-            with patch.object(w, 'sync_affect_sources', lambda: None):
+            w.metric_state.update('PPG', {'HR':1.},time.monotonic()-1.)
+            w.metric_state.update('EDA', {'SCL':1.},time.monotonic()-1.)
+            raw = emotional_index_z(1.,1.)
+            with patch.object(w,'sync_affect_sources',lambda:None):
                 w.affect_view.set_peripheral_available(True)
                 w.affect_view.set_active(True)
-                for mode in ('identity', 'zscore', 'zmad', 'robust_iqr', 'minmax'):
-                    w.normalization.setCurrentIndex(w.normalization.findData(mode))
+                for affect_mode in ('zscore','zmad','robust_iqr','minmax'):
+                    w.affect_view.normalization.setCurrentIndex(w.affect_view.normalization.findData(affect_mode))
+                    for metric_mode in ('identity','zscore','zmad','robust_iqr','minmax'):
+                        w.normalization.setCurrentIndex(w.normalization.findData(metric_mode))
+                        w.refresh_affect_view()
+                        w.refresh_metric_labels()
+                        self.assertAlmostEqual(w.affect_view.ei_plot.current,normalize(raw,ei_ref,affect_mode))
+                        self.assertAlmostEqual(w.displayed_value('EI','EI',raw),normalize(raw,ei_ref,metric_mode))
+                self.assertGreater(w.affect_view.ei_plot.current,1., 'Minmax must not clip outside-baseline EI')
+                self.assertIn('baseline minimum',w.affect_view.ei_note.text())
+                self.assertIn('HRz +1.00',w.affect_view.ei_diagnostics.text())
+                self.assertEqual(w.metric_state.latest['EI']['EI'],raw)
+                w.normalization.setCurrentIndex(w.normalization.findData('identity'))
+                for mode, field in (('zscore','sigma'),('zmad','mad'),('robust_iqr','iqr'),('minmax','maximum')):
+                    broken = {**ei_ref, field: 0. if mode != 'minmax' else ei_ref['minimum']}
+                    w.loaded_bsl['analysis']['metrics']['EI']['EI'] = broken
+                    w.affect_view.normalization.setCurrentIndex(w.affect_view.normalization.findData(mode))
                     w.refresh_affect_view()
-                    w.refresh_metric_labels()
-                    self.assertAlmostEqual(w.affect_view.ei_plot.current, expected)
-                    self.assertIn('σ', w.metric_labels['EI', 'EI'].text())
-                    self.assertAlmostEqual(w.displayed_value('EI', 'EI', emotional_index_z(1.,1.)), expected)
-                self.assertIn('HRz +1.00', w.affect_view.ei_diagnostics.text())
+                    self.assertIsNone(w.affect_view.ei_plot.current)
+                    self.assertIn('variability',w.affect_view.ei_status.text())
+                    self.assertEqual(w.displayed_value('EI','EI',raw),raw)
+                w.loaded_bsl['analysis']['metrics']['EI'] = {}
+                w.refresh_affect_view()
+                self.assertIsNone(w.affect_view.ei_plot.current)
+                w.loaded_bsl['analysis']['metrics']['EI'] = {'EI':ei_ref}
                 w._tonic_live_configuration = 'different-pipeline'
                 w.refresh_affect_references()
                 w.refresh_affect_view()
                 self.assertIsNone(w.affect_view.ei_plot.current)
-                self.assertFalse(w.metric_state.history['EI', 'EI'])
+                self.assertFalse(w.metric_state.history['EI','EI'])
         finally:
             w.close()
             self.app.processEvents()

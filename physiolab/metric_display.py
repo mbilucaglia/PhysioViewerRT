@@ -23,10 +23,7 @@ def metric_amplitude_label(definitions, visible_keys, normalization, source_unit
     for definition in definitions:
         if definition.key not in visible_keys:
             continue
-        if definition.modality == 'EI':
-            unit, detail = normalized['zscore']
-            detail = 'EI z-score against its own fixed BSL distribution'
-        elif definition.key == ('EEG', 'IAF'):
+        if definition.key == ('EEG', 'IAF'):
             unit, detail = 'Hz', 'IAF calibration frequency'
         elif normalization in normalized:
             unit, detail = normalized[normalization]

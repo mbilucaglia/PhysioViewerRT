@@ -96,14 +96,13 @@ class MetricState:
     def normalized_value(kind, name, value, mode, references):
         if value is None or not isinstance(value, (int, float)) or not np.isfinite(value):
             return None
-        if kind == 'EI':
-            reference = (references or {}).get('EI', {}).get('EI')
-            if not reference or not all(np.isfinite(reference.get(k, np.nan)) for k in ('mu', 'sigma')):
-                return None
-            return normalize(value, reference, 'zscore')
         if mode == 'identity' or (kind == 'EEG' and name == 'IAF'):
             return float(value)
         reference = (references or {}).get(kind, {}).get(name)
         if reference is None:
             return None
-        return normalize(value, reference, mode)
+        try:
+            result = normalize(value, reference, mode)
+            return result if result is not None and np.isfinite(result) else None
+        except (KeyError, TypeError, ValueError, ZeroDivisionError, OverflowError):
+            return None

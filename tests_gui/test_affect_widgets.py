@@ -28,6 +28,14 @@ class AffectWidgetTests(unittest.TestCase):
         QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
         self.app.processEvents()
 
+    def test_ei_note_follows_selected_baseline_reference_without_special_standardization_label(self):
+        for mode, text in (('zscore','baseline mean'),('zmad','baseline median'),
+                           ('robust_iqr','baseline median'),('minmax','baseline minimum')):
+            self.view.normalization.setCurrentIndex(self.view.normalization.findData(mode))
+            self.assertIn(text,self.view.ei_note.text())
+        self.assertIn('1 = baseline maximum',self.view.ei_note.text())
+        self.assertNotIn('neutral',self.view.ei_note.text())
+
     def test_gaps_break_trajectories_and_fading_does_not_add_samples(self):
         first = AffectPoint(8., -1., 0., (8., 8.))
         after_gap = AffectPoint(9., 0., 1., (9., 9.), False)

@@ -580,15 +580,19 @@ class MainWindow(QMainWindow):
                 replace(response, status=tonic_status)
                 if response.key == 'peripheral' and response.status == 'Waiting for valid metric observations'
                 else response for response in snapshot.responses))
-        # Both views normalize the same retained raw EI exactly once.
+        # Each view normalizes retained raw EI once using its own selector.
+        references = self.metric_references()
         ei_points = [(at+self._affect_clock_offset,
-                      self.displayed_value('EI', 'EI', value))
+                      self.metric_state.normalized_value('EI', 'EI', value,
+                          self.affect_view.normalization.currentData(), references))
                      for at, value in self.metric_state.history.get(('EI', 'EI'), ())
                      if at+self._affect_clock_offset >= self._affect_clear_before]
         ei_status = (self.metric_state.latest.get('EI', {}).get('status')
                      or self.metric_state.ei_unavailable_reason())
-        if not self.metric_references().get('EI', {}).get('EI'):
-            ei_status = 'EI needs compatible BSL EI mean and variability'
+        if not references.get('EI', {}).get('EI'):
+            ei_status = 'EI needs compatible BSL references for the selected normalization'
+        if ei_points and ei_points[-1][1] is None and self.metric_state.ei.value() is not None:
+            ei_status = 'EI baseline has insufficient variability for the selected normalization'
         ei_points = [(at, value if value is not None else float('nan')) for at, value in ei_points]
         self.affect_view.update_snapshot(snapshot, ei_points, now, ei_status=ei_status)
         if self.affect_view.pause.isChecked():
@@ -1397,10 +1401,10 @@ class MainWindow(QMainWindow):
                 status = 'Updating EEG baseline references…'
             if kind == 'EI':
                 if kind in available:
-                    status = 'Live · BSL EI z-score'
+                    status = 'Live' if self.normalization.currentData() == 'identity' else 'Live · BSL normalized'
                 else:
-                    status = (self.metric_state.ei_unavailable_reason() if self.metric_state.ei.reference_problem()
-                              else 'EI needs compatible BSL EI mean and variability')
+                    status = (self.metric_state.ei_unavailable_reason() if self.metric_state.ei.value() is None
+                              else 'EI needs compatible BSL references with usable variability for the selected normalization')
             if kind in available and (not status or status.startswith('Waiting for cvxEDA')):
                 status = 'Live' if self.normalization.currentData() == 'identity' else 'Live · BSL normalized'
             label.setText(status or 'Waiting for data')

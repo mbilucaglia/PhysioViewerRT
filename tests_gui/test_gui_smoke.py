@@ -719,8 +719,9 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.sync_affect_sources()
         self.assertTrue(view.ei_card.isHidden())
 
-    def test_ei_readout_requires_its_own_baseline_distribution(self):
+    def test_normalized_ei_readout_requires_its_own_baseline_distribution(self):
         self.window.metric_state.latest['EI'] = {'EI': .3}
+        self.window.normalization.setCurrentIndex(self.window.normalization.findData('zscore'))
         self.window.refresh_metric_labels()
         self.assertNotIn('0.300', self.window.metric_labels['EI', 'EI'].text())
         self.assertIsNone(self.window.displayed_value('EI', 'EI', .3))

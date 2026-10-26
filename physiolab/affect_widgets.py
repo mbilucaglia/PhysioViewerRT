@@ -1,7 +1,7 @@
 """Affect presentation: persistent geometry and controls, without processing state.
 
-The host supplies immutable affect snapshots and original (un-normalized) EI
-observations. Missing responses never acquire a placeholder marker at zero.
+The host supplies immutable affect snapshots and EI observations transformed
+with this view's selected normalization. Missing responses never acquire a placeholder marker at zero.
 """
 import math
 from pathlib import Path
@@ -286,7 +286,7 @@ class EmotionalIndexPlot(QWidget):
         painter.setFont(font)
         painter.setPen(QColor(MUTED))
         painter.drawText(QRectF(0, 67, width, 24), Qt.AlignmentFlag.AlignCenter,
-                         'BASELINE EI Z-SCORE')
+                         'CURRENT VALUE')
         extent = max(2., 1.1*max([abs(v) for _, v in self.points if math.isfinite(v)]
                               + [abs(self.current) if self.current is not None else 0.]))
         gauge_y = 115.
@@ -376,7 +376,7 @@ class AffectView(QWidget):
         self.clear = self.controls.findChild(QPushButton, 'affectClear')
         for label, value in NORMALIZATIONS:
             self.normalization.addItem(label, value)
-        self.normalization.setToolTip('All four circumplex axes use this method with their own BSL reference.')
+        self.normalization.setToolTip('Apply this method to all four circumplex axes and EI, each using its own BSL metric reference. Independent of Metrics display settings.')
         for seconds in RETENTIONS:
             self.retention.addItem(f'{seconds} s', float(seconds))
         self.retention.setCurrentIndex(RETENTIONS.index(60))
@@ -455,9 +455,9 @@ class AffectView(QWidget):
         self.ei_status = self._label('Awaiting baseline EI observations', 'affectHint')
         self.ei_status.setWordWrap(True)
         ei_layout.addWidget(self.ei_status)
-        note = self._label('0 = mean baseline EI. Values are baseline standard deviations.', 'affectHint')
-        note.setWordWrap(True)
-        ei_layout.addWidget(note)
+        self.ei_note = self.cards_splitter.findChild(QLabel, 'eiNormalizationNote')
+        self._update_ei_note()
+        self.normalization.currentIndexChanged.connect(self._update_ei_note)
         self.normalization.currentIndexChanged.connect(lambda: self.normalization_changed.emit(self.normalization.currentData()))
         self.retention.currentIndexChanged.connect(self._retention_changed)
         self.fade.toggled.connect(lambda: self._refresh())
@@ -544,6 +544,18 @@ class AffectView(QWidget):
         self.auto_range.setChecked(checked)
         self.auto_range.blockSignals(False)
 
+    def _update_ei_note(self):
+        if self.pause.isChecked() and self._latest is not None:
+            return  # Keep the explanation aligned with the frozen displayed values.
+        notes = {
+            'zscore': '0 = baseline mean.',
+            'zmad': '0 = baseline median; scale = 1.4826 × MAD.',
+            'robust_iqr': '0 = baseline median; scale = IQR / 1.349.',
+            'minmax': '0 = baseline minimum; 1 = baseline maximum. Values can fall outside this span.',
+        }
+        self.ei_note.setText(notes[self.normalization.currentData()])
+        self.ei_note.setToolTip('EI follows the selected normalization like the other metrics. Zero is a numerical baseline reference, not a separate calibration of emotional neutrality.')
+
     def _update_range_label(self):
         units = {'zscore': 'σ', 'zmad': 'σ (MAD)', 'robust_iqr': 'σ (IQR)', 'minmax': 'norm.'}
         unit = units[self.normalization.currentData()]
@@ -575,6 +587,7 @@ class AffectView(QWidget):
         self.plane.set_snapshot(snapshot, now, retention, self.fade.isChecked())
         self.ei_plot.set_points(ei_points, now, retention)
         self._update_range_label()
+        self._update_ei_note()
         for response in snapshot.responses:
             point = response.current
             value = (f'V {point.x:+.2f} · A {point.y:+.2f} · {max(0., now-point.at):.1f} s old'
@@ -586,7 +599,7 @@ class AffectView(QWidget):
                     f'{binding} · normalized with separate fixed baseline references\n'
                     f'Source timestamps: {point.source_times[0]:.3f}, {point.source_times[1]:.3f}\n'
                     f'Observation age: {max(0., now-point.at):.2f} s\n{response.status}')
-        self.ei_status.setText('Live · BSL EI z-score' if self.ei_plot.current is not None
+        self.ei_status.setText('Live' if self.ei_plot.current is not None
                                else self._ei_reason or 'Awaiting fresh baseline EI observations')
 
     def closeEvent(self, event):
