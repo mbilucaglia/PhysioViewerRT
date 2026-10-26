@@ -452,6 +452,19 @@ QCheckBox::indicator:unchecked:disabled { border-color: #d8d7e2; background: #f5
                        </property>
                       </widget>
                      </item>
+                     <item row="3" column="0" colspan="2" alignment="Qt::AlignLeft">
+                      <widget class="QPushButton" name="EEGASRReport">
+                       <property name="text">
+                        <string>Training report…</string>
+                       </property>
+                       <property name="enabled">
+                        <bool>false</bool>
+                       </property>
+                       <property name="toolTip">
+                        <string>Review retained training duration and the limits of these quality indicators.</string>
+                       </property>
+                      </widget>
+                     </item>
                     </layout>
                    </widget>
                   </item>

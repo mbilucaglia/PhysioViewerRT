@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QLabel, QPushButton
 
 
 class ASRControls(QObject):
+    report_requested = Signal()
     train_requested = Signal()
     fit_requested = Signal(dict)
     enabled_changed = Signal(bool)
@@ -16,6 +17,8 @@ class ASRControls(QObject):
         self.status = panel.findChild(QLabel, 'EEGASRStatus')
         self.train = panel.findChild(QPushButton, 'EEGASRTrain')
         self.train.clicked.connect(self.train_requested)
+        self.report = panel.findChild(QPushButton, 'EEGASRReport')
+        self.report.clicked.connect(self.report_requested)
         self._compatible = self._fitted = self._busy = self._has_training = False
         self._source_status = 'Start EEG, then Train ASR. All channels are kept.'
         self._threshold_timer = QTimer(self)
@@ -58,6 +61,7 @@ class ASRControls(QObject):
     def _sync(self):
         self.enable.setEnabled(self._compatible and self._fitted and not self._busy)
         self.cutoff.setEnabled(not self._busy)
+        self.report.setEnabled(self._fitted and not self._busy)
         self.train.setEnabled(self._compatible and not self._busy)
 
     def _threshold_changed(self):

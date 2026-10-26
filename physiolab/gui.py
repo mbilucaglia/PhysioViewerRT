@@ -42,6 +42,7 @@ from .calibration_tasks import CalibrationAnalysisTask
 from .affect_state import AffectState
 from .affect_widgets import AffectView
 from .asr_widgets import ASRControls
+from .asr_quality import training_report
 from .ui_icons import set_action
 from .asr_session import ASRSession
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
@@ -65,6 +66,8 @@ class MainWindow(QMainWindow):
         self.metric_state = MetricState(self.metric_definitions, settings.metric_history_capacity)
         self.asr_session = ASRSession()
         self.asr_tasks = []
+        self._asr_report_dialog = None
+        self._asr_report_generation = None
         self.eeg_reference_tasks = []
         self.eeg_reference_pending = False
         self.eeg_reference_error = None
@@ -179,6 +182,7 @@ class MainWindow(QMainWindow):
     def _connect_asr_view(self):
         self.asr_view = ASRControls(self._required_ui('EEGASRPanel', QFrame))
         self.asr_view.train_requested.connect(self.train_eeg_asr)
+        self.asr_view.report_requested.connect(self.show_asr_training_report)
         self.asr_view.train.setText(f'Train ({self.settings.asr_training_seconds:g} s)')
         self.asr_view.fit_requested.connect(self.fit_eeg_asr)
         self.asr_view.enabled_changed.connect(self.set_eeg_asr_enabled)
@@ -199,6 +203,7 @@ class MainWindow(QMainWindow):
                           for key, value in self.asr_view.settings().items()))
         self.asr_view.set_fit_state(fitted, self.asr_session.busy or self.capture is not None)
         self.asr_view.set_enabled(self.asr_session.enabled and fitted)
+        self.asr_view.report.setEnabled(model is not None and not self.asr_session.busy)
 
     def train_eeg_asr(self):
         worker = self.workers.get('EEG')
@@ -255,6 +260,8 @@ class MainWindow(QMainWindow):
             return
         if self.asr_session.enabled:
             self.set_eeg_asr_enabled(False)
+        if self._asr_report_dialog is not None:
+            self._asr_report_dialog.close()
         self.asr_session.set_training(eeg)
         self.fit_eeg_asr(self.asr_view.settings(), enable_on_success=True)
 
@@ -264,6 +271,8 @@ class MainWindow(QMainWindow):
         if not available or self.asr_session.busy or self.capture is not None:
             self.asr_view.set_fit_state(False, self.asr_session.busy, status or 'Finish recording first.')
             return
+        if self._asr_report_dialog is not None:
+            self._asr_report_dialog.close()
         self._asr_resume_after_fit = enable_on_success or self.asr_session.enabled
         if self.asr_session.enabled:
             self.set_eeg_asr_enabled(False)
@@ -281,9 +290,9 @@ class MainWindow(QMainWindow):
         task.deleteLater()
 
     def eeg_asr_fitted(self, generation, result, error):
-        self.asr_session.busy = False
         if self._closing or generation != self.asr_session.generation:
             return
+        self.asr_session.busy = False
         if error is not None:
             self.asr_view.set_fit_state(False, False, error)
             return
@@ -293,6 +302,27 @@ class MainWindow(QMainWindow):
             self.set_eeg_asr_enabled(True)
         self._asr_resume_after_fit = False
         self.statusBar().showMessage('ASR trained independently. All selected EEG channels are preserved.')
+        if generation != self._asr_report_generation:
+            self._asr_report_generation = generation
+            self.show_asr_training_report()
+        elif self._asr_report_dialog is not None and self._asr_report_dialog.isVisible():
+            self.show_asr_training_report()
+
+    def show_asr_training_report(self):
+        model = self.asr_session.model
+        if model is None or self.asr_session.busy:
+            return
+        if self._asr_report_dialog is None:
+            folder = Path(__file__).resolve().parent.parent / 'designer'
+            loader = QUiLoader()
+            loader.setWorkingDirectory(QDir(str(folder)))
+            self._asr_report_dialog = loader.load(str(folder / 'ASRTrainingReport.ui'), self)
+            if self._asr_report_dialog is None:
+                raise RuntimeError('Cannot load Designer ASR training report')
+        for key, value in training_report(model).items():
+            self._asr_report_dialog.findChild(QLabel, key + 'Value').setText(value)
+        self._asr_report_dialog.show()
+
 
     def _apply_asr_metric_references(self):
         session = self.asr_session

@@ -1,0 +1,205 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>ASRTrainingReport</class>
+ <widget class="QDialog" name="ASRTrainingReport">
+  <property name="windowTitle">
+   <string>ASR training report</string>
+  </property>
+  <layout class="QVBoxLayout" name="reportLayout">
+   <property name="spacing">
+    <number>12</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="reportTitle">
+     <property name="text">
+      <string>ASR training completed</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="reportIntro">
+     <property name="text">
+      <string>How much of this recording the ASR calibration routine retained for fitting:</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="reportMeasures">
+     <item row="0" column="0">
+      <widget class="QLabel" name="recordedLabel">
+       <property name="text">
+        <string>Recorded EEG</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="recordedValue">
+       <property name="text">
+        <string>—</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="retainedLabel">
+       <property name="text">
+        <string>Retained for fitting</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLabel" name="retainedValue">
+       <property name="text">
+        <string>—</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="excludedLabel">
+       <property name="text">
+        <string>Excluded from fitting</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLabel" name="excludedValue">
+       <property name="text">
+        <string>—</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="minimumLabel">
+       <property name="text">
+        <string>Retained-duration check</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLabel" name="minimumValue">
+       <property name="text">
+        <string>—</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="channelsLabel">
+       <property name="text">
+        <string>EEG configuration</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLabel" name="channelsValue">
+       <property name="text">
+        <string>—</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="thresholdLabel">
+       <property name="text">
+        <string>ASR threshold</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QLabel" name="thresholdValue">
+       <property name="text">
+        <string>—</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="reportMeaning">
+     <property name="text">
+      <string>Retained data passed the backend’s training-window selection. This does not establish that it is artifact-free. Excluded time refers to training samples; no EEG channels are removed.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="reportLimits">
+     <property name="text">
+      <string>These values do not measure residual contamination, model stability or future artifact-removal performance. No effectiveness score is assigned. Check the live EEG; if training contained movement or poor electrode contact, correct the setup and train again while relaxed and still.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="reportButtons">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>500</width>
+    <height>480</height>
+   </rect>
+  </property>
+  <property name="styleSheet">
+   <string>QDialog#ASRTrainingReport { background: #fafafe; } QLabel#reportTitle { font-size: 14pt; font-weight: 600; }</string>
+  </property>
+ </widget>
+ <resources />
+ <connections>
+  <connection>
+   <sender>reportButtons</sender>
+   <signal>rejected()</signal>
+   <receiver>ASRTrainingReport</receiver>
+   <slot>reject()</slot>
+  </connection>
+ </connections>
+</ui>

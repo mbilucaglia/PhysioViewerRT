@@ -126,7 +126,9 @@ Restart the app and train a fresh ASR model next time; models remain in memory o
 These are exploratory ideas, not agreed requirements or scheduled implementation.
 The measures, statistical assumptions and presentation still need discussion.
 
-- **ASR training-quality / effectiveness popup.** After training, show a summary
+- **ASR training-quality / effectiveness popup.** Initial duration-based report
+  implemented on 26 October 2026 (see below); further quality measures remain
+  exploratory. After training, show a summary
   of the quality of the training EEG and how suitable the fitted model may be
   for subsequent ASR processing. Explore what useful indicators could be shown
   (for example usable clean duration, residual contamination or model stability).
@@ -155,3 +157,16 @@ The measures, statistical assumptions and presentation still need discussion.
       Windows previews checked at 1024×700, 1280×720 and 1600×1000.
 - [x] Keep channel checkbox popup open for repeated selections; Escape/outside
       click dismisses it. EEG remains multichannel; PPG/SC select one channel.
+
+
+## ASR training report — 26 October 2026
+
+- [x] First implementation of the training-quality popup: automatically show
+      recorded, retained and excluded duration/percentages, minimum retained
+      duration, channel count, sampling rate and cutoff after successful new
+      training. Reopen using Training report in EEG Processing, even after Stop.
+      Threshold refits update the report without repeatedly opening a popup.
+- The popup is nonmodal and defined in designer/ASRTrainingReport.ui. It reports
+      backend training-window selection, not verified clean-data percentage or
+      predicted cleaning effectiveness. Contamination and model-stability
+      estimates remain exploratory; the metric-uncertainty idea is unchanged.
