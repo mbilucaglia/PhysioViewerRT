@@ -1,6 +1,13 @@
 # PhysioViewerRT handoff — 23 October 2026
 
 
+## Application icon — 26 October 2026
+
+- [x] Replace the reduced detailed lab logo in the title bar/taskbar with a
+      dedicated navy/white waveform mark and mint accent. Include editable SVG
+      and multi-size Windows ICO (16–256 px), wire runtime and Designer, inspect
+      small-size rendering and verify the loaded main-window icon.
+
 ## Compact per-signal processing feedback — 26 October 2026
 
 - [x] Move ASR feedback into the EEG Raw Data header; add one compact dot each

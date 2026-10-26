@@ -5,6 +5,9 @@
   <property name="windowTitle">
    <string>PhysioViewerRT — Live physiological signals</string>
   </property>
+  <property name="windowIcon">
+   <iconset><normaloff>../assets/physioviewer.ico</normaloff></iconset>
+  </property>
   <property name="styleSheet">
    <string>QWidget { color: #25234a; font-family: "Segoe UI"; font-size: 10pt; }
 QMainWindow, QWidget#centralwidget { background: #f1f2f9; }
