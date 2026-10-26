@@ -4,6 +4,9 @@ The host supplies immutable affect snapshots and original (un-normalized) EI
 observations. Missing responses never acquire a placeholder marker at zero.
 """
 import math
+from pathlib import Path
+from PySide6.QtUiTools import QUiLoader
+from .flow_layout import install_flow
 
 import numpy as np
 from PySide6.QtCore import QCoreApplication, QEvent, QPointF, QRectF, Qt, Signal
@@ -356,32 +359,24 @@ class AffectView(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(10, 12, 10, 8)
         outer.setSpacing(12)
-        toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
-        toolbar.addWidget(QLabel('Reference'))
-        self.normalization = QComboBox()
+        folder = Path(__file__).resolve().parent.parent / 'designer'
+        self.controls = QUiLoader().load(str(folder / 'AffectControls.ui'), self)
+        if self.controls is None:
+            raise RuntimeError('Cannot load Designer Affect controls')
+        self.normalization = self.controls.findChild(QComboBox, 'affectNormalization')
+        self.retention = self.controls.findChild(QComboBox, 'affectRetention')
+        self.fade = self.controls.findChild(QCheckBox, 'affectFade')
+        self.pause = self.controls.findChild(QPushButton, 'affectPause')
+        self.clear = self.controls.findChild(QPushButton, 'affectClear')
         for label, value in NORMALIZATIONS:
             self.normalization.addItem(label, value)
         self.normalization.setToolTip('All four circumplex axes use this method with their own BSL reference.')
-        toolbar.addWidget(self.normalization)
-        toolbar.addSpacing(8)
-        toolbar.addWidget(QLabel('Trail'))
-        self.retention = QComboBox()
         for seconds in RETENTIONS:
             self.retention.addItem(f'{seconds} s', float(seconds))
         self.retention.setCurrentIndex(RETENTIONS.index(60))
-        toolbar.addWidget(self.retention)
-        self.fade = QCheckBox('Fade trails')
-        self.fade.setChecked(True)
-        toolbar.addWidget(self.fade)
-        toolbar.addStretch()
-        self.pause = QPushButton('Pause view')
-        self.pause.setCheckable(True)
         self.pause.setToolTip('Freeze this view while acquisition and metric processing continue.')
-        self.clear = QPushButton('Clear trails')
-        toolbar.addWidget(self.pause)
-        toolbar.addWidget(self.clear)
-        outer.addLayout(toolbar)
+        install_flow(self.controls)
+        outer.addWidget(self.controls)
         self.cards_layout = QHBoxLayout()
         self.cards_layout.setSpacing(14)
         self.circumplex_card, plane_layout = self._card('CENTRAL + PERIPHERAL', 'Affect landscape', 'circumplex')

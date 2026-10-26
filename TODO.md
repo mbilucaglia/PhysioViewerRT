@@ -170,3 +170,20 @@ The measures, statistical assumptions and presentation still need discussion.
       backend training-window selection, not verified clean-data percentage or
       predicted cleaning effectiveness. Contamination and model-stability
       estimates remain exploratory; the metric-uncertainty idea is unchanged.
+
+
+## Adaptive layouts and compact styling — 26 October 2026
+
+- [x] Compact EEG Processing into a filter row, wrapping ASR action groups and
+      a separate status line. Reduce nested borders and panel padding.
+- [x] Wrap Raw Data and Metrics toolbars by related control groups. Wrap metric
+      selectors/readout cards and stack Affect cards when space is limited.
+- [x] Move Affect toolbar controls into designer/AffectControls.ui; preserve
+      action names and processing behavior. All main tabs have scroll fallback.
+- [x] Native Windows previews checked at 100%, 125% and 150% Qt scaling with
+      1024×700 and 1280×720 logical windows, plus 853×480 and 900×560 at 150%.
+      No horizontal scrolling in the checked states. Windows limits the largest
+      150% preview to available screen height. These previews used empty plots;
+      extended hardware sessions and active-data visual checks remain open.
+- Validation: full GUI suite 90 tests, 88 passed / two native OpenGL skips;
+      the additional resize/connection regression test passed separately.

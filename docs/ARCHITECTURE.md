@@ -159,3 +159,15 @@ metric with source-window provenance. Live and BSL processing share that adapter
 Peripheral coordinates require compatible tonic pipeline and input metadata;
 EI uses the same decomposed SCL and matching baseline statistics. No median SCL
 fallback is exposed in Metrics, Affect, or calibration.
+
+
+## Adaptive desktop layouts
+
+Designer owns toolbar groups and styling in PhysioViewerRT_ClinicalLayout.ui
+and AffectControls.ui. A widget marked with the wrapControls property has its
+preview grid replaced at startup by flow_layout.FlowLayout. This preserves each
+label/control group, signal connection and named widget while allowing groups to
+wrap using Qt size hints. Sources uses its existing one/two-column controller;
+Affect cards adapt to viewport width. Scroll areas keep controls reachable when
+window height is limited. New controls should join an appropriate Designer group
+rather than adding a new permanent row or hard-coded screen coordinates.

@@ -57,6 +57,12 @@ QWidget#sourcesScrollContent, QScrollArea#sourcesScroll { background: #f1f2f9; }
 QMenu, QMenu QWidget { background: #ffffff; color: #25234a; }
 QCheckBox::indicator:unchecked { width: 14px; height: 14px; border: 1px solid #aaa9c1; border-radius: 3px; background: #ffffff; }
 QCheckBox::indicator:unchecked:disabled { border-color: #d8d7e2; background: #f5f5fa; }
+
+QScrollArea, QWidget#rawDataTabContent, QWidget#metricsTabContent, QWidget#affectTabContent { background: #fafafe; }
+QGroupBox { padding: 10px 10px 8px; margin-top: 16px; }
+QGroupBox#EEGProcessingPanel, QGroupBox#PPGProcessingPanel, QGroupBox#EDAProcessingPanel { background: #fafafe; border-color: #e5e3f1; }
+QFrame#EEGASRPanel { border: none; background: transparent; }
+QTabBar::tab { padding: 8px 18px; }
 </string>
   </property>
   <property name="geometry">
@@ -370,98 +376,182 @@ QCheckBox::indicator:unchecked:disabled { border-color: #d8d7e2; background: #f5
                   </item>
                   <item>
                    <widget class="QFrame" name="EEGASRPanel">
-                    <layout class="QGridLayout" name="EEGASRLayout" columnstretch="0,1">
+                    <layout class="QVBoxLayout" name="EEGASRLayout">
+                     <property name="spacing">
+                      <number>6</number>
+                     </property>
                      <property name="leftMargin">
-                      <number>10</number>
+                      <number>6</number>
                      </property>
                      <property name="topMargin">
-                      <number>10</number>
+                      <number>6</number>
                      </property>
                      <property name="rightMargin">
-                      <number>10</number>
+                      <number>6</number>
                      </property>
                      <property name="bottomMargin">
-                      <number>10</number>
+                      <number>6</number>
                      </property>
-                     <property name="spacing">
-                      <number>10</number>
-                     </property>
-                     <item row="0" column="0">
-                      <widget class="QCheckBox" name="EEGASREnable">
-                       <property name="text">
-                        <string>Apply ASR</string>
+                     <item>
+                      <widget class="QWidget" name="EEGASRLayoutHost">
+                       <property name="wrapControls" stdset="0">
+                        <bool>true</bool>
                        </property>
-                       <property name="enabled">
-                        <bool>false</bool>
-                       </property>
+                       <layout class="QGridLayout" name="EEGASRLayoutGrid">
+                        <property name="leftMargin">
+                         <number>0</number>
+                        </property>
+                        <property name="topMargin">
+                         <number>0</number>
+                        </property>
+                        <property name="rightMargin">
+                         <number>0</number>
+                        </property>
+                        <property name="bottomMargin">
+                         <number>0</number>
+                        </property>
+                        <item row="0" column="0">
+                         <widget class="QWidget" name="EEGASRLayoutGroup0">
+                          <layout class="QHBoxLayout" name="EEGASRLayoutGroup0Layout">
+                           <property name="leftMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="topMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="rightMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="bottomMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="spacing">
+                            <number>6</number>
+                           </property>
+                           <item>
+                            <widget class="QCheckBox" name="EEGASREnable">
+                             <property name="text">
+                              <string>Apply ASR</string>
+                             </property>
+                             <property name="enabled">
+                              <bool>false</bool>
+                             </property>
+                            </widget>
+                           </item>
+                           <item>
+                            <widget class="QPushButton" name="EEGASRTrain">
+                             <property name="text">
+                              <string>Train</string>
+                             </property>
+                             <property name="icon">
+                              <iconset>
+                               <normaloff>../assets/icons/play.svg</normaloff>../assets/icons/play.svg</iconset>
+                             </property>
+                             <property name="toolTip">
+                              <string>Record clean EEG to train ASR independently of EYC and BSL.</string>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </widget>
+                        </item>
+                        <item row="0" column="1">
+                         <widget class="QWidget" name="EEGASRLayoutGroup1">
+                          <layout class="QHBoxLayout" name="EEGASRLayoutGroup1Layout">
+                           <property name="leftMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="topMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="rightMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="bottomMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="spacing">
+                            <number>6</number>
+                           </property>
+                           <item>
+                            <widget class="QLabel" name="EEGASRThresholdLabel">
+                             <property name="text">
+                              <string>Threshold</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item>
+                            <widget class="QDoubleSpinBox" name="EEGASRCutoff">
+                             <property name="minimum">
+                              <double>2.5</double>
+                             </property>
+                             <property name="maximum">
+                              <double>100.0</double>
+                             </property>
+                             <property name="value">
+                              <double>20.0</double>
+                             </property>
+                             <property name="singleStep">
+                              <double>1.0</double>
+                             </property>
+                             <property name="decimals">
+                              <number>1</number>
+                             </property>
+                             <property name="suffix">
+                              <string> σ</string>
+                             </property>
+                             <property name="maximumWidth">
+                              <number>105</number>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </widget>
+                        </item>
+                        <item row="0" column="2">
+                         <widget class="QWidget" name="EEGASRLayoutGroup2">
+                          <layout class="QHBoxLayout" name="EEGASRLayoutGroup2Layout">
+                           <property name="leftMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="topMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="rightMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="bottomMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="spacing">
+                            <number>6</number>
+                           </property>
+                           <item>
+                            <widget class="QPushButton" name="EEGASRReport">
+                             <property name="text">
+                              <string>Training report…</string>
+                             </property>
+                             <property name="enabled">
+                              <bool>false</bool>
+                             </property>
+                             <property name="toolTip">
+                              <string>Review retained training duration and the limits of these quality indicators.</string>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </widget>
+                        </item>
+                       </layout>
                       </widget>
                      </item>
-                     <item row="0" column="1" alignment="Qt::AlignLeft">
-                      <widget class="QPushButton" name="EEGASRTrain">
-                       <property name="text">
-                        <string>Train</string>
-                       </property>
-                       <property name="icon">
-                        <iconset>
-                         <normaloff>../assets/icons/play.svg</normaloff>../assets/icons/play.svg</iconset>
-                       </property>
-                       <property name="toolTip">
-                        <string>Record clean EEG to train ASR independently of EYC and BSL.</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item row="1" column="0">
-                      <widget class="QLabel" name="EEGASRThresholdLabel">
-                       <property name="text">
-                        <string>Threshold</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item row="1" column="1" alignment="Qt::AlignLeft">
-                      <widget class="QDoubleSpinBox" name="EEGASRCutoff">
-                       <property name="minimum">
-                        <double>2.5</double>
-                       </property>
-                       <property name="maximum">
-                        <double>100.0</double>
-                       </property>
-                       <property name="value">
-                        <double>20.0</double>
-                       </property>
-                       <property name="singleStep">
-                        <double>1.0</double>
-                       </property>
-                       <property name="decimals">
-                        <number>1</number>
-                       </property>
-                       <property name="suffix">
-                        <string> σ</string>
-                       </property>
-                       <property name="maximumWidth">
-                        <number>105</number>
-                       </property>
-                      </widget>
-                     </item>
-                     <item row="2" column="0" colspan="2">
+                     <item>
                       <widget class="QLabel" name="EEGASRStatus">
                        <property name="text">
                         <string>Start EEG, then Train ASR. All channels are kept and corrected.</string>
                        </property>
                        <property name="wordWrap">
                         <bool>true</bool>
-                       </property>
-                      </widget>
-                     </item>
-                     <item row="3" column="0" colspan="2" alignment="Qt::AlignLeft">
-                      <widget class="QPushButton" name="EEGASRReport">
-                       <property name="text">
-                        <string>Training report…</string>
-                       </property>
-                       <property name="enabled">
-                        <bool>false</bool>
-                       </property>
-                       <property name="toolTip">
-                        <string>Review retained training duration and the limits of these quality indicators.</string>
                        </property>
                       </widget>
                      </item>
@@ -1083,709 +1173,839 @@ QCheckBox::indicator:unchecked:disabled { border-color: #d8d7e2; background: #f5
        <attribute name="title">
         <string>Raw Data</string>
        </attribute>
-       <layout class="QVBoxLayout" name="rawDataLayout" stretch="0,0,1">
-        <property name="bottomMargin">
-         <number>16</number>
-        </property>
-        <property name="rightMargin">
-         <number>16</number>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <layout class="QVBoxLayout" name="rawDataTabScrollLayout">
+        <property name="leftMargin">
+         <number>0</number>
         </property>
         <property name="topMargin">
-         <number>16</number>
+         <number>0</number>
         </property>
-        <property name="leftMargin">
-         <number>16</number>
+        <property name="rightMargin">
+         <number>0</number>
         </property>
-        <property name="spacing">
-         <number>10</number>
+        <property name="bottomMargin">
+         <number>0</number>
         </property>
         <item>
-         <widget class="QLabel" name="rawIntro">
-          <property name="wordWrap">
+         <widget class="QScrollArea" name="rawDataTabScroll">
+          <property name="widgetResizable">
            <bool>true</bool>
           </property>
-          <property name="text">
-           <string>Live waveforms · Adjust the time window and display gain. Drag the dividers to resize each signal panel.</string>
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
           </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="rawToolbar" stretch="0,0,1,0,0,0,0,0">
-          <property name="spacing">
-           <number>10</number>
-          </property>
-          <item>
-           <widget class="QComboBox" name="rawRendererChoice">
-            <property name="maximumWidth">
-             <number>170</number>
+          <widget class="QWidget" name="rawDataTabContent">
+           <layout class="QVBoxLayout" name="rawDataLayout" stretch="0,0,1">
+            <property name="bottomMargin">
+             <number>16</number>
             </property>
-            <item>
-             <property name="text">
-              <string>pyqtgraph</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>VisPy / OpenGL</string>
-             </property>
-            </item>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="rawFollowLive">
-            <property name="toolTip">
-             <string>Return to the newest incoming samples</string>
+            <property name="rightMargin">
+             <number>16</number>
             </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>../assets/icons/live.svg</normaloff>
-             </iconset>
+            <property name="topMargin">
+             <number>16</number>
             </property>
-            <property name="iconSize">
-             <size>
-              <width>16</width>
-              <height>16</height>
-             </size>
+            <property name="leftMargin">
+             <number>16</number>
             </property>
-            <property name="text">
-             <string>Live</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="rawRenderingStatus">
-            <property name="text">
-             <string />
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="rawSweepLabel">
-            <property name="text">
-             <string>Time window</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QComboBox" name="rawSweepDuration">
-            <item>
-             <property name="text">
-              <string>5 s</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>8 s</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>10 s</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>15 s</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>30 s</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>60 s</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>300 s</string>
-             </property>
-            </item>
-            <property name="maximumWidth">
-             <number>96</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="rawZoomMinus">
-            <property name="toolTip">
-             <string>Show a longer time window</string>
-            </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>../assets/icons/minus.svg</normaloff>
-             </iconset>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>16</width>
-              <height>16</height>
-             </size>
-            </property>
-            <property name="text">
-             <string />
-            </property>
-            <property name="minimumWidth">
-             <number>32</number>
-            </property>
-            <property name="maximumWidth">
-             <number>32</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="rawZoomPlus">
-            <property name="toolTip">
-             <string>Show a shorter time window</string>
-            </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>../assets/icons/plus.svg</normaloff>
-             </iconset>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>16</width>
-              <height>16</height>
-             </size>
-            </property>
-            <property name="text">
-             <string />
-            </property>
-            <property name="minimumWidth">
-             <number>32</number>
-            </property>
-            <property name="maximumWidth">
-             <number>32</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="showRaw">
-            <property name="text">
-             <string>Raw (red)</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="showFiltered">
-            <property name="text">
-             <string>Filtered (black)</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="rawPlotPause">
-            <property name="toolTip">
-             <string>Pause display updates while acquisition continues</string>
-            </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>../assets/icons/pause.svg</normaloff>
-             </iconset>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>16</width>
-              <height>16</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Pause</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="QSplitter" name="rawPlotSplitter">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <widget class="QWidget" name="EEGPlotPanel">
-           <layout class="QVBoxLayout" name="EEGPlotLayout">
             <property name="spacing">
              <number>10</number>
             </property>
             <item>
-             <layout class="QHBoxLayout" name="EEGPlotHeader">
-              <property name="spacing">
-               <number>10</number>
+             <widget class="QLabel" name="rawIntro">
+              <property name="wordWrap">
+               <bool>true</bool>
               </property>
-              <item>
-               <widget class="QLabel" name="EEGPlotTitle">
-                <property name="text">
-                 <string>EEG  /  Brain activity</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QToolButton" name="EEGExpand">
-                <property name="text">
-                 <string>Expand</string>
-                </property>
-                <property name="checkable">
-                 <bool>true</bool>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/expand.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="EEGAmplitudeLabel">
-                <property name="text">
-                 <string>Gain</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="EEGAmplitudeMinus">
-                <property name="toolTip">
-                 <string>Decrease display gain</string>
-                </property>
-                <property name="text">
-                 <string />
-                </property>
-                <property name="minimumWidth">
-                 <number>32</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>32</number>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/minus.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QDoubleSpinBox" name="EEGAmplitude">
-                <property name="toolTip">
-                 <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
-                </property>
-                <property name="suffix">
-                 <string>×</string>
-                </property>
-                <property name="minimum">
-                 <double>0.050000000000000</double>
-                </property>
-                <property name="maximum">
-                 <double>50.000000000000000</double>
-                </property>
-                <property name="value">
-                 <double>1.000000000000000</double>
-                </property>
-                <property name="minimumWidth">
-                 <number>82</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>92</number>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QToolButton" name="EEGAutoscale">
-                <property name="text">
-                 <string>Autoscale</string>
-                </property>
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/autoscale.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="EEGAmplitudePlus">
-                <property name="toolTip">
-                 <string>Increase display gain</string>
-                </property>
-                <property name="text">
-                 <string />
-                </property>
-                <property name="minimumWidth">
-                 <number>32</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>32</number>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/plus.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <widget class="QFrame" name="EEGPlotHost">
-              <property name="toolTip">
-               <string>Live signal display. Use the header controls to adjust display gain.</string>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>0</width>
-                <height>122</height>
-               </size>
+              <property name="text">
+               <string>Live waveforms · Adjust the time window and display gain. Drag the dividers to resize each signal panel.</string>
               </property>
              </widget>
             </item>
-           </layout>
-          </widget>
-          <widget class="QWidget" name="PPGPlotPanel">
-           <layout class="QVBoxLayout" name="PPGPlotLayout">
-            <property name="spacing">
-             <number>10</number>
-            </property>
             <item>
-             <layout class="QHBoxLayout" name="PPGPlotHeader">
-              <property name="spacing">
-               <number>10</number>
+             <widget class="QWidget" name="rawToolbarHost">
+              <property name="wrapControls" stdset="0">
+               <bool>true</bool>
               </property>
-              <item>
-               <widget class="QLabel" name="PPGPlotTitle">
-                <property name="text">
-                 <string>PPG  /  Pulse waveform</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QToolButton" name="PPGExpand">
-                <property name="text">
-                 <string>Expand</string>
-                </property>
-                <property name="checkable">
-                 <bool>true</bool>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/expand.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="PPGAmplitudeLabel">
-                <property name="text">
-                 <string>Gain</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="PPGAmplitudeMinus">
-                <property name="toolTip">
-                 <string>Decrease display gain</string>
-                </property>
-                <property name="text">
-                 <string />
-                </property>
-                <property name="minimumWidth">
-                 <number>32</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>32</number>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/minus.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QDoubleSpinBox" name="PPGAmplitude">
-                <property name="toolTip">
-                 <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
-                </property>
-                <property name="suffix">
-                 <string>×</string>
-                </property>
-                <property name="minimum">
-                 <double>0.050000000000000</double>
-                </property>
-                <property name="maximum">
-                 <double>50.000000000000000</double>
-                </property>
-                <property name="value">
-                 <double>1.000000000000000</double>
-                </property>
-                <property name="minimumWidth">
-                 <number>82</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>92</number>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QToolButton" name="PPGAutoscale">
-                <property name="text">
-                 <string>Autoscale</string>
-                </property>
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/autoscale.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="PPGAmplitudePlus">
-                <property name="toolTip">
-                 <string>Increase display gain</string>
-                </property>
-                <property name="text">
-                 <string />
-                </property>
-                <property name="minimumWidth">
-                 <number>32</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>32</number>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/plus.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <widget class="QFrame" name="PPGPlotHost">
-              <property name="toolTip">
-               <string>Live signal display. Use the header controls to adjust display gain.</string>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>0</width>
-                <height>122</height>
-               </size>
-              </property>
+              <layout class="QGridLayout" name="rawToolbarGrid">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QWidget" name="rawToolbarGroup0">
+                 <layout class="QHBoxLayout" name="rawToolbarGroup0Layout">
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="spacing">
+                   <number>6</number>
+                  </property>
+                  <item>
+                   <widget class="QComboBox" name="rawRendererChoice">
+                    <property name="maximumWidth">
+                     <number>170</number>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>pyqtgraph</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>VisPy / OpenGL</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="rawFollowLive">
+                    <property name="toolTip">
+                     <string>Return to the newest incoming samples</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/live.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                    <property name="text">
+                     <string>Live</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QWidget" name="rawToolbarGroup1">
+                 <layout class="QHBoxLayout" name="rawToolbarGroup1Layout">
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="spacing">
+                   <number>6</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="rawSweepLabel">
+                    <property name="text">
+                     <string>Time window</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QComboBox" name="rawSweepDuration">
+                    <item>
+                     <property name="text">
+                      <string>5 s</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>8 s</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>10 s</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>15 s</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>30 s</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>60 s</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>300 s</string>
+                     </property>
+                    </item>
+                    <property name="maximumWidth">
+                     <number>96</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="rawZoomMinus">
+                    <property name="toolTip">
+                     <string>Show a longer time window</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/minus.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="minimumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>32</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="rawZoomPlus">
+                    <property name="toolTip">
+                     <string>Show a shorter time window</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/plus.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="minimumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>32</number>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="2">
+                <widget class="QWidget" name="rawToolbarGroup2">
+                 <layout class="QHBoxLayout" name="rawToolbarGroup2Layout">
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="spacing">
+                   <number>6</number>
+                  </property>
+                  <item>
+                   <widget class="QCheckBox" name="showRaw">
+                    <property name="text">
+                     <string>Raw (red)</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QCheckBox" name="showFiltered">
+                    <property name="text">
+                     <string>Filtered (black)</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="rawPlotPause">
+                    <property name="toolTip">
+                     <string>Pause display updates while acquisition continues</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/pause.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                    <property name="text">
+                     <string>Pause</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="3">
+                <widget class="QWidget" name="rawToolbarGroup3">
+                 <layout class="QHBoxLayout" name="rawToolbarGroup3Layout">
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="spacing">
+                   <number>6</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="rawRenderingStatus">
+                    <property name="text">
+                     <string />
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
              </widget>
             </item>
-           </layout>
-          </widget>
-          <widget class="QWidget" name="EDAPlotPanel">
-           <layout class="QVBoxLayout" name="EDAPlotLayout">
-            <property name="spacing">
-             <number>10</number>
-            </property>
             <item>
-             <layout class="QHBoxLayout" name="EDAPlotHeader">
-              <property name="spacing">
-               <number>10</number>
+             <widget class="QSplitter" name="rawPlotSplitter">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
               </property>
-              <item>
-               <widget class="QLabel" name="EDAPlotTitle">
-                <property name="text">
-                 <string>SC  /  Skin conductance</string>
+              <widget class="QWidget" name="EEGPlotPanel">
+               <layout class="QVBoxLayout" name="EEGPlotLayout">
+                <property name="spacing">
+                 <number>10</number>
                 </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QToolButton" name="EDAExpand">
-                <property name="text">
-                 <string>Expand</string>
+                <item>
+                 <layout class="QHBoxLayout" name="EEGPlotHeader">
+                  <property name="spacing">
+                   <number>10</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="EEGPlotTitle">
+                    <property name="text">
+                     <string>EEG  /  Brain activity</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="EEGExpand">
+                    <property name="text">
+                     <string>Expand</string>
+                    </property>
+                    <property name="checkable">
+                     <bool>true</bool>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/expand.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="EEGAmplitudeLabel">
+                    <property name="text">
+                     <string>Gain</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="EEGAmplitudeMinus">
+                    <property name="toolTip">
+                     <string>Decrease display gain</string>
+                    </property>
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="minimumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/minus.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="EEGAmplitude">
+                    <property name="toolTip">
+                     <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                    </property>
+                    <property name="suffix">
+                     <string>×</string>
+                    </property>
+                    <property name="minimum">
+                     <double>0.050000000000000</double>
+                    </property>
+                    <property name="maximum">
+                     <double>50.000000000000000</double>
+                    </property>
+                    <property name="value">
+                     <double>1.000000000000000</double>
+                    </property>
+                    <property name="minimumWidth">
+                     <number>82</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>92</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="EEGAutoscale">
+                    <property name="text">
+                     <string>Autoscale</string>
+                    </property>
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/autoscale.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="EEGAmplitudePlus">
+                    <property name="toolTip">
+                     <string>Increase display gain</string>
+                    </property>
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="minimumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/plus.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item>
+                 <widget class="QFrame" name="EEGPlotHost">
+                  <property name="toolTip">
+                   <string>Live signal display. Use the header controls to adjust display gain.</string>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>122</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QWidget" name="PPGPlotPanel">
+               <layout class="QVBoxLayout" name="PPGPlotLayout">
+                <property name="spacing">
+                 <number>10</number>
                 </property>
-                <property name="checkable">
-                 <bool>true</bool>
+                <item>
+                 <layout class="QHBoxLayout" name="PPGPlotHeader">
+                  <property name="spacing">
+                   <number>10</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="PPGPlotTitle">
+                    <property name="text">
+                     <string>PPG  /  Pulse waveform</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="PPGExpand">
+                    <property name="text">
+                     <string>Expand</string>
+                    </property>
+                    <property name="checkable">
+                     <bool>true</bool>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/expand.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="PPGAmplitudeLabel">
+                    <property name="text">
+                     <string>Gain</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="PPGAmplitudeMinus">
+                    <property name="toolTip">
+                     <string>Decrease display gain</string>
+                    </property>
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="minimumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/minus.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="PPGAmplitude">
+                    <property name="toolTip">
+                     <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                    </property>
+                    <property name="suffix">
+                     <string>×</string>
+                    </property>
+                    <property name="minimum">
+                     <double>0.050000000000000</double>
+                    </property>
+                    <property name="maximum">
+                     <double>50.000000000000000</double>
+                    </property>
+                    <property name="value">
+                     <double>1.000000000000000</double>
+                    </property>
+                    <property name="minimumWidth">
+                     <number>82</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>92</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="PPGAutoscale">
+                    <property name="text">
+                     <string>Autoscale</string>
+                    </property>
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/autoscale.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="PPGAmplitudePlus">
+                    <property name="toolTip">
+                     <string>Increase display gain</string>
+                    </property>
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="minimumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/plus.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item>
+                 <widget class="QFrame" name="PPGPlotHost">
+                  <property name="toolTip">
+                   <string>Live signal display. Use the header controls to adjust display gain.</string>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>122</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QWidget" name="EDAPlotPanel">
+               <layout class="QVBoxLayout" name="EDAPlotLayout">
+                <property name="spacing">
+                 <number>10</number>
                 </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/expand.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="EDAAmplitudeLabel">
-                <property name="text">
-                 <string>Gain</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="EDAAmplitudeMinus">
-                <property name="toolTip">
-                 <string>Decrease display gain</string>
-                </property>
-                <property name="text">
-                 <string />
-                </property>
-                <property name="minimumWidth">
-                 <number>32</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>32</number>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/minus.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QDoubleSpinBox" name="EDAAmplitude">
-                <property name="toolTip">
-                 <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
-                </property>
-                <property name="suffix">
-                 <string>×</string>
-                </property>
-                <property name="minimum">
-                 <double>0.050000000000000</double>
-                </property>
-                <property name="maximum">
-                 <double>50.000000000000000</double>
-                </property>
-                <property name="value">
-                 <double>1.000000000000000</double>
-                </property>
-                <property name="minimumWidth">
-                 <number>82</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>92</number>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QToolButton" name="EDAAutoscale">
-                <property name="text">
-                 <string>Autoscale</string>
-                </property>
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/autoscale.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="EDAAmplitudePlus">
-                <property name="toolTip">
-                 <string>Increase display gain</string>
-                </property>
-                <property name="text">
-                 <string />
-                </property>
-                <property name="minimumWidth">
-                 <number>32</number>
-                </property>
-                <property name="maximumWidth">
-                 <number>32</number>
-                </property>
-                <property name="icon">
-                 <iconset>
-                  <normaloff>../assets/icons/plus.svg</normaloff>
-                 </iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>16</width>
-                  <height>16</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <widget class="QFrame" name="EDAPlotHost">
-              <property name="toolTip">
-               <string>Live signal display. Use the header controls to adjust display gain.</string>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>0</width>
-                <height>122</height>
-               </size>
-              </property>
+                <item>
+                 <layout class="QHBoxLayout" name="EDAPlotHeader">
+                  <property name="spacing">
+                   <number>10</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="EDAPlotTitle">
+                    <property name="text">
+                     <string>SC  /  Skin conductance</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="EDAExpand">
+                    <property name="text">
+                     <string>Expand</string>
+                    </property>
+                    <property name="checkable">
+                     <bool>true</bool>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/expand.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="EDAAmplitudeLabel">
+                    <property name="text">
+                     <string>Gain</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="EDAAmplitudeMinus">
+                    <property name="toolTip">
+                     <string>Decrease display gain</string>
+                    </property>
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="minimumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/minus.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="EDAAmplitude">
+                    <property name="toolTip">
+                     <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                    </property>
+                    <property name="suffix">
+                     <string>×</string>
+                    </property>
+                    <property name="minimum">
+                     <double>0.050000000000000</double>
+                    </property>
+                    <property name="maximum">
+                     <double>50.000000000000000</double>
+                    </property>
+                    <property name="value">
+                     <double>1.000000000000000</double>
+                    </property>
+                    <property name="minimumWidth">
+                     <number>82</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>92</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="EDAAutoscale">
+                    <property name="text">
+                     <string>Autoscale</string>
+                    </property>
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/autoscale.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="EDAAmplitudePlus">
+                    <property name="toolTip">
+                     <string>Increase display gain</string>
+                    </property>
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="minimumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="maximumWidth">
+                     <number>32</number>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/plus.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item>
+                 <widget class="QFrame" name="EDAPlotHost">
+                  <property name="toolTip">
+                   <string>Live signal display. Use the header controls to adjust display gain.</string>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>122</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
              </widget>
             </item>
            </layout>
@@ -1793,748 +2013,923 @@ QCheckBox::indicator:unchecked:disabled { border-color: #d8d7e2; background: #f5
          </widget>
         </item>
        </layout>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
       </widget>
       <widget class="QWidget" name="metricsTab">
        <attribute name="title">
         <string>Metrics</string>
        </attribute>
-       <layout class="QVBoxLayout" name="metricsLayout" stretch="0,0,1,0">
-        <property name="bottomMargin">
-         <number>16</number>
-        </property>
-        <property name="rightMargin">
-         <number>16</number>
-        </property>
-        <property name="topMargin">
-         <number>16</number>
-        </property>
-        <property name="leftMargin">
-         <number>16</number>
-        </property>
-        <property name="spacing">
-         <number>10</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="metricsIntro">
-          <property name="wordWrap">
-           <bool>true</bool>
-          </property>
-          <property name="text">
-           <string>Live metrics · Choose visible series and their display settings.</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QFrame" name="metricsControlsCard">
-          <layout class="QVBoxLayout" name="metricsControlsLayout">
-           <property name="leftMargin">
-            <number>14</number>
-           </property>
-           <property name="topMargin">
-            <number>14</number>
-           </property>
-           <property name="rightMargin">
-            <number>14</number>
-           </property>
-           <property name="bottomMargin">
-            <number>14</number>
-           </property>
-           <property name="spacing">
-            <number>10</number>
-           </property>
-           <item>
-            <layout class="QHBoxLayout" name="metricsToolbar" stretch="0,0,1,0,0,0,0,0">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QPushButton" name="metricsFollowLive">
-               <property name="toolTip">
-                <string>Return to the newest incoming samples</string>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/live.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Live</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="metricsRendererChoice">
-               <property name="maximumWidth">
-                <number>170</number>
-               </property>
-               <item>
-                <property name="text">
-                 <string>pyqtgraph</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>VisPy / OpenGL</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <spacer name="metricsToolbarSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QLabel" name="metricsSweepLabel">
-               <property name="text">
-                <string>Time window</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="metricsSweepDuration">
-               <item>
-                <property name="text">
-                 <string>5 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>8 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>10 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>15 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>30 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>60 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>300 s</string>
-                </property>
-               </item>
-               <property name="maximumWidth">
-                <number>96</number>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="metricsZoomMinus">
-               <property name="toolTip">
-                <string>Show a longer time window</string>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/minus.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-               <property name="text">
-                <string />
-               </property>
-               <property name="minimumWidth">
-                <number>32</number>
-               </property>
-               <property name="maximumWidth">
-                <number>32</number>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="metricsZoomPlus">
-               <property name="toolTip">
-                <string>Show a shorter time window</string>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/plus.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-               <property name="text">
-                <string />
-               </property>
-               <property name="minimumWidth">
-                <number>32</number>
-               </property>
-               <property name="maximumWidth">
-                <number>32</number>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="metricsPlotPause">
-               <property name="toolTip">
-                <string>Pause display updates while acquisition continues</string>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/pause.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Pause</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QGridLayout" name="metricsTransforms">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QLabel" name="metricNormalizationLabel">
-               <property name="text">
-                <string>Normalization</string>
-               </property>
-               <property name="metricHeading" stdset="0">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QComboBox" name="metricNormalization">
-               <item>
-                <property name="text">
-                 <string>Original</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>z-score</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Robust z-MAD</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Robust IQR</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Fixed min-max</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QLabel" name="smoothingLabel">
-               <property name="text">
-                <string>Smoothing</string>
-               </property>
-               <property name="metricHeading" stdset="0">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
-              <widget class="QComboBox" name="metricsSmoothing">
-               <item>
-                <property name="text">
-                 <string>None</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Moving average</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Exponential</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item row="0" column="2">
-              <widget class="QLabel" name="metricDurationLabel">
-               <property name="text">
-                <string>Smoothing window</string>
-               </property>
-               <property name="metricHeading" stdset="0">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="2">
-              <widget class="QComboBox" name="metricsSmoothingDuration">
-               <item>
-                <property name="text">
-                 <string>1 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>2 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>3 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>5 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>10 s</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item row="0" column="3">
-              <widget class="QLabel" name="metricInterpolationLabel">
-               <property name="text">
-                <string>Interpolation</string>
-               </property>
-               <property name="metricHeading" stdset="0">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="3">
-              <widget class="QComboBox" name="metricsInterpolation">
-               <item>
-                <property name="text">
-                 <string>None (points)</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Linear</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>PCHIP</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Cubic spline</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item row="1" column="4">
-              <widget class="QCheckBox" name="measuredPoints">
-               <property name="text">
-                <string>Measured points</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="metricsSeriesControls">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QCheckBox" name="metricToggleAWI">
-               <property name="text">
-                <string>AWI</string>
-               </property>
-               <property name="metricSelector" stdset="0">
-                <bool>true</bool>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/metric-awi.svg</normaloff>
-                </iconset>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="metricToggleBAR">
-               <property name="text">
-                <string>BAR</string>
-               </property>
-               <property name="metricSelector" stdset="0">
-                <bool>true</bool>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/metric-bar.svg</normaloff>
-                </iconset>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="metricToggleSCL">
-               <property name="text">
-                <string>SCL</string>
-               </property>
-               <property name="metricSelector" stdset="0">
-                <bool>true</bool>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/metric-scl.svg</normaloff>
-                </iconset>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="metricToggleHR">
-               <property name="text">
-                <string>HR</string>
-               </property>
-               <property name="metricSelector" stdset="0">
-                <bool>true</bool>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/metric-hr.svg</normaloff>
-                </iconset>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="metricToggleEI">
-               <property name="text">
-                <string>EI</string>
-               </property>
-               <property name="metricSelector" stdset="0">
-                <bool>true</bool>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/metric-ei.svg</normaloff>
-                </iconset>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="metricsSeriesSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>24</width>
-                 <height>0</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item>
-         <widget class="QFrame" name="metricsTrendCard">
-          <layout class="QVBoxLayout" name="metricsTrendLayout" stretch="0,1">
-           <property name="leftMargin">
-            <number>14</number>
-           </property>
-           <property name="topMargin">
-            <number>14</number>
-           </property>
-           <property name="rightMargin">
-            <number>14</number>
-           </property>
-           <property name="bottomMargin">
-            <number>14</number>
-           </property>
-           <property name="spacing">
-            <number>10</number>
-           </property>
-           <item>
-            <widget class="QLabel" name="metricsTrendTitle">
-             <property name="text">
-              <string>Metric trends</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QFrame" name="metricsPlotHost">
-             <property name="toolTip">
-              <string>VisPy incremental metrics canvas inserted by the application</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item>
-         <widget class="QFrame" name="metricsReadoutHost">
-          <layout class="QGridLayout" name="metricsReadoutLayout">
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-           <property name="spacing">
-            <number>10</number>
-           </property>
-           <item row="0" column="0">
-            <widget class="QFrame" name="EEGMetricCard">
-             <property name="metricCard" stdset="0">
-              <bool>true</bool>
-             </property>
-             <layout class="QVBoxLayout" name="EEGMetricCardLayout">
-              <property name="leftMargin">
-               <number>12</number>
-              </property>
-              <property name="topMargin">
-               <number>12</number>
-              </property>
-              <property name="rightMargin">
-               <number>12</number>
-              </property>
-              <property name="bottomMargin">
-               <number>12</number>
-              </property>
-              <property name="spacing">
-               <number>10</number>
-              </property>
-              <item>
-               <widget class="QLabel" name="EEGMetricCardTitle">
-                <property name="text">
-                 <string>EEG · Central</string>
-                </property>
-                <property name="metricHeading" stdset="0">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="EEGMetricPlaceholder">
-                <property name="text">
-                 <string>—</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QFrame" name="EDAMetricCard">
-             <property name="metricCard" stdset="0">
-              <bool>true</bool>
-             </property>
-             <layout class="QVBoxLayout" name="EDAMetricCardLayout">
-              <property name="leftMargin">
-               <number>12</number>
-              </property>
-              <property name="topMargin">
-               <number>12</number>
-              </property>
-              <property name="rightMargin">
-               <number>12</number>
-              </property>
-              <property name="bottomMargin">
-               <number>12</number>
-              </property>
-              <property name="spacing">
-               <number>10</number>
-              </property>
-              <item>
-               <widget class="QLabel" name="EDAMetricCardTitle">
-                <property name="text">
-                 <string>SC · Conductance</string>
-                </property>
-                <property name="metricHeading" stdset="0">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="EDAMetricPlaceholder">
-                <property name="text">
-                 <string>—</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QFrame" name="PPGMetricCard">
-             <property name="metricCard" stdset="0">
-              <bool>true</bool>
-             </property>
-             <layout class="QVBoxLayout" name="PPGMetricCardLayout">
-              <property name="leftMargin">
-               <number>12</number>
-              </property>
-              <property name="topMargin">
-               <number>12</number>
-              </property>
-              <property name="rightMargin">
-               <number>12</number>
-              </property>
-              <property name="bottomMargin">
-               <number>12</number>
-              </property>
-              <property name="spacing">
-               <number>10</number>
-              </property>
-              <item>
-               <widget class="QLabel" name="PPGMetricCardTitle">
-                <property name="text">
-                 <string>PPG · Pulse</string>
-                </property>
-                <property name="metricHeading" stdset="0">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="PPGMetricPlaceholder">
-                <property name="text">
-                 <string>—</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="0" column="3">
-            <widget class="QFrame" name="EIMetricCard">
-             <property name="metricCard" stdset="0">
-              <bool>true</bool>
-             </property>
-             <layout class="QVBoxLayout" name="EIMetricCardLayout">
-              <property name="leftMargin">
-               <number>12</number>
-              </property>
-              <property name="topMargin">
-               <number>12</number>
-              </property>
-              <property name="rightMargin">
-               <number>12</number>
-              </property>
-              <property name="bottomMargin">
-               <number>12</number>
-              </property>
-              <property name="spacing">
-               <number>10</number>
-              </property>
-              <item>
-               <widget class="QLabel" name="EIMetricCardTitle">
-                <property name="text">
-                 <string>Emotional Index</string>
-                </property>
-                <property name="metricHeading" stdset="0">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="EIMetricPlaceholder">
-                <property name="text">
-                 <string>—</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-       </layout>
        <property name="sizePolicy">
         <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <layout class="QVBoxLayout" name="metricsTabScrollLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QScrollArea" name="metricsTabScroll">
+          <property name="widgetResizable">
+           <bool>true</bool>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
+          </property>
+          <widget class="QWidget" name="metricsTabContent">
+           <layout class="QVBoxLayout" name="metricsLayout" stretch="0,0,1,0">
+            <property name="bottomMargin">
+             <number>16</number>
+            </property>
+            <property name="rightMargin">
+             <number>16</number>
+            </property>
+            <property name="topMargin">
+             <number>16</number>
+            </property>
+            <property name="leftMargin">
+             <number>16</number>
+            </property>
+            <property name="spacing">
+             <number>10</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="metricsIntro">
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="text">
+               <string>Live metrics · Choose visible series and their display settings.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QFrame" name="metricsControlsCard">
+              <layout class="QVBoxLayout" name="metricsControlsLayout">
+               <property name="leftMargin">
+                <number>14</number>
+               </property>
+               <property name="topMargin">
+                <number>14</number>
+               </property>
+               <property name="rightMargin">
+                <number>14</number>
+               </property>
+               <property name="bottomMargin">
+                <number>14</number>
+               </property>
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item>
+                <widget class="QWidget" name="metricsToolbarHost">
+                 <property name="wrapControls" stdset="0">
+                  <bool>true</bool>
+                 </property>
+                 <layout class="QGridLayout" name="metricsToolbarGrid">
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item row="0" column="0">
+                   <widget class="QWidget" name="metricsToolbarGroup0">
+                    <layout class="QHBoxLayout" name="metricsToolbarGroup0Layout">
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="spacing">
+                      <number>6</number>
+                     </property>
+                     <item>
+                      <widget class="QComboBox" name="metricsRendererChoice">
+                       <property name="maximumWidth">
+                        <number>170</number>
+                       </property>
+                       <item>
+                        <property name="text">
+                         <string>pyqtgraph</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>VisPy / OpenGL</string>
+                        </property>
+                       </item>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="metricsFollowLive">
+                       <property name="toolTip">
+                        <string>Return to the newest incoming samples</string>
+                       </property>
+                       <property name="icon">
+                        <iconset>
+                         <normaloff>../assets/icons/live.svg</normaloff>
+                        </iconset>
+                       </property>
+                       <property name="iconSize">
+                        <size>
+                         <width>16</width>
+                         <height>16</height>
+                        </size>
+                       </property>
+                       <property name="text">
+                        <string>Live</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QWidget" name="metricsToolbarGroup1">
+                    <layout class="QHBoxLayout" name="metricsToolbarGroup1Layout">
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="spacing">
+                      <number>6</number>
+                     </property>
+                     <item>
+                      <widget class="QLabel" name="metricsSweepLabel">
+                       <property name="text">
+                        <string>Time window</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="metricsSweepDuration">
+                       <item>
+                        <property name="text">
+                         <string>5 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>8 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>10 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>15 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>30 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>60 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>300 s</string>
+                        </property>
+                       </item>
+                       <property name="maximumWidth">
+                        <number>96</number>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="metricsZoomMinus">
+                       <property name="toolTip">
+                        <string>Show a longer time window</string>
+                       </property>
+                       <property name="icon">
+                        <iconset>
+                         <normaloff>../assets/icons/minus.svg</normaloff>
+                        </iconset>
+                       </property>
+                       <property name="iconSize">
+                        <size>
+                         <width>16</width>
+                         <height>16</height>
+                        </size>
+                       </property>
+                       <property name="text">
+                        <string />
+                       </property>
+                       <property name="minimumWidth">
+                        <number>32</number>
+                       </property>
+                       <property name="maximumWidth">
+                        <number>32</number>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="metricsZoomPlus">
+                       <property name="toolTip">
+                        <string>Show a shorter time window</string>
+                       </property>
+                       <property name="icon">
+                        <iconset>
+                         <normaloff>../assets/icons/plus.svg</normaloff>
+                        </iconset>
+                       </property>
+                       <property name="iconSize">
+                        <size>
+                         <width>16</width>
+                         <height>16</height>
+                        </size>
+                       </property>
+                       <property name="text">
+                        <string />
+                       </property>
+                       <property name="minimumWidth">
+                        <number>32</number>
+                       </property>
+                       <property name="maximumWidth">
+                        <number>32</number>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="metricsPlotPause">
+                       <property name="toolTip">
+                        <string>Pause display updates while acquisition continues</string>
+                       </property>
+                       <property name="icon">
+                        <iconset>
+                         <normaloff>../assets/icons/pause.svg</normaloff>
+                        </iconset>
+                       </property>
+                       <property name="iconSize">
+                        <size>
+                         <width>16</width>
+                         <height>16</height>
+                        </size>
+                       </property>
+                       <property name="text">
+                        <string>Pause</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QWidget" name="metricsTransformsHost">
+                 <property name="wrapControls" stdset="0">
+                  <bool>true</bool>
+                 </property>
+                 <layout class="QGridLayout" name="metricsTransformsGrid">
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item row="0" column="0">
+                   <widget class="QWidget" name="metricsTransformsGroup0">
+                    <layout class="QHBoxLayout" name="metricsTransformsGroup0Layout">
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="spacing">
+                      <number>6</number>
+                     </property>
+                     <item>
+                      <widget class="QLabel" name="metricNormalizationLabel">
+                       <property name="text">
+                        <string>Normalization</string>
+                       </property>
+                       <property name="metricHeading" stdset="0">
+                        <bool>true</bool>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="metricNormalization">
+                       <item>
+                        <property name="text">
+                         <string>Original</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>z-score</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Robust z-MAD</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Robust IQR</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Fixed min-max</string>
+                        </property>
+                       </item>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QWidget" name="metricsTransformsGroup1">
+                    <layout class="QHBoxLayout" name="metricsTransformsGroup1Layout">
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="spacing">
+                      <number>6</number>
+                     </property>
+                     <item>
+                      <widget class="QLabel" name="smoothingLabel">
+                       <property name="text">
+                        <string>Smoothing</string>
+                       </property>
+                       <property name="metricHeading" stdset="0">
+                        <bool>true</bool>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="metricsSmoothing">
+                       <item>
+                        <property name="text">
+                         <string>None</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Moving average</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Exponential</string>
+                        </property>
+                       </item>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QLabel" name="metricDurationLabel">
+                       <property name="text">
+                        <string>Smoothing window</string>
+                       </property>
+                       <property name="metricHeading" stdset="0">
+                        <bool>true</bool>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="metricsSmoothingDuration">
+                       <item>
+                        <property name="text">
+                         <string>1 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>2 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>3 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>5 s</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>10 s</string>
+                        </property>
+                       </item>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item row="0" column="2">
+                   <widget class="QWidget" name="metricsTransformsGroup2">
+                    <layout class="QHBoxLayout" name="metricsTransformsGroup2Layout">
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="spacing">
+                      <number>6</number>
+                     </property>
+                     <item>
+                      <widget class="QLabel" name="metricInterpolationLabel">
+                       <property name="text">
+                        <string>Interpolation</string>
+                       </property>
+                       <property name="metricHeading" stdset="0">
+                        <bool>true</bool>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="metricsInterpolation">
+                       <item>
+                        <property name="text">
+                         <string>None (points)</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Linear</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>PCHIP</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Cubic spline</string>
+                        </property>
+                       </item>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QCheckBox" name="measuredPoints">
+                       <property name="text">
+                        <string>Measured points</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="metricsSeriesControls">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QCheckBox" name="metricToggleAWI">
+                   <property name="text">
+                    <string>AWI</string>
+                   </property>
+                   <property name="metricSelector" stdset="0">
+                    <bool>true</bool>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/metric-awi.svg</normaloff>
+                    </iconset>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="metricToggleBAR">
+                   <property name="text">
+                    <string>BAR</string>
+                   </property>
+                   <property name="metricSelector" stdset="0">
+                    <bool>true</bool>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/metric-bar.svg</normaloff>
+                    </iconset>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="metricToggleSCL">
+                   <property name="text">
+                    <string>SCL</string>
+                   </property>
+                   <property name="metricSelector" stdset="0">
+                    <bool>true</bool>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/metric-scl.svg</normaloff>
+                    </iconset>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="metricToggleHR">
+                   <property name="text">
+                    <string>HR</string>
+                   </property>
+                   <property name="metricSelector" stdset="0">
+                    <bool>true</bool>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/metric-hr.svg</normaloff>
+                    </iconset>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="metricToggleEI">
+                   <property name="text">
+                    <string>EI</string>
+                   </property>
+                   <property name="metricSelector" stdset="0">
+                    <bool>true</bool>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/metric-ei.svg</normaloff>
+                    </iconset>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="metricsSeriesSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>24</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QFrame" name="metricsTrendCard">
+              <layout class="QVBoxLayout" name="metricsTrendLayout" stretch="0,1">
+               <property name="leftMargin">
+                <number>14</number>
+               </property>
+               <property name="topMargin">
+                <number>14</number>
+               </property>
+               <property name="rightMargin">
+                <number>14</number>
+               </property>
+               <property name="bottomMargin">
+                <number>14</number>
+               </property>
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="metricsTrendTitle">
+                 <property name="text">
+                  <string>Metric trends</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QFrame" name="metricsPlotHost">
+                 <property name="toolTip">
+                  <string>VisPy incremental metrics canvas inserted by the application</string>
+                 </property>
+                 <property name="minimumHeight">
+                  <number>220</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QFrame" name="metricsReadoutHost">
+              <layout class="QGridLayout" name="metricsReadoutLayout">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QFrame" name="EEGMetricCard">
+                 <property name="metricCard" stdset="0">
+                  <bool>true</bool>
+                 </property>
+                 <layout class="QVBoxLayout" name="EEGMetricCardLayout">
+                  <property name="leftMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="spacing">
+                   <number>10</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="EEGMetricCardTitle">
+                    <property name="text">
+                     <string>EEG · Central</string>
+                    </property>
+                    <property name="metricHeading" stdset="0">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="EEGMetricPlaceholder">
+                    <property name="text">
+                     <string>—</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QFrame" name="EDAMetricCard">
+                 <property name="metricCard" stdset="0">
+                  <bool>true</bool>
+                 </property>
+                 <layout class="QVBoxLayout" name="EDAMetricCardLayout">
+                  <property name="leftMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="spacing">
+                   <number>10</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="EDAMetricCardTitle">
+                    <property name="text">
+                     <string>SC · Conductance</string>
+                    </property>
+                    <property name="metricHeading" stdset="0">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="EDAMetricPlaceholder">
+                    <property name="text">
+                     <string>—</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="2">
+                <widget class="QFrame" name="PPGMetricCard">
+                 <property name="metricCard" stdset="0">
+                  <bool>true</bool>
+                 </property>
+                 <layout class="QVBoxLayout" name="PPGMetricCardLayout">
+                  <property name="leftMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="spacing">
+                   <number>10</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="PPGMetricCardTitle">
+                    <property name="text">
+                     <string>PPG · Pulse</string>
+                    </property>
+                    <property name="metricHeading" stdset="0">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="PPGMetricPlaceholder">
+                    <property name="text">
+                     <string>—</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="3">
+                <widget class="QFrame" name="EIMetricCard">
+                 <property name="metricCard" stdset="0">
+                  <bool>true</bool>
+                 </property>
+                 <layout class="QVBoxLayout" name="EIMetricCardLayout">
+                  <property name="leftMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>12</number>
+                  </property>
+                  <property name="spacing">
+                   <number>10</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="EIMetricCardTitle">
+                    <property name="text">
+                     <string>Emotional Index</string>
+                    </property>
+                    <property name="metricHeading" stdset="0">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="EIMetricPlaceholder">
+                    <property name="text">
+                     <string>—</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="affectTab">
        <attribute name="title">
         <string>Affect</string>
        </attribute>
-       <layout class="QVBoxLayout" name="affectTabLayout">
-        <item>
-         <widget class="QFrame" name="affectViewHost" />
-        </item>
-       </layout>
        <property name="sizePolicy">
         <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <layout class="QVBoxLayout" name="affectTabScrollLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QScrollArea" name="affectTabScroll">
+          <property name="widgetResizable">
+           <bool>true</bool>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
+          </property>
+          <widget class="QWidget" name="affectTabContent">
+           <layout class="QVBoxLayout" name="affectTabLayout">
+            <item>
+             <widget class="QFrame" name="affectViewHost" />
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>

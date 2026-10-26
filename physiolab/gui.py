@@ -43,6 +43,7 @@ from .affect_state import AffectState
 from .affect_widgets import AffectView
 from .asr_widgets import ASRControls
 from .asr_quality import training_report
+from .flow_layout import install_designer_flows, install_flow, AdaptiveCardRow
 from .ui_icons import set_action
 from .asr_session import ASRSession
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
@@ -121,6 +122,7 @@ class MainWindow(QMainWindow):
         self._connect_designer_controls()
         self._connect_affect_view()
         self._connect_asr_view()
+        install_designer_flows(self)
         self.update_metrics_availability()
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
@@ -411,6 +413,8 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.affect_view)
+        self._affect_card_row = AdaptiveCardRow(
+            self._required_ui("affectTabScroll", QScrollArea).viewport(), self.affect_view.cards_layout)
         self.affect_view.clear_requested.connect(self.clear_affect_trails)
         self.affect_view.normalization_changed.connect(lambda _: self.refresh_affect_view())
         self.affect_view.retention_changed.connect(lambda _: self.refresh_affect_view())
@@ -732,6 +736,7 @@ class MainWindow(QMainWindow):
         readouts = self._required_ui('metricsReadoutHost', QFrame)
         self.metric_labels, self.metric_status = build_metric_readouts(
             readouts, self.metric_definitions)
+        install_flow(readouts)
         self._required_ui('rawPlotPause', QPushButton).clicked.connect(
             lambda: self.set_plot_paused('raw', not self.raw_display.paused))
         self._required_ui('metricsPlotPause', QPushButton).clicked.connect(

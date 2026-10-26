@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>AffectControls</class>
+ <widget class="QWidget" name="AffectControls">
+  <property name="wrapControls" stdset="0">
+   <bool>true</bool>
+  </property>
+  <layout class="QGridLayout" name="affectControlsGrid">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item row="0" column="0">
+    <widget class="QWidget" name="affectControlGroup0">
+     <layout class="QHBoxLayout" name="affectControlRow0">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="affectReferenceLabel">
+        <property name="text">
+         <string>Reference</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="affectNormalization" />
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QWidget" name="affectControlGroup1">
+     <layout class="QHBoxLayout" name="affectControlRow1">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="affectTrailLabel">
+        <property name="text">
+         <string>Trail</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="affectRetention" />
+      </item>
+      <item>
+       <widget class="QCheckBox" name="affectFade">
+        <property name="text">
+         <string>Fade trails</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="0" column="2">
+    <widget class="QWidget" name="affectControlGroup2">
+     <layout class="QHBoxLayout" name="affectControlRow2">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QPushButton" name="affectPause">
+        <property name="text">
+         <string>Pause view</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="affectClear">
+        <property name="text">
+         <string>Clear trails</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources />
+ <connections />
+</ui>

@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QWidget, QCheckBox, QGridLayout, QVBoxLayout, QLab
 from PySide6.QtGui import QColor, QIcon, QPixmap
 from .metric_catalog import metric_color
 from .modality_labels import modality_label
+from .flow_layout import install_flow
 
 
 def build_metric_toggles(root, layout, definitions, callback, columns=6):
@@ -31,6 +32,7 @@ def build_metric_toggles(root, layout, definitions, callback, columns=6):
         checkbox.show()
         checkbox.toggled.connect(callback)
         toggles[definition.key] = checkbox
+    install_flow(host)
     layout.insertWidget(0, host, 1)
     return toggles
 
