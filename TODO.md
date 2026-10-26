@@ -259,3 +259,15 @@ The measures, statistical assumptions and presentation still need discussion.
       skips. Native previews with synthetic demonstration trajectories verified
       swaps, retained canvas/manual range/pause, zero maximized scroll range and
       access to metric cards through the inner scrollbar in short panes.
+
+
+## Calibration dialog contrast — 26 October 2026
+
+- [x] Explicit light surfaces and dark text for calibration instruction/result
+      dialogs, progress dialogs and read-only BSL statistics under Windows dark
+      palettes. Give EYC PSD plots a white background and dark title/axes.
+- [x] Move the shared EYC/BSL inspection layout into
+      designer/CalibrationInspection.ui. Preserve calibration calculations and
+      the recording screens' readable white-on-black instructions/fixation.
+- Native dark-palette previews checked: EYC PSD, BSL statistics, instruction
+      message box and both EYC/BSL recording screens.

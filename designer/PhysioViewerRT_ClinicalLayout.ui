@@ -72,6 +72,10 @@ QFrame#metricsValuesCard { background: #ffffff; border: 1px solid #dfe1ef; borde
 QLabel#metricsValuesTitle { font-size: 11pt; font-weight: 600; }
 
 QWidget#metricsReadoutHost, QScrollArea#metricsValuesScroll { background: #ffffff; }
+
+QDialog, QMessageBox, QProgressDialog { background: #fafafe; color: #25234a; }
+QMessageBox QLabel, QProgressDialog QLabel { background: transparent; color: #25234a; }
+QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef; selection-background-color: #312b79; selection-color: #ffffff; }
 </string>
   </property>
   <property name="geometry">

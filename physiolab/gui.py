@@ -1961,24 +1961,34 @@ class MainWindow(QMainWindow):
         return outcome[0]
 
     def inspect_calibration(self, kind, analysis):
-        dlg = QDialog(self)
+        folder = Path(__file__).resolve().parent.parent / 'designer'
+        loader = QUiLoader()
+        loader.setWorkingDirectory(QDir(str(folder)))
+        dlg = loader.load(str(folder / 'CalibrationInspection.ui'), self)
+        if dlg is None:
+            raise RuntimeError('Cannot load Designer calibration inspection')
         dlg.setWindowTitle(f'{kind} calibration inspection')
-        dlg.resize(760, 570)
-        layout = QVBoxLayout(dlg)
+        summary = dlg.findChild(QLabel, 'calibrationSummary')
+        pages = dlg.findChild(QStackedWidget, 'inspectionPages')
         if kind == 'EYC':
-            layout.addWidget(QLabel(
+            summary.setText(
                 f"Posterior alpha center of gravity: {analysis['iaf_hz']:.2f} Hz "
-                f"(7–13 Hz), channels: {', '.join(analysis['posterior_channels'])}"
-            ))
-            plot = pg.PlotWidget(title='Average posterior-channel PSD (Welch, Hann, 1 s, 50% overlap)')
-            plot.plot(analysis['psd_hz'], analysis['mean_psd'], pen=pg.mkPen('#33aaff', width=2))
-            plot.addLine(x=analysis['iaf_hz'], pen=pg.mkPen('red', width=2))
+                f"(7–13 Hz), channels: {', '.join(analysis['posterior_channels'])}")
+            plot = pg.PlotWidget(background='#ffffff')
+            plot.setTitle('Average posterior-channel PSD (Welch, Hann, 1 s, 50% overlap)', color='#25234a')
+            for axis in ('left', 'bottom'):
+                plot.getAxis(axis).setPen('#77768f')
+                plot.getAxis(axis).setTextPen('#25234a')
+            plot.plot(analysis['psd_hz'], analysis['mean_psd'], pen=pg.mkPen('#312b79', width=2))
+            plot.addLine(x=analysis['iaf_hz'], pen=pg.mkPen('#c74670', width=2))
             plot.setXRange(3, 20)
-            plot.setLabel('bottom', 'Frequency', 'Hz')
-            layout.addWidget(plot)
+            plot.setLabel('bottom', 'Frequency', 'Hz', color='#25234a')
+            plot.setLabel('left', 'PSD', color='#25234a')
+            dlg.findChild(QFrame, 'spectrumHost').layout().addWidget(plot)
+            pages.setCurrentWidget(dlg.findChild(QWidget, 'spectrumPage'))
         else:
-            view = QPlainTextEdit()
-            view.setReadOnly(True)
+            summary.setText('Baseline reference statistics')
+            view = dlg.findChild(QPlainTextEdit, 'baselineStatistics')
             lines = [f"IAF used: {analysis['iaf_hz_used']:.2f} Hz", ""]
             for modality, fields in analysis['metrics'].items():
                 lines.append(modality_label(modality))
@@ -1986,15 +1996,12 @@ class MainWindow(QMainWindow):
                     lines.append(
                         f"  {name}: μ={stats['mu']:.5g} σ={stats['sigma']:.5g} "
                         f"median={stats['median']:.5g} IQR={stats['iqr']:.5g} "
-                        f"(N={stats['valid_windows']})"
-                    )
+                        f"(N={stats['valid_windows']})")
                 lines.append('')
             view.setPlainText('\n'.join(lines))
-            layout.addWidget(view)
-        close = QPushButton('Close inspection')
-        close.clicked.connect(dlg.accept)
-        layout.addWidget(close)
+            pages.setCurrentWidget(dlg.findChild(QWidget, 'statisticsPage'))
         dlg.exec()
+        dlg.deleteLater()
 
     def set_calibration_file(self, kind, filename):
         self.calibration_paths[kind] = filename
