@@ -1,5 +1,28 @@
 # PhysioViewerRT handoff — 23 October 2026
 
+## High priority — real-data ASR reliability and feedback
+
+- [ ] Increase independent ASR training capture from 45 seconds to **at least
+      60 seconds**. Update the capture duration, button/countdown, Designer UI,
+      documentation and live integration tests together. Investigate real-data
+      failures and report their actual reason; longer capture alone does not
+      guarantee enough usable clean EEG for fitting.
+- [ ] Add a **live signal-quality LED in the ASR training popup**, with text
+      and a reason alongside the color. Evaluate the filtered, pre-ASR EEG
+      used for training; identify missing samples, flat/clipped channels,
+      excessive artifacts and insufficient usable data. Include an unknown/
+      warming-up state. Validate quality criteria on real recordings before
+      claiming that green predicts successful training or future cleaning.
+- [ ] Distinguish **ASR enabled/monitoring** from **artifact correction active**
+      in Raw Data. The existing green ASR ON indicator only confirms that the
+      backend is processing fresh chunks. ASR continuously evaluates the data;
+      its calibrated component-variance thresholds determine reconstruction.
+      Expose backend rejection/reconstruction telemetry with a defined window
+      and update cadence, rather than guessing from raw-vs-filtered differences.
+      Include waiting/bypassed/error states and account for transition blending.
+      Verify clean EEG is preserved and injected artifacts trigger correction
+      with the same input recording and settings, then validate on real EEG.
+
 ## Live processing and baseline display — 26 October 2026
 
 - Raw Data ASR indicator reports actual worker execution: idle, off, waiting,
