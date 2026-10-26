@@ -179,3 +179,21 @@ The shared panel_arrangement.PanelArrangement attaches swap/reset menus to exist
 splitter widgets or wrapping cards; it reorders presentation objects without
 replacing plots, histories or processing state. Arrangement choices are local to
 the current session. Source availability continues to control Affect visibility.
+
+
+## Shared action conventions
+
+Keep static control layout and default icons in Qt Designer. Dynamic expansion
+and view-pause states use ui_icons.set_panel_expanded and set_view_paused. Pane
+headers use title, Move, Expand/Restore in that order. Expand uses expand.svg;
+Restore uses collapse.svg; view Play/Pause uses play.svg/pause.svg. Source
+Play/Stop uses the white variants on filled acquisition buttons. Recording,
+loading and clearing use record.svg, open.svg and clear.svg respectively.
+Zoom + increases detail; zoom − shows a wider range. The autoscale symbol means
+fit the visible data. Tooltips explain whether an action affects the display or
+acquisition. Icon size is 16 px; pane headings use a shared 11 pt hierarchy.
+
+Metrics vertical zoom/Fit changes presentation bounds only. The manual range is
+held through new observations and renderer changes until Auto range is enabled.
+In auto mode the GPU range expands for arriving values; Fit tightens it to the
+visible finite observations. CPU and GPU rendering share the same UI controls.

@@ -282,3 +282,24 @@ The measures, statistical assumptions and presentation still need discussion.
 - [x] Regression reproduces jittered sparse measurements over five sweeps and
       compares visible GPU updates with the timestamp-based reference. Preserve
       prior-cycle points ahead of the cursor and existing incremental Raw lines.
+
+
+## Cross-tab action and style coherence — 26 October 2026
+
+- [x] Standardize Expand/Restore, Move and Play/Pause captions, icons, tooltips
+      and header order across Raw Data, Metrics and Affect. Add Expand/Restore
+      to both Metrics panes. Align pane headings, spacing and card styling.
+- [x] Give calibration controls mode-specific Record/Load/Clear actions and
+      symbols; use recording symbols for ASR training, and the follow-live symbol
+      for following the sweep. Clarify Processed (black) and Measured points.
+- [x] Add Metrics vertical zoom out/Fit/zoom in and Auto range in both renderers.
+      Manual zoom/Fit hold the chosen range; re-enable Auto range to follow values.
+      Fit uses visible finite samples; presentation changes preserve observations.
+- [x] Correct time zoom signs in Raw Data/Metrics (+ zooms in, − zooms out) and
+      show custom time-window values rather than leaving the selector blank.
+- Native review: all four tabs at 1024×700 / 1280×720 and small 150% viewports
+      (853×480 / 900×560), without horizontal overflow. Native synthetic previews
+      checked Metrics vertical controls, expansion and swapping.
+- Validation: full GUI suite 108 tests, 106 passed and two offscreen OpenGL
+      skips. Cross-tab tests compare actual icon images and button states. Native
+      checks exercised Metrics vertical zoom/Fit and preserved manual view state.

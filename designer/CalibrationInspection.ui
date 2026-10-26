@@ -82,7 +82,7 @@
    <item>
     <widget class="QPushButton" name="closeInspection">
      <property name="text">
-      <string>Close inspection</string>
+      <string>Close</string>
      </property>
     </widget>
    </item>

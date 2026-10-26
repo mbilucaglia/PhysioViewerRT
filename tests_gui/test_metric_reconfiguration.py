@@ -66,6 +66,28 @@ class MetricReconfigurationTests(unittest.TestCase):
         finally:
             plot.close()
 
+    def test_vertical_zoom_and_fit_preserve_observations_and_manual_range(self):
+        self.feed([0., .5, 1.])
+        plot = self.plot
+        ring = plot._layers[self.key][0].ring
+        before = plot._y_limits
+        plot.zoom_y(.5)
+        manual = plot._y_limits
+        self.assertAlmostEqual(manual[1]-manual[0], .5*(before[1]-before[0]))
+        plot.set_series(self.key,[0.,.5,1.,1.5],[1.,1.5,2.,50.],
+                        [0.,.5,1.,1.5],[1.,1.5,2.,50.])
+        self.assertEqual(plot._y_limits, manual)
+        self.assertIs(plot._layers[self.key][0].ring, ring)
+        plot.fit_y()
+        self.assertLess(plot._y_limits[0], 1.)
+        self.assertGreater(plot._y_limits[1], 50.)
+        self.assertFalse(plot._auto_y)
+        fitted = plot._y_limits
+        plot.set_xrange(-8.5,1.5)
+        self.assertEqual(plot._y_limits,fitted)
+        plot.set_y_auto(True)
+        self.assertTrue(plot._auto_y)
+
     def test_initial_signature_does_not_replace_empty_layers(self):
         pair = self.plot._layers[self.key]
         rings = tuple(layer.ring for layer in pair)

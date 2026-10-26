@@ -10,18 +10,6 @@
     <bool>true</bool>
    </property>
    <layout class="QVBoxLayout" name="circumplexCardLayout">
-    <property name="leftMargin">
-     <number>16</number>
-    </property>
-    <property name="rightMargin">
-     <number>16</number>
-    </property>
-    <property name="topMargin">
-     <number>12</number>
-    </property>
-    <property name="bottomMargin">
-     <number>12</number>
-    </property>
     <property name="spacing">
      <number>8</number>
     </property>
@@ -77,19 +65,36 @@
       </item>
       <item>
        <widget class="QPushButton" name="circumplexExpand">
-        <property name="text">
-         <string>Expand</string>
-        </property>
         <property name="affectCardKey" stdset="0">
          <string>circumplex</string>
         </property>
-        <property name="maximumWidth">
-         <number>90</number>
+        <property name="text">
+         <string>Expand</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>../assets/icons/expand.svg</normaloff>
+         </iconset>
+        </property>
+        <property name="toolTip">
+         <string>Expand this panel to fill the workspace.</string>
         </property>
        </widget>
       </item>
      </layout>
     </item>
+    <property name="leftMargin">
+     <number>12</number>
+    </property>
+    <property name="topMargin">
+     <number>12</number>
+    </property>
+    <property name="rightMargin">
+     <number>12</number>
+    </property>
+    <property name="bottomMargin">
+     <number>12</number>
+    </property>
    </layout>
   </widget>
   <widget class="QFrame" name="eiCard">
@@ -97,18 +102,6 @@
     <bool>true</bool>
    </property>
    <layout class="QVBoxLayout" name="eiCardLayout">
-    <property name="leftMargin">
-     <number>16</number>
-    </property>
-    <property name="rightMargin">
-     <number>16</number>
-    </property>
-    <property name="topMargin">
-     <number>12</number>
-    </property>
-    <property name="bottomMargin">
-     <number>12</number>
-    </property>
     <property name="spacing">
      <number>8</number>
     </property>
@@ -164,19 +157,36 @@
       </item>
       <item>
        <widget class="QPushButton" name="eiExpand">
-        <property name="text">
-         <string>Expand</string>
-        </property>
         <property name="affectCardKey" stdset="0">
          <string>ei</string>
         </property>
-        <property name="maximumWidth">
-         <number>90</number>
+        <property name="text">
+         <string>Expand</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>../assets/icons/expand.svg</normaloff>
+         </iconset>
+        </property>
+        <property name="toolTip">
+         <string>Expand this panel to fill the workspace.</string>
         </property>
        </widget>
       </item>
      </layout>
     </item>
+    <property name="leftMargin">
+     <number>12</number>
+    </property>
+    <property name="topMargin">
+     <number>12</number>
+    </property>
+    <property name="rightMargin">
+     <number>12</number>
+    </property>
+    <property name="bottomMargin">
+     <number>12</number>
+    </property>
    </layout>
   </widget>
  </widget>

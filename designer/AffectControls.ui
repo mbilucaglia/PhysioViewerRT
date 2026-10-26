@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <ui version="4.0">
  <class>AffectControls</class>
- <widget class="QWidget" name="AffectControls">
+ <widget class="QFrame" name="AffectControls">
   <property name="wrapControls" stdset="0">
    <bool>true</bool>
   </property>
@@ -36,7 +36,7 @@
       <item>
        <widget class="QLabel" name="affectReferenceLabel">
         <property name="text">
-         <string>Reference</string>
+         <string>Normalization</string>
         </property>
        </widget>
       </item>
@@ -64,7 +64,7 @@
       <item>
        <widget class="QLabel" name="affectTrailLabel">
         <property name="text">
-         <string>Trail</string>
+         <string>Trail length</string>
         </property>
        </widget>
       </item>
@@ -101,11 +101,19 @@
       </property>
       <item>
        <widget class="QPushButton" name="affectPause">
-        <property name="text">
-         <string>Pause view</string>
-        </property>
         <property name="checkable">
          <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Pause</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>../assets/icons/pause.svg</normaloff>
+         </iconset>
+        </property>
+        <property name="minimumWidth">
+         <number>90</number>
         </property>
        </widget>
       </item>
@@ -113,6 +121,11 @@
        <widget class="QPushButton" name="affectClear">
         <property name="text">
          <string>Clear trails</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>../assets/icons/clear.svg</normaloff>
+         </iconset>
         </property>
        </widget>
       </item>

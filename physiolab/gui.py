@@ -45,7 +45,7 @@ from .asr_widgets import ASRControls
 from .asr_quality import training_report
 from .panel_arrangement import PanelArrangement
 from .flow_layout import install_designer_flows, install_flow, fit_scroll_page, AdaptiveRawWorkspace
-from .ui_icons import set_action
+from .ui_icons import set_action, set_panel_expanded, set_view_paused
 from .asr_session import ASRSession
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
@@ -435,14 +435,37 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([900, 360])
+        self.metric_panel_focus = None
         self.metric_arrangement = PanelArrangement(self, splitter,
             {'trends':self._required_ui('metricsTrendCard', QFrame),
              'values':self._required_ui('metricsValuesCard', QFrame)},
             {'trends':self._required_ui('metricsTrendMove', QToolButton),
              'values':self._required_ui('metricsValuesMove', QToolButton)},
             {'trends':'Metric trends', 'values':'Metric values'})
+        self.metric_arrangement.changed.connect(self._restore_metric_panels)
+        for key, name in (('trends','metricsTrendExpand'), ('values','metricsValuesExpand')):
+            self._required_ui(name, QToolButton).clicked.connect(
+                lambda checked=False,k=key:self.toggle_metric_panel_focus(k))
         self._metric_workspace = AdaptiveRawWorkspace(
             self._required_ui('metricsTabScroll', QScrollArea).viewport(), splitter)
+
+    def toggle_metric_panel_focus(self, key):
+        splitter = self.metric_arrangement.container
+        if self.metric_panel_focus is None:
+            self._metric_panel_sizes = splitter.sizes()
+        self.metric_panel_focus = None if self.metric_panel_focus == key else key
+        self._sync_metric_panels()
+
+    def _restore_metric_panels(self, order):
+        self.metric_panel_focus = None
+        self._sync_metric_panels()
+
+    def _sync_metric_panels(self):
+        for key, name in (('trends','metricsTrendExpand'), ('values','metricsValuesExpand')):
+            self.metric_arrangement.panels[key].setVisible(self.metric_panel_focus in (None,key))
+            set_panel_expanded(self._required_ui(name,QToolButton), self.metric_panel_focus == key)
+        if self.metric_panel_focus is None and hasattr(self,'_metric_panel_sizes'):
+            self.metric_arrangement.container.setSizes(self._metric_panel_sizes)
 
     def sync_affect_sources(self):
         """Peripheral Affect and EI require both live peripheral receivers."""
@@ -572,6 +595,9 @@ class MainWindow(QMainWindow):
             self.calibration_file_labels[kind] = self._required_ui(f'{kind}Status', QLabel)
             self._required_ui(f'{kind}Execute', QPushButton).clicked.connect(
                 lambda _, k=kind: self._baseline_designer_action(k))
+            self._required_ui(f'{kind}Mode', QComboBox).currentIndexChanged.connect(
+                lambda _, k=kind: self.update_calibration_action(k))
+            self.update_calibration_action(kind)
         self.calibration_state = self._required_ui('baselineSummary', QLabel)
         self.calibration_state.setText('EYC: none (default IAF 10 Hz) | BSL: none')
 
@@ -590,9 +616,9 @@ class MainWindow(QMainWindow):
             ('30 s', 30), ('1 min', 60), ('5 min', 300)])
         self.raw_time_window.currentIndexChanged.connect(self.set_raw_time_window)
         self._required_ui('rawZoomMinus', QPushButton).clicked.connect(
-            lambda: self.zoom_raw_plots(.5))
-        self._required_ui('rawZoomPlus', QPushButton).clicked.connect(
             lambda: self.zoom_raw_plots(2.))
+        self._required_ui('rawZoomPlus', QPushButton).clicked.connect(
+            lambda: self.zoom_raw_plots(.5))
         self.raw_live_button = self._required_ui('rawFollowLive', QPushButton)
         set_action(self.raw_live_button, 'Live', 'live')
         self.raw_live_button.clicked.connect(self.resume_raw_live)
@@ -696,9 +722,9 @@ class MainWindow(QMainWindow):
             ('1 min', 60), ('5 min', 300)])
         self.metric_time_window.currentIndexChanged.connect(self.set_metric_time_window)
         self._required_ui('metricsZoomMinus', QPushButton).clicked.connect(
-            lambda: self.zoom_metric_plot(.5))
-        self._required_ui('metricsZoomPlus', QPushButton).clicked.connect(
             lambda: self.zoom_metric_plot(2.))
+        self._required_ui('metricsZoomPlus', QPushButton).clicked.connect(
+            lambda: self.zoom_metric_plot(.5))
         self.metric_live_button = self._required_ui('metricsFollowLive', QPushButton)
         set_action(self.metric_live_button, 'Live', 'live')
         self.metric_live_button.clicked.connect(self.resume_metric_live)
@@ -779,6 +805,22 @@ class MainWindow(QMainWindow):
             lambda: self.set_plot_paused('metrics', not self.metric_plot_paused))
         self.raw_display.paused = False
         self.metric_plot_paused = False
+        self.metric_y_auto = self._required_ui('metricsYAuto', QCheckBox)
+        self._metric_manual_y = None
+        self.metric_y_auto.toggled.connect(self._metric_vertical_auto_changed)
+        self._required_ui('metricsYOut', QToolButton).clicked.connect(lambda:self.zoom_metric_y(1.25))
+        self._required_ui('metricsYIn', QToolButton).clicked.connect(lambda:self.zoom_metric_y(.8))
+        self._required_ui('metricsYFit', QToolButton).clicked.connect(self.fit_metric_y)
+
+
+    def update_calibration_action(self, kind):
+        mode = self._required_ui(f'{kind}Mode', QComboBox).currentIndex()
+        text, icon = (('Record','record'), ('Load','open'), ('Clear','clear'))[mode]
+        button = self._required_ui(f'{kind}Execute', QPushButton)
+        set_action(button, text, icon)
+        button.setToolTip(('Record a fresh 60-second calibration.',
+                           'Load a saved calibration recording.',
+                           'Clear the active calibration; saved files are kept.')[mode])
 
     def _baseline_designer_action(self, kind):
         choice = self._required_ui(f'{kind}Mode', QComboBox).currentIndex()
@@ -916,7 +958,7 @@ class MainWindow(QMainWindow):
             button.blockSignals(True)
             button.setChecked(selected)
             button.blockSignals(False)
-            set_action(button, 'Show all' if selected else 'Expand', 'collapse' if selected else 'expand')
+            set_panel_expanded(button, selected)
             self._required_ui(f'{modality}PlotPanel', QWidget).setVisible(
                 self.focused_raw_kind is None or selected)
         self.raw_peripheral_splitter.setVisible(self.focused_raw_kind != self.raw_panel_order[0])
@@ -927,16 +969,14 @@ class MainWindow(QMainWindow):
     def set_plot_paused(self, scope, paused):
         if scope == 'raw':
             self.raw_display.paused = bool(paused)
-            set_action(self._required_ui('rawPlotPause', QPushButton),
-                       'Play' if paused else 'Pause', 'play' if paused else 'pause')
+            set_view_paused(self._required_ui('rawPlotPause', QPushButton), paused)
             if not paused:
                 # Preserve GPU ring contents across plot-only pause/resume.
                 # Replay buffered samples without a blank-frame reset.
                 self.raw_display.dirty = True
         else:
             self.metric_plot_paused = bool(paused)
-            set_action(self._required_ui('metricsPlotPause', QPushButton),
-                       'Play' if paused else 'Pause', 'play' if paused else 'pause')
+            set_view_paused(self._required_ui('metricsPlotPause', QPushButton), paused)
             if not paused:
                 self.metric_presentation_epoch += 1
                 self.metric_dirty = True
@@ -1296,9 +1336,64 @@ class MainWindow(QMainWindow):
                 return
         self.metric_renderer_mode = mode
         self.metric_plot_stack.setCurrentIndex(1 if mode == 'vispy' else 0)
+        self.set_metric_vertical_auto(self.metric_y_auto.isChecked())
+        if not self.metric_y_auto.isChecked() and self._metric_manual_y is not None:
+            self._apply_metric_y_range(*self._metric_manual_y)
         self.update_metric_xrange()
         self.metric_dirty = True
         self.refresh_metric_plot()
+
+    def _metric_vertical_auto_changed(self, enabled):
+        if not enabled:
+            self._metric_manual_y = (self.vispy_metric_plot.y_range
+                if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None
+                else tuple(self.metric_plot.viewRange()[1]))
+        self.set_metric_vertical_auto(enabled)
+
+    def set_metric_vertical_auto(self, enabled):
+        self.metric_plot.enableAutoRange(axis='y', enable=enabled)
+        if self.vispy_metric_plot is not None:
+            self.vispy_metric_plot.set_y_auto(enabled)
+
+    def _apply_metric_y_range(self, low, high):
+        self._metric_manual_y = (low, high)
+        if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None:
+            self.vispy_metric_plot.set_y_range(low, high)
+        else:
+            self.metric_plot.setYRange(low, high, padding=0)
+
+    def zoom_metric_y(self, factor):
+        self.metric_y_auto.setChecked(False)
+        if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None:
+            low, high = self.vispy_metric_plot.y_range
+        else:
+            low, high = self.metric_plot.viewRange()[1]
+        center, half = (low+high)/2., (high-low)*factor/2.
+        self._apply_metric_y_range(center-half, center+half)
+
+    def fit_metric_y(self):
+        self.metric_y_auto.setChecked(False)
+        if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None:
+            self.vispy_metric_plot.fit_y()
+            self._metric_manual_y = self.vispy_metric_plot.y_range
+            return
+        left, right = self.metric_plot.viewRange()[0]
+        values = []
+        for key in self.metric_curves:
+            if self.metric_checks[key].isChecked():
+                for curve in (self.metric_curves[key], self.metric_point_curves[key]):
+                    if not curve.isVisible():
+                        continue
+                    x, y = curve.getData()
+                    if x is not None:
+                        mask = (x >= left) & (x <= right) & np.isfinite(y)
+                        values.extend(y[mask])
+        if values:
+            low, high = float(np.min(values)), float(np.max(values))
+            pad = max(.1, (high-low)*.08)
+            self._apply_metric_y_range(low-pad, high+pad)
+        else:
+            self._apply_metric_y_range(-1., 1.)
 
     def set_metric_time_window(self, *_):
         seconds = self.metric_time_window.currentData()
@@ -1312,7 +1407,10 @@ class MainWindow(QMainWindow):
             self.metric_view_seconds * scale, 1.0, self.settings.history_seconds
         ))
         self.metric_time_window.blockSignals(True)
-        idx = self.metric_time_window.findData(int(self.metric_view_seconds))
+        idx = self.metric_time_window.findData(self.metric_view_seconds)
+        if idx < 0:
+            self.metric_time_window.addItem(f'{self.metric_view_seconds:g} s', self.metric_view_seconds)
+            idx = self.metric_time_window.count()-1
         self.metric_time_window.setCurrentIndex(idx)
         self.metric_time_window.blockSignals(False)
         self.resume_metric_live()
@@ -1336,7 +1434,7 @@ class MainWindow(QMainWindow):
             self.update_metric_xrange()
         else:
             self.metric_follow_live = False
-            set_action(self.metric_live_button, 'Follow live', 'play')
+            set_action(self.metric_live_button, 'Follow live', 'live')
             self.metric_live_button.setEnabled(True)
 
     def update_metric_xrange(self):
@@ -1520,7 +1618,11 @@ class MainWindow(QMainWindow):
         self.raw_display.set_window(np.clip(
             self.raw_display.view_seconds * factor, 1.0, self.settings.history_seconds))
         self.raw_time_window.blockSignals(True)
-        index = self.raw_time_window.findData(int(self.raw_display.view_seconds))
+        index = self.raw_time_window.findData(self.raw_display.view_seconds)
+        if index < 0:
+            seconds = self.raw_display.view_seconds
+            self.raw_time_window.addItem(f'{seconds:g} s', seconds)
+            index = self.raw_time_window.count()-1
         self.raw_time_window.setCurrentIndex(index)
         self.raw_time_window.blockSignals(False)
         self.resume_raw_live()
@@ -1548,7 +1650,7 @@ class MainWindow(QMainWindow):
             self.update_raw_xranges()
         else:
             self.raw_display.follow_live = False
-            set_action(self.raw_live_button, 'Follow live', 'play')
+            set_action(self.raw_live_button, 'Follow live', 'live')
             self.raw_live_button.setEnabled(True)
             for other, plot in self.plots.items():
                 if other != kind:

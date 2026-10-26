@@ -121,6 +121,7 @@ class VisPyMetricPlot:
         self._latest = -np.inf
         self._y_limits = (-1., 1.)
         self._signature = None
+        self._auto_y = True
         self._amplitude_unit = 'a.u.'
         self._amplitude_description = ''
         self._configure_layers()
@@ -154,7 +155,8 @@ class VisPyMetricPlot:
             self.lines[key] = line.visual
             self.points[key] = dots.visual
         self._latest = -np.inf
-        self._y_limits = (-1., 1.)
+        if self._auto_y:
+            self._y_limits = (-1., 1.)
         self.engine.set_view(0., 1., *self._y_limits)
         self._update_amplitude_ruler()
 
@@ -198,7 +200,7 @@ class VisPyMetricPlot:
             if not len(finite):
                 finite = np.asarray(y, dtype=float)
                 finite = finite[np.isfinite(finite)]
-            if len(finite):
+            if len(finite) and self._auto_y:
                 low, high = self._y_limits
                 candidate_low, candidate_high = float(np.min(finite)), float(np.max(finite))
                 # Expand-only while live: autoscale must never make traces
@@ -216,6 +218,51 @@ class VisPyMetricPlot:
             if len(points):
                 self._latest = max(self._latest, float(points[-1]))
         self.canvas.update()
+
+    @property
+    def y_range(self):
+        return self._y_limits
+
+    def set_y_range(self, low, high):
+        if not np.isfinite([low, high]).all() or high <= low:
+            raise ValueError('Metric vertical bounds must be finite and increasing')
+        self._y_limits = (float(low), float(high))
+        self.engine.set_view(0., 1., *self._y_limits)
+        self.engine.set_axis_labels(bounds=self._y_limits)
+        self._update_amplitude_ruler()
+        self.canvas.update()
+
+    def set_y_auto(self, enabled):
+        self._auto_y = bool(enabled)
+        if enabled:
+            self.fit_y()
+
+    def zoom_y(self, factor):
+        if not np.isfinite(factor) or factor <= 0:
+            raise ValueError('Vertical zoom factor must be positive')
+        self._auto_y = False
+        low, high = self._y_limits
+        center, half = (low+high)/2., (high-low)*factor/2.
+        self.set_y_range(center-half, center+half)
+
+    def fit_y(self):
+        values = []
+        for pair in self._layers.values():
+            for layer in pair:
+                if layer.visual.visible:
+                    ring = layer.ring
+                    visible = (np.isfinite(ring.values)
+                               & (ring.stamps >= self._latest-self._duration)
+                               & (ring.stamps <= self._latest))
+                    if np.any(visible):
+                        values.append(ring.values[visible])
+        if values:
+            values = np.concatenate(values)
+            low, high = float(np.min(values)), float(np.max(values))
+            pad = max(.1, (high-low)*.08)
+            self.set_y_range(low-pad, high+pad)
+        else:
+            self.set_y_range(-1., 1.)
 
     def set_xrange(self, left, right):
         duration = float(right-left)

@@ -8,6 +8,7 @@ from pathlib import Path
 from PySide6.QtUiTools import QUiLoader
 from .flow_layout import install_flow
 from .panel_arrangement import PanelArrangement
+from .ui_icons import set_action, set_panel_expanded, set_view_paused
 
 import numpy as np
 from PySide6.QtCore import QCoreApplication, QEvent, QDir, QPointF, QRectF, Qt, Signal
@@ -348,8 +349,8 @@ class AffectView(QWidget):
         self._ei_reason = None
         self.setObjectName('affectView')
         self.setStyleSheet('''
-            QFrame[affectCard="true"] { background: white; border: 1px solid #dfe1ef; border-radius: 12px; }
-            QLabel[affectHeading="true"] { color: #25234a; font-size: 15pt; font-weight: 600; border: none; }
+            QFrame[affectCard="true"] { background: white; border: 1px solid #dfe1ef; border-radius: 9px; }
+            QLabel[affectHeading="true"] { color: #25234a; font-size: 11pt; font-weight: 600; border: none; }
             QLabel[affectEyebrow="true"] { color: #77768f; font-size: 8pt; font-weight: 600; border: none; }
             QLabel#affectHint { color: #77768f; font-size: 9pt; border: none; }
             QLabel#affectReadout { border: none; font-size: 9pt; }
@@ -361,7 +362,9 @@ class AffectView(QWidget):
         outer.setContentsMargins(10, 12, 10, 8)
         outer.setSpacing(12)
         folder = Path(__file__).resolve().parent.parent / 'designer'
-        self.controls = QUiLoader().load(str(folder / 'AffectControls.ui'), self)
+        controls_loader = QUiLoader()
+        controls_loader.setWorkingDirectory(QDir(str(folder)))
+        self.controls = controls_loader.load(str(folder / 'AffectControls.ui'), self)
         if self.controls is None:
             raise RuntimeError('Cannot load Designer Affect controls')
         self.normalization = self.controls.findChild(QComboBox, 'affectNormalization')
@@ -375,7 +378,8 @@ class AffectView(QWidget):
         for seconds in RETENTIONS:
             self.retention.addItem(f'{seconds} s', float(seconds))
         self.retention.setCurrentIndex(RETENTIONS.index(60))
-        self.pause.setToolTip('Freeze this view while acquisition and metric processing continue.')
+        set_view_paused(self.pause, False)
+        self.clear.setToolTip('Clear visible trails; acquisition and processing continue.')
         install_flow(self.controls)
         outer.addWidget(self.controls)
         loader = QUiLoader()
@@ -407,15 +411,19 @@ class AffectView(QWidget):
         self.auto_range = QCheckBox('Auto range')
         self.auto_range.setChecked(True)
         self.auto_range.setToolTip('Keep every retained observation visible. Pan or zoom to select a manual range.')
-        self.zoom_in = QPushButton('+')
-        self.zoom_out = QPushButton('−')
-        self.fit_range = QPushButton('Fit')
+        self.zoom_in = QPushButton()
+        set_action(self.zoom_in, '', 'plus')
+        self.zoom_out = QPushButton()
+        set_action(self.zoom_out, '', 'minus')
+        self.fit_range = QPushButton()
+        set_action(self.fit_range, '', 'autoscale')
+        self.fit_range.setAccessibleName('Fit visible range')
         self.zoom_in.setToolTip('Zoom in; keep this manual range as observations arrive.')
         self.zoom_out.setToolTip('Zoom out; keep this manual range as observations arrive.')
         self.fit_range.setToolTip('Fit all retained observations once.')
         range_controls.addWidget(self.auto_range)
         range_controls.addStretch()
-        for button in (self.zoom_out, self.zoom_in, self.fit_range):
+        for button in (self.zoom_out, self.fit_range, self.zoom_in):
             button.setMaximumWidth(46)
             range_controls.addWidget(button)
         plane_layout.addLayout(range_controls)
@@ -485,14 +493,14 @@ class AffectView(QWidget):
         for button in self.findChildren(QPushButton):
             card_key = button.property('affectCardKey')
             if card_key:
-                button.setText('Restore' if self._focus == card_key else 'Expand')
+                set_panel_expanded(button, self._focus == card_key)
 
     def _retention_changed(self):
         self.retention_changed.emit(float(self.retention.currentData()))
         self._refresh()
 
     def _pause_changed(self, paused):
-        self.pause.setText('Resume view' if paused else 'Pause view')
+        set_view_paused(self.pause, paused)
         self.pause_changed.emit(paused)
         if not paused:
             self._refresh()

@@ -32,8 +32,8 @@ QComboBox, QSpinBox, QDoubleSpinBox, QLineEdit { background: #ffffff; border: 1p
 QComboBox::drop-down { border: none; width: 23px; }
 QComboBox QAbstractItemView { background: white; border: 1px solid #dfe1ef; selection-background-color: #e7e2f6; selection-color: #1e185c; padding: 5px; }
 QCheckBox { spacing: 7px; padding: 3px 0; }
-QLabel#EEGPlotTitle, QLabel#PPGPlotTitle, QLabel#EDAPlotTitle { font-size: 10pt; font-weight: 600; padding: 3px 9px; border-radius: 5px; }
-QLabel#EEGPlotTitle, QLabel#PPGPlotTitle, QLabel#EDAPlotTitle { color: #38317f; background: #eeecfa; }
+QLabel#EEGPlotTitle, QLabel#PPGPlotTitle, QLabel#EDAPlotTitle { font-size: 11pt; font-weight: 600; padding: 2px 0; border-radius: 5px; }
+QLabel#EEGPlotTitle, QLabel#PPGPlotTitle, QLabel#EDAPlotTitle { color: #35335b; background: transparent; }
 QLabel#rawRenderingStatus, QLabel#baselineSummary, QLabel#EYCStatus, QLabel#BSLStatus { color: #77768f; }
 QLabel#sourcesIntro, QLabel#rawIntro, QLabel#metricsIntro { color: #686887; padding: 0 0 4px; }
 QWidget#EEGPlotPanel, QWidget#PPGPlotPanel, QWidget#EDAPlotPanel { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 8px; }
@@ -64,9 +64,9 @@ QGroupBox#EEGProcessingPanel, QGroupBox#PPGProcessingPanel, QGroupBox#EDAProcess
 QFrame#EEGASRPanel { border: none; background: transparent; }
 QTabBar::tab { padding: 8px 18px; }
 
-QPushButton#rawPlotPause, QPushButton#metricsPlotPause { color: #312b79; background: #eeecfa; border-color: #d4ceee; font-weight: 600; }
+QPushButton#rawPlotPause, QPushButton#metricsPlotPause, QPushButton#affectPause { color: #312b79; background: #eeecfa; border-color: #d4ceee; font-weight: 600; }
 
-QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 8px; padding: 4px; }
+QFrame#rawToolbarHost, QFrame#AffectControls { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 8px; padding: 4px; }
 
 QFrame#metricsValuesCard { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 9px; }
 QLabel#metricsValuesTitle { font-size: 11pt; font-weight: 600; }
@@ -304,14 +304,14 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      <normaloff>../assets/icons/play-white.svg</normaloff>
                     </iconset>
                    </property>
+                   <property name="text">
+                    <string>Play</string>
+                   </property>
                    <property name="iconSize">
                     <size>
                      <width>16</width>
                      <height>16</height>
                     </size>
-                   </property>
-                   <property name="text">
-                    <string>Play</string>
                    </property>
                   </widget>
                  </item>
@@ -458,10 +458,16 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                              </property>
                              <property name="icon">
                               <iconset>
-                               <normaloff>../assets/icons/play.svg</normaloff>../assets/icons/play.svg</iconset>
+                               <normaloff>../assets/icons/record.svg</normaloff>../assets/icons/play.svg</iconset>
                              </property>
                              <property name="toolTip">
                               <string>Record clean EEG to train ASR independently of EYC and BSL.</string>
+                             </property>
+                             <property name="iconSize">
+                              <size>
+                               <width>16</width>
+                               <height>16</height>
+                              </size>
                              </property>
                             </widget>
                            </item>
@@ -550,6 +556,12 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                              <property name="toolTip">
                               <string>Review retained training duration and the limits of these quality indicators.</string>
                              </property>
+                             <property name="iconSize">
+                              <size>
+                               <width>16</width>
+                               <height>16</height>
+                              </size>
+                             </property>
                             </widget>
                            </item>
                           </layout>
@@ -593,6 +605,12 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   <widget class="QPushButton" name="EEGChooseChannels">
                    <property name="text">
                     <string>Select channels…</string>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
                    </property>
                   </widget>
                  </item>
@@ -711,14 +729,14 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      <normaloff>../assets/icons/play-white.svg</normaloff>
                     </iconset>
                    </property>
+                   <property name="text">
+                    <string>Play</string>
+                   </property>
                    <property name="iconSize">
                     <size>
                      <width>16</width>
                      <height>16</height>
                     </size>
-                   </property>
-                   <property name="text">
-                    <string>Play</string>
                    </property>
                   </widget>
                  </item>
@@ -817,6 +835,12 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                    <property name="text">
                     <string>Select channels…</string>
                    </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
+                   </property>
                   </widget>
                  </item>
                  <item>
@@ -911,14 +935,14 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      <normaloff>../assets/icons/play-white.svg</normaloff>
                     </iconset>
                    </property>
+                   <property name="text">
+                    <string>Play</string>
+                   </property>
                    <property name="iconSize">
                     <size>
                      <width>16</width>
                      <height>16</height>
                     </size>
-                   </property>
-                   <property name="text">
-                    <string>Play</string>
                    </property>
                   </widget>
                  </item>
@@ -1012,6 +1036,12 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                    <property name="text">
                     <string>Select channels…</string>
                    </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
+                   </property>
                   </widget>
                  </item>
                  <item>
@@ -1077,17 +1107,17 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   <widget class="QComboBox" name="EYCMode">
                    <item>
                     <property name="text">
-                     <string>New — record 60 s</string>
+                     <string>Record 60 s</string>
                     </property>
                    </item>
                    <item>
                     <property name="text">
-                     <string>Load existing…</string>
+                     <string>Load recording</string>
                     </property>
                    </item>
                    <item>
                     <property name="text">
-                     <string>Default / none</string>
+                     <string>Clear calibration</string>
                     </property>
                    </item>
                   </widget>
@@ -1095,7 +1125,18 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                  <item>
                   <widget class="QPushButton" name="EYCExecute">
                    <property name="text">
-                    <string>Start / Load</string>
+                    <string>Record</string>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/record.svg</normaloff>
+                    </iconset>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
                    </property>
                   </widget>
                  </item>
@@ -1124,17 +1165,17 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   <widget class="QComboBox" name="BSLMode">
                    <item>
                     <property name="text">
-                     <string>New — record 60 s</string>
+                     <string>Record 60 s</string>
                     </property>
                    </item>
                    <item>
                     <property name="text">
-                     <string>Load existing…</string>
+                     <string>Load recording</string>
                     </property>
                    </item>
                    <item>
                     <property name="text">
-                     <string>Default / none</string>
+                     <string>Clear calibration</string>
                     </property>
                    </item>
                   </widget>
@@ -1142,7 +1183,18 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                  <item>
                   <widget class="QPushButton" name="BSLExecute">
                    <property name="text">
-                    <string>Start / Load</string>
+                    <string>Record</string>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/record.svg</normaloff>
+                    </iconset>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
                    </property>
                   </widget>
                  </item>
@@ -1165,14 +1217,14 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                 <normaloff>../assets/icons/refresh.svg</normaloff>
                </iconset>
               </property>
+              <property name="text">
+               <string>Refresh all LSL streams</string>
+              </property>
               <property name="iconSize">
                <size>
                 <width>16</width>
                 <height>16</height>
                </size>
-              </property>
-              <property name="text">
-               <string>Refresh all LSL streams</string>
               </property>
              </widget>
             </item>
@@ -1303,14 +1355,14 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                       <normaloff>../assets/icons/live.svg</normaloff>
                      </iconset>
                     </property>
+                    <property name="text">
+                     <string>Live</string>
+                    </property>
                     <property name="iconSize">
                      <size>
                       <width>16</width>
                       <height>16</height>
                      </size>
-                    </property>
-                    <property name="text">
-                     <string>Live</string>
                     </property>
                    </widget>
                   </item>
@@ -1321,17 +1373,20 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                       <normaloff>../assets/icons/pause.svg</normaloff>
                      </iconset>
                     </property>
+                    <property name="text">
+                     <string>Pause</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Pause the display. Acquisition, filters, ASR and metrics continue. Press Play to resume.</string>
+                    </property>
                     <property name="iconSize">
                      <size>
                       <width>16</width>
                       <height>16</height>
                      </size>
                     </property>
-                    <property name="text">
-                     <string>Pause</string>
-                    </property>
-                    <property name="toolTip">
-                     <string>Pause the display. Acquisition, filters, ASR and metrics continue. Press Play to resume.</string>
+                    <property name="minimumWidth">
+                     <number>90</number>
                     </property>
                    </widget>
                   </item>
@@ -1407,20 +1462,11 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   </item>
                   <item>
                    <widget class="QPushButton" name="rawZoomMinus">
-                    <property name="toolTip">
-                     <string>Show a longer time window</string>
-                    </property>
                     <property name="icon">
                      <iconset>
                       <normaloff>../assets/icons/minus.svg</normaloff>
                      </iconset>
                     </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
                     <property name="text">
                      <string />
                     </property>
@@ -1429,24 +1475,24 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                     </property>
                     <property name="maximumWidth">
                      <number>32</number>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                    <property name="toolTip">
+                     <string>Zoom out in time: show a longer window.</string>
                     </property>
                    </widget>
                   </item>
                   <item>
                    <widget class="QPushButton" name="rawZoomPlus">
-                    <property name="toolTip">
-                     <string>Show a shorter time window</string>
-                    </property>
                     <property name="icon">
                      <iconset>
                       <normaloff>../assets/icons/plus.svg</normaloff>
                      </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
                     </property>
                     <property name="text">
                      <string />
@@ -1456,6 +1502,15 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                     </property>
                     <property name="maximumWidth">
                      <number>32</number>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                    <property name="toolTip">
+                     <string>Zoom in in time: show a shorter window.</string>
                     </property>
                    </widget>
                   </item>
@@ -1490,7 +1545,10 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   <item>
                    <widget class="QCheckBox" name="showFiltered">
                     <property name="text">
-                     <string>Filtered (black)</string>
+                     <string>Processed (black)</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Signal after the selected filters and optional ASR correction.</string>
                     </property>
                    </widget>
                   </item>
@@ -1535,9 +1593,6 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
               </property>
               <widget class="QWidget" name="EEGPlotPanel">
                <layout class="QVBoxLayout" name="EEGPlotLayout">
-                <property name="spacing">
-                 <number>10</number>
-                </property>
                 <item>
                  <widget class="QWidget" name="EEGPlotHeaderHost">
                   <property name="wrapControls" stdset="0">
@@ -1582,27 +1637,6 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                        </widget>
                       </item>
                       <item>
-                       <widget class="QToolButton" name="EEGExpand">
-                        <property name="text">
-                         <string>Expand</string>
-                        </property>
-                        <property name="checkable">
-                         <bool>true</bool>
-                        </property>
-                        <property name="icon">
-                         <iconset>
-                          <normaloff>../assets/icons/expand.svg</normaloff>
-                         </iconset>
-                        </property>
-                        <property name="iconSize">
-                         <size>
-                          <width>16</width>
-                          <height>16</height>
-                         </size>
-                        </property>
-                       </widget>
-                      </item>
-                      <item>
                        <widget class="QToolButton" name="EEGMove">
                         <property name="text">
                          <string>Move</string>
@@ -1617,6 +1651,39 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          <iconset>
                           <normaloff>../assets/icons/move.svg</normaloff>
                          </iconset>
+                        </property>
+                        <property name="iconSize">
+                         <size>
+                          <width>16</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QToolButton" name="EEGExpand">
+                        <property name="checkable">
+                         <bool>true</bool>
+                        </property>
+                        <property name="text">
+                         <string>Expand</string>
+                        </property>
+                        <property name="icon">
+                         <iconset>
+                          <normaloff>../assets/icons/expand.svg</normaloff>
+                         </iconset>
+                        </property>
+                        <property name="toolTip">
+                         <string>Expand this panel to fill the workspace.</string>
+                        </property>
+                        <property name="toolButtonStyle">
+                         <enum>Qt::ToolButtonTextBesideIcon</enum>
+                        </property>
+                        <property name="iconSize">
+                         <size>
+                          <width>16</width>
+                          <height>16</height>
+                         </size>
                         </property>
                        </widget>
                       </item>
@@ -1767,6 +1834,21 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   </property>
                  </widget>
                 </item>
+                <property name="spacing">
+                 <number>8</number>
+                </property>
+                <property name="leftMargin">
+                 <number>12</number>
+                </property>
+                <property name="topMargin">
+                 <number>12</number>
+                </property>
+                <property name="rightMargin">
+                 <number>12</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>12</number>
+                </property>
                </layout>
               </widget>
               <widget class="QSplitter" name="rawPeripheralSplitter">
@@ -1775,9 +1857,6 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                </property>
                <widget class="QWidget" name="PPGPlotPanel">
                 <layout class="QVBoxLayout" name="PPGPlotLayout">
-                 <property name="spacing">
-                  <number>10</number>
-                 </property>
                  <item>
                   <widget class="QWidget" name="PPGPlotHeaderHost">
                    <property name="wrapControls" stdset="0">
@@ -1822,27 +1901,6 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                         </widget>
                        </item>
                        <item>
-                        <widget class="QToolButton" name="PPGExpand">
-                         <property name="text">
-                          <string>Expand</string>
-                         </property>
-                         <property name="checkable">
-                          <bool>true</bool>
-                         </property>
-                         <property name="icon">
-                          <iconset>
-                           <normaloff>../assets/icons/expand.svg</normaloff>
-                          </iconset>
-                         </property>
-                         <property name="iconSize">
-                          <size>
-                           <width>16</width>
-                           <height>16</height>
-                          </size>
-                         </property>
-                        </widget>
-                       </item>
-                       <item>
                         <widget class="QToolButton" name="PPGMove">
                          <property name="text">
                           <string>Move</string>
@@ -1857,6 +1915,39 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                           <iconset>
                            <normaloff>../assets/icons/move.svg</normaloff>
                           </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QToolButton" name="PPGExpand">
+                         <property name="checkable">
+                          <bool>true</bool>
+                         </property>
+                         <property name="text">
+                          <string>Expand</string>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/expand.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="toolTip">
+                          <string>Expand this panel to fill the workspace.</string>
+                         </property>
+                         <property name="toolButtonStyle">
+                          <enum>Qt::ToolButtonTextBesideIcon</enum>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
                          </property>
                         </widget>
                        </item>
@@ -2007,13 +2098,25 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                    </property>
                   </widget>
                  </item>
+                 <property name="spacing">
+                  <number>8</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>12</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>12</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>12</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>12</number>
+                 </property>
                 </layout>
                </widget>
                <widget class="QWidget" name="EDAPlotPanel">
                 <layout class="QVBoxLayout" name="EDAPlotLayout">
-                 <property name="spacing">
-                  <number>10</number>
-                 </property>
                  <item>
                   <widget class="QWidget" name="EDAPlotHeaderHost">
                    <property name="wrapControls" stdset="0">
@@ -2058,27 +2161,6 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                         </widget>
                        </item>
                        <item>
-                        <widget class="QToolButton" name="EDAExpand">
-                         <property name="text">
-                          <string>Expand</string>
-                         </property>
-                         <property name="checkable">
-                          <bool>true</bool>
-                         </property>
-                         <property name="icon">
-                          <iconset>
-                           <normaloff>../assets/icons/expand.svg</normaloff>
-                          </iconset>
-                         </property>
-                         <property name="iconSize">
-                          <size>
-                           <width>16</width>
-                           <height>16</height>
-                          </size>
-                         </property>
-                        </widget>
-                       </item>
-                       <item>
                         <widget class="QToolButton" name="EDAMove">
                          <property name="text">
                           <string>Move</string>
@@ -2093,6 +2175,39 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                           <iconset>
                            <normaloff>../assets/icons/move.svg</normaloff>
                           </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QToolButton" name="EDAExpand">
+                         <property name="checkable">
+                          <bool>true</bool>
+                         </property>
+                         <property name="text">
+                          <string>Expand</string>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/expand.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="toolTip">
+                          <string>Expand this panel to fill the workspace.</string>
+                         </property>
+                         <property name="toolButtonStyle">
+                          <enum>Qt::ToolButtonTextBesideIcon</enum>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
                          </property>
                         </widget>
                        </item>
@@ -2243,6 +2358,21 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                    </property>
                   </widget>
                  </item>
+                 <property name="spacing">
+                  <number>8</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>12</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>12</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>12</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>12</number>
+                 </property>
                 </layout>
                </widget>
               </widget>
@@ -2396,14 +2526,14 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          <normaloff>../assets/icons/live.svg</normaloff>
                         </iconset>
                        </property>
+                       <property name="text">
+                        <string>Live</string>
+                       </property>
                        <property name="iconSize">
                         <size>
                          <width>16</width>
                          <height>16</height>
                         </size>
-                       </property>
-                       <property name="text">
-                        <string>Live</string>
                        </property>
                       </widget>
                      </item>
@@ -2414,17 +2544,20 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          <normaloff>../assets/icons/pause.svg</normaloff>
                         </iconset>
                        </property>
+                       <property name="text">
+                        <string>Pause</string>
+                       </property>
+                       <property name="toolTip">
+                        <string>Pause the display. Acquisition, filters, ASR and metrics continue. Press Play to resume.</string>
+                       </property>
                        <property name="iconSize">
                         <size>
                          <width>16</width>
                          <height>16</height>
                         </size>
                        </property>
-                       <property name="text">
-                        <string>Pause</string>
-                       </property>
-                       <property name="toolTip">
-                        <string>Pause the display. Acquisition, filters, ASR and metrics continue. Press Play to resume.</string>
+                       <property name="minimumWidth">
+                        <number>90</number>
                        </property>
                       </widget>
                      </item>
@@ -2500,20 +2633,11 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      </item>
                      <item>
                       <widget class="QPushButton" name="metricsZoomMinus">
-                       <property name="toolTip">
-                        <string>Show a longer time window</string>
-                       </property>
                        <property name="icon">
                         <iconset>
                          <normaloff>../assets/icons/minus.svg</normaloff>
                         </iconset>
                        </property>
-                       <property name="iconSize">
-                        <size>
-                         <width>16</width>
-                         <height>16</height>
-                        </size>
-                       </property>
                        <property name="text">
                         <string />
                        </property>
@@ -2522,24 +2646,24 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                        </property>
                        <property name="maximumWidth">
                         <number>32</number>
+                       </property>
+                       <property name="iconSize">
+                        <size>
+                         <width>16</width>
+                         <height>16</height>
+                        </size>
+                       </property>
+                       <property name="toolTip">
+                        <string>Zoom out in time: show a longer window.</string>
                        </property>
                       </widget>
                      </item>
                      <item>
                       <widget class="QPushButton" name="metricsZoomPlus">
-                       <property name="toolTip">
-                        <string>Show a shorter time window</string>
-                       </property>
                        <property name="icon">
                         <iconset>
                          <normaloff>../assets/icons/plus.svg</normaloff>
                         </iconset>
-                       </property>
-                       <property name="iconSize">
-                        <size>
-                         <width>16</width>
-                         <height>16</height>
-                        </size>
                        </property>
                        <property name="text">
                         <string />
@@ -2549,6 +2673,15 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                        </property>
                        <property name="maximumWidth">
                         <number>32</number>
+                       </property>
+                       <property name="iconSize">
+                        <size>
+                         <width>16</width>
+                         <height>16</height>
+                        </size>
+                       </property>
+                       <property name="toolTip">
+                        <string>Zoom in in time: show a shorter window.</string>
                        </property>
                       </widget>
                      </item>
@@ -2782,6 +2915,9 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                        <property name="text">
                         <string>Measured points</string>
                        </property>
+                       <property name="toolTip">
+                        <string>Show measured metric samples as squares; connecting lines may be smoothed or interpolated.</string>
+                       </property>
                       </widget>
                      </item>
                     </layout>
@@ -2910,23 +3046,8 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
               </property>
               <widget class="QFrame" name="metricsTrendCard">
                <layout class="QVBoxLayout" name="metricsTrendLayout" stretch="0,1">
-                <property name="leftMargin">
-                 <number>14</number>
-                </property>
-                <property name="topMargin">
-                 <number>14</number>
-                </property>
-                <property name="rightMargin">
-                 <number>14</number>
-                </property>
-                <property name="bottomMargin">
-                 <number>14</number>
-                </property>
-                <property name="spacing">
-                 <number>10</number>
-                </property>
                 <item>
-                 <layout class="QHBoxLayout" name="metricsTrendHeader">
+                 <layout class="QHBoxLayout" name="metricsTrendHeader" stretch="1,0,0">
                   <item>
                    <widget class="QLabel" name="metricsTrendTitle">
                     <property name="text">
@@ -2950,6 +3071,105 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                       <normaloff>../assets/icons/move.svg</normaloff>
                      </iconset>
                     </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="metricsTrendExpand">
+                    <property name="text">
+                     <string>Expand</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/expand.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="toolTip">
+                     <string>Expand this panel to fill the workspace.</string>
+                    </property>
+                    <property name="toolButtonStyle">
+                     <enum>Qt::ToolButtonTextBesideIcon</enum>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item>
+                 <layout class="QHBoxLayout" name="metricsVerticalControls">
+                  <item>
+                   <widget class="QLabel" name="metricsVerticalLabel">
+                    <property name="text">
+                     <string>Vertical scale</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QCheckBox" name="metricsYAuto">
+                    <property name="text">
+                     <string>Auto range</string>
+                    </property>
+                    <property name="checked">
+                     <bool>true</bool>
+                    </property>
+                    <property name="toolTip">
+                     <string>Expand the range to include new values. Use Fit to tighten the visible range.</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="metricsYOut">
+                    <property name="text">
+                     <string>Out</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Zoom out vertically; keep the chosen range.</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/minus.svg</normaloff>
+                     </iconset>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="metricsYFit">
+                    <property name="text">
+                     <string>Fit</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Fit visible metrics and hold the range until Auto range is enabled.</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/autoscale.svg</normaloff>
+                     </iconset>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="metricsYIn">
+                    <property name="text">
+                     <string>In</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Zoom in vertically; keep the chosen range.</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/plus.svg</normaloff>
+                     </iconset>
+                    </property>
                    </widget>
                   </item>
                  </layout>
@@ -2964,12 +3184,27 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   </property>
                  </widget>
                 </item>
+                <property name="spacing">
+                 <number>8</number>
+                </property>
+                <property name="leftMargin">
+                 <number>12</number>
+                </property>
+                <property name="topMargin">
+                 <number>12</number>
+                </property>
+                <property name="rightMargin">
+                 <number>12</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>12</number>
+                </property>
                </layout>
               </widget>
               <widget class="QFrame" name="metricsValuesCard">
                <layout class="QVBoxLayout" name="metricsValuesLayout">
                 <item>
-                 <layout class="QHBoxLayout" name="metricsValuesHeader">
+                 <layout class="QHBoxLayout" name="metricsValuesHeader" stretch="1,0,0">
                   <item>
                    <widget class="QLabel" name="metricsValuesTitle">
                     <property name="text">
@@ -2992,6 +3227,36 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      <iconset>
                       <normaloff>../assets/icons/move.svg</normaloff>
                      </iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="metricsValuesExpand">
+                    <property name="text">
+                     <string>Expand</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/expand.svg</normaloff>
+                     </iconset>
+                    </property>
+                    <property name="toolTip">
+                     <string>Expand this panel to fill the workspace.</string>
+                    </property>
+                    <property name="toolButtonStyle">
+                     <enum>Qt::ToolButtonTextBesideIcon</enum>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
                     </property>
                    </widget>
                   </item>
@@ -3074,6 +3339,12 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                              <normaloff>../assets/icons/move.svg</normaloff>
                             </iconset>
                            </property>
+                           <property name="iconSize">
+                            <size>
+                             <width>16</width>
+                             <height>16</height>
+                            </size>
+                           </property>
                           </widget>
                          </item>
                         </layout>
@@ -3136,6 +3407,12 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                             <iconset>
                              <normaloff>../assets/icons/move.svg</normaloff>
                             </iconset>
+                           </property>
+                           <property name="iconSize">
+                            <size>
+                             <width>16</width>
+                             <height>16</height>
+                            </size>
                            </property>
                           </widget>
                          </item>
@@ -3200,6 +3477,12 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                              <normaloff>../assets/icons/move.svg</normaloff>
                             </iconset>
                            </property>
+                           <property name="iconSize">
+                            <size>
+                             <width>16</width>
+                             <height>16</height>
+                            </size>
+                           </property>
                           </widget>
                          </item>
                         </layout>
@@ -3263,6 +3546,12 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                              <normaloff>../assets/icons/move.svg</normaloff>
                             </iconset>
                            </property>
+                           <property name="iconSize">
+                            <size>
+                             <width>16</width>
+                             <height>16</height>
+                            </size>
+                           </property>
                           </widget>
                          </item>
                         </layout>
@@ -3281,6 +3570,21 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   </widget>
                  </widget>
                 </item>
+                <property name="spacing">
+                 <number>8</number>
+                </property>
+                <property name="leftMargin">
+                 <number>12</number>
+                </property>
+                <property name="topMargin">
+                 <number>12</number>
+                </property>
+                <property name="rightMargin">
+                 <number>12</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>12</number>
+                </property>
                </layout>
               </widget>
              </widget>

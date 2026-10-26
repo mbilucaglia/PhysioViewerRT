@@ -572,6 +572,9 @@ class GuiSmokeTests(unittest.TestCase):
                 self.data[key] = (np.asarray(x), np.asarray(y),
                                   np.asarray(mx), np.asarray(my), options)
 
+            def set_y_auto(self, enabled):
+                self.auto_y = enabled
+
             def set_xrange(self, left, right):
                 self.bounds = (left, right)
 
