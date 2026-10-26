@@ -1,0 +1,104 @@
+{
+  "reviewed_commit": "3029828",
+  "date": "2026-10-26",
+  "production_code_changed": false,
+  "pure": {
+    "decimation_peak": {
+      "input_samples": 15360,
+      "output_samples": 2195,
+      "input_peak": 100.0,
+      "display_peak": 0.0,
+      "timebase_seconds": 30
+    },
+    "manual_center": {
+      "requested_visible_seconds": 5.0,
+      "cached_frame_span_seconds": 0.1015625,
+      "full_visible_median": 10.0,
+      "center_used": 10.932711798847153
+    },
+    "stale_sweep_lines": {
+      "drawn_slots": 49,
+      "drawn_slots_older_than_one_window": 48,
+      "newest_sample_time": 20.1
+    },
+    "cross_source_preparation": {
+      "injected_EEG_ms": 150.0,
+      "PPG_response_ms": 153.23,
+      "result_sources": [
+        "EEG",
+        "PPG"
+      ]
+    },
+    "inflight_replacement": {
+      "epoch_after_view_change": 1,
+      "active_old_epoch": 0,
+      "can_submit_replacement_before_old_completion": false
+    },
+    "main_window": {
+      "lines": 2305,
+      "methods": 104,
+      "direct_raw_display_assignments": 22,
+      "assigned_fields": [
+        "committed_head",
+        "dirty",
+        "follow_live",
+        "interacting_until",
+        "last_render_at",
+        "paused",
+        "tab_entered_at"
+      ]
+    }
+  },
+  "ui": {
+    "initial_backend": "vispy",
+    "has_prepared_frame": true,
+    "paused_backend_switch": {
+      "CPU_curve_count": 0,
+      "prepared_frame_available": true,
+      "dirty": true,
+      "display_paused": true
+    },
+    "paused_timebase": {
+      "old_plot_seconds": 5.0,
+      "requested_seconds": 10.0,
+      "actual_plot_seconds": 5.0
+    },
+    "source_gap_recovery": {
+      "newest_sample": 120.9,
+      "viewport_head_after_new_input": 101.05000000000001,
+      "viewport_head_two_seconds_later": 104.04999999999984,
+      "remaining_lag_seconds": 16.850000000000165
+    }
+  },
+  "ownership": {
+    "startup_reference_packet_dependence": {
+      "same_samples": true,
+      "one_packet_center": 4.5,
+      "two_packets_center": 0.5
+    },
+    "active_pending_resource_aliasing": {
+      "active_visibility_before": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "replacement_ready": false,
+      "active_visibility_after_first_staging_step": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "pending_aliases_active": true
+    }
+  }
+}

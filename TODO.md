@@ -1,6 +1,35 @@
 # PhysioViewerRT handoff — 26 October 2026
 
 
+## Highest priority — rendering architecture gate (review 26 October 2026)
+
+**Pause new product features until rendering correctness, ownership and lifecycle
+contracts are stabilized.** Current audit is docs/RENDERING_ARCHITECTURE_REVIEW.md;
+measured reproductions are in its JSON companion. No production refactor is
+included in this review. Keep startup-only automatic centering and explicit
+Center / amplitude-only Fit throughout the refactor.
+
+- [x] Review runtime ownership across GUI, view state, preparation, CPU/GPU
+      backends and acquisition handoff. Reproduce boundary failures without
+      changing signal processing or user recordings.
+- [ ] Turn the audit probes into behavioral regression tests before fixes.
+- [ ] Extract one plotting controller and a shared backend protocol. Remove
+      direct GUI mutation of rendering internals and consolidate command state.
+- [ ] Isolate frame scheduling/completion/failure by source and generation;
+      cancel stale work and bound preparation so a slow source cannot block peers.
+- [ ] Make active/staging graphics resources disjoint until atomic commit.
+- [ ] Fix paused backend/timebase redraws and authoritative full-window Center.
+- [ ] Preserve extrema under visual downsampling and define gap/freshness recovery;
+      expire truly stale line geometry without inventing connections.
+- [ ] Make the one-shot initial reference independent of transport packet sizes.
+- [ ] Replace positional prepared-frame tuples with explicit coverage, transform,
+      generation, availability and error contracts; clarify mutable ownership.
+- [ ] Establish native/fallback transition and stress matrices, independent data
+      producers, p95/p99 draw/frame-age budgets and long-run memory limits.
+- [ ] Profile GPU batching, replay memory and warmup only after the contracts are
+      stable. Keep working numerical/graphics components; avoid a wholesale rewrite
+      or extra abstraction layers without a concrete owner/responsibility.
+
 ## End-of-day handoff — 26 October 2026
 
 Latest implementation: b675999 on main. Code, Designer changes, tests,

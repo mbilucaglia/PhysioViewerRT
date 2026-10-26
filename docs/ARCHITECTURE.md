@@ -4,6 +4,13 @@ PhysioViewerRT separates acquisition, signal processing, and presentation. Displ
 pause, gain, smoothing, interpolation, and sweep duration are presentation choices;
 they must not change the samples passed to physiological processing.
 
+## Review status — 26 October 2026
+
+The ownership rules below describe the intended design, not a completed modularity
+guarantee. A code audit reproduced controller, scheduling, resource-lifecycle and
+rendering-correctness failures. See [rendering architecture review](RENDERING_ARCHITECTURE_REVIEW.md).
+Rendering stabilization is the next priority; new features are gated in TODO.
+
 ## Current modules
 
 | Responsibility | Modules | Contract |
