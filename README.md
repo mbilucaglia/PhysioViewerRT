@@ -13,10 +13,13 @@ then `start_windows.cmd`. In Sources, refresh LSL, select the source and channel
 for each modality, and press Play. Raw Data shows the live waveforms; gain,
 channel count, sweep duration, and plot pause change the display only.
 
-Raw Data uses a fixed 50 ms presentation buffer. PPG/SC use small delivery
-blocks; Hampel adds three samples of lookahead. A slower stream retains its
-own timestamps without delaying the other panels. Hardware/network batching
-and wavelet buffering can still add delay.
+Raw Data centers each signal once when acquisition starts. **Center** in each
+EEG/PPG/SC panel explicitly recenters the visible data; **Fit** adjusts amplitude
+only. Drift, trace toggles and channel-display changes do not automatically
+recenter the recording. Cursors stay at each signal's actual drawn samples.
+The earlier 250 ms display timing and receiver block policy are restored after
+the low-buffer experiment regressed real-device playback. Denoisers and their
+lookahead remain unchanged.
 
 The Affect tab shows Central/Peripheral trajectories and Emotional Index.
 Every displayed metric follows that tab's selected normalization using its own

@@ -75,7 +75,7 @@ class LiveFeedbackTests(unittest.TestCase):
             w.raw_display.references['EEG'] = ([100.], [1.])
             before = w.raw_display.epoch
             w.show_processed.setChecked(False)
-            self.assertNotIn('EEG', w.raw_display.references)
+            self.assertIn('EEG', w.raw_display.references)
             self.assertGreater(w.raw_display.epoch, before)
             self.assertTrue(w._raw_trace_selection_refresh)
             w.show_raw.setChecked(False)
@@ -85,7 +85,7 @@ class LiveFeedbackTests(unittest.TestCase):
             w.close()
             self.app.processEvents()
 
-    def test_selected_trace_centers_redraw_while_paused_in_both_renderers(self):
+    def test_trace_toggles_redraw_without_changing_startup_center(self):
         import numpy as np
         from pylsl import local_clock
         with patch.object(MainWindow,'refresh',lambda self:None):
@@ -109,7 +109,7 @@ class LiveFeedbackTests(unittest.TestCase):
             for renderer in modes:
                 w.raw_renderer_choice.setCurrentIndex(renderer)
                 w.raw_display.paused = True
-                for raw_visible, clean_visible, expected in ((True,False,100.),(False,True,3.),(True,True,3.)):
+                for raw_visible, clean_visible, expected in ((True,False,3.),(False,True,3.),(True,True,3.)):
                     w.show_raw.setChecked(raw_visible)
                     w.show_processed.setChecked(clean_visible)
                     w.raw_trace_selection_changed()
@@ -118,11 +118,44 @@ class LiveFeedbackTests(unittest.TestCase):
                     centers = w.raw_display.frames['EEG'][3]
                     np.testing.assert_allclose(centers,expected,atol=1.)
                     frame = w.raw_display.frames['EEG']
-                    active = frame[2] if clean_visible else frame[1]
-                    np.testing.assert_allclose(np.median(active,axis=0),np.arange(len(centers))*6.,atol=1e-8)
+                    np.testing.assert_allclose(centers,w.raw_display.recording_reference('EEG',len(centers))[0],atol=1e-12)
         finally:
             w.close()
             self.app.processEvents()
+
+    def test_center_is_explicit_and_fit_does_not_change_it_for_any_modality(self):
+        import numpy as np
+        from physiolab.raw_render import prepare_raw_window
+        with patch.object(MainWindow,'refresh',lambda self:None):
+            w=MainWindow()
+        w.timer.stop()
+        try:
+            for kind in ('EEG','PPG','EDA'):
+                raw=np.ones((4,2))*10.;clean=np.ones((4,2))*2.
+                w.append_raw_chunk(kind,raw,clean,['A','B'],32.,100.+np.arange(4)/32.)
+                first=w.raw_display.recording_reference(kind,2)
+                w.append_raw_chunk(kind,raw+5.,clean+5.,['A','B'],32.,101.+np.arange(4)/32.)
+                np.testing.assert_array_equal(w.raw_display.recording_reference(kind,2)[0],first[0])
+                frame=prepare_raw_window(w.raw_display.history[kind],1.,1.2,100.,
+                    reference=first,fit_traces=kind!='EEG')
+                w.raw_display.remember_frame(kind,frame)
+                w.plots[kind].setXRange(1.,1.2,padding=0)
+                before_gain=w.raw_vertical_gains[kind].value()
+                w.raw_center_buttons[kind].setEnabled(True)
+                self.assertEqual(w.raw_center_buttons[kind].text(),'Center')
+                self.assertFalse(w.raw_center_buttons[kind].icon().isNull())
+                w.raw_center_buttons[kind].click()
+                centered=w.raw_display.recording_reference(kind,2)[0].copy()
+                expected=np.array([[15.,15.],[7.,7.]]) if kind!='EEG' else np.array([7.,7.])
+                np.testing.assert_allclose(centered,expected)
+                self.assertEqual(w.raw_vertical_gains[kind].value(),before_gain)
+                w.autoscale_raw(kind)
+                np.testing.assert_array_equal(w.raw_display.recording_reference(kind,2)[0],centered)
+                w.append_raw_chunk(kind,raw+10.,clean+10.,['A','B'],32.,102.+np.arange(4)/32.)
+                np.testing.assert_array_equal(w.raw_display.recording_reference(kind,2)[0],centered)
+                np.testing.assert_array_equal(raw,10.)
+        finally:
+            w.close();self.app.processEvents()
 
     def test_raw_indicator_uses_worker_state_and_survives_pause(self):
         with patch.object(MainWindow, 'refresh', lambda self: None):

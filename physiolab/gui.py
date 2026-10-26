@@ -729,6 +729,7 @@ class MainWindow(QMainWindow):
         self.raw_peripheral_splitter.setStretchFactor(0, 1)
         self.raw_peripheral_splitter.setStretchFactor(1, 1)
         self.raw_panel_order = ('EEG', 'PPG', 'EDA')
+        self.raw_center_buttons = {}
         self.raw_move_menus = {}
         self.raw_focus_buttons = {}
         self.focused_raw_kind = None
@@ -787,6 +788,9 @@ class MainWindow(QMainWindow):
             autoscale.setToolTip('Fit visible raw/filtered extrema; EEG keeps one shared gain')
             autoscale.clicked.connect(lambda _, k=kind: self.autoscale_raw(k))
             self.raw_autoscale_buttons[kind] = autoscale
+            center=self._required_ui(f'{kind}Center',QToolButton)
+            center.clicked.connect(lambda _,k=kind:self.center_raw(k))
+            self.raw_center_buttons[kind]=center
             self._required_ui(f'{kind}AmplitudeMinus', QPushButton).clicked.connect(
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/self.settings.gain_step))
             self._required_ui(f'{kind}AmplitudePlus', QPushButton).clicked.connect(
@@ -1274,6 +1278,7 @@ class MainWindow(QMainWindow):
             self._tonic_live_configuration = None
             self.refresh_affect_references()
         self.raw_autoscale_buttons[kind].setEnabled(False)
+        self.raw_center_buttons[kind].setEnabled(False)
         plot = self.plots[kind]
         plot.clear()
         self.curves[kind] = []
@@ -1648,7 +1653,8 @@ class MainWindow(QMainWindow):
         self.metric_amplitude_ruler.setToolTip(description)
 
     def append_raw_chunk(self, kind, raw, processed, names, fs, timestamps):
-        self.raw_display.append(kind, raw, processed, names, fs, timestamps)
+        self.raw_display.append(kind, raw, processed, names, fs, timestamps,
+            center_trace='filtered' if self.show_processed.isChecked() else 'raw')
 
     def set_raw_renderer(self, *_):
         """Switch only the Raw Data presentation backend at runtime."""
@@ -1702,6 +1708,34 @@ class MainWindow(QMainWindow):
         control = self.raw_vertical_gains[kind]
         control.setValue(float(np.clip(control.value() * multiplier,
                                        self.settings.gain_minimum, self.settings.gain_maximum)))
+
+    def center_raw(self,kind):
+        frame=self.raw_display.frames.get(kind)
+        reference=self.raw_display.initial_references.get(kind)
+        if frame is None or reference is None:
+            return
+        times,raw,filtered,old_centers,scales,_=frame
+        end=float(times[-1])
+        if self.raw_renderer_mode=='pyqtgraph':
+            end=min(end,self.plots[kind].viewRange()[0][1])
+        keep=(times>=end-self.raw_display.view_seconds)&(times<=end)
+        if not np.any(keep):
+            return
+        count=raw.shape[1]
+        offsets=RAW_DISPLAY_POLICY.offsets(count)
+        centers=reference[0].copy()
+        if kind in ('PPG','EDA'):
+            centers[0,:count]=old_centers[0]+np.median(raw[keep]-offsets,axis=0)*scales
+            centers[1,:count]=old_centers[1]+np.median(filtered[keep]-offsets,axis=0)*scales
+        else:
+            anchor=filtered if self.show_processed.isChecked() else raw
+            centers[:count]=old_centers+np.median(anchor[keep]-offsets,axis=0)*scales
+        self.raw_display.initial_references[kind]=(centers,reference[1])
+        self.raw_display.references.pop(kind,None)
+        self.raw_display.invalidate()
+        self._raw_trace_selection_refresh=True
+        if kind in self.raw_vispy_plots:
+            self.raw_vispy_plots[kind].invalidate_history()
 
     def autoscale_raw(self, kind):
         # Normal GPU frames contain only the new tail. Ask the preparation
@@ -1922,12 +1956,8 @@ class MainWindow(QMainWindow):
                 break
 
     def raw_trace_selection_changed(self):
-        self.raw_display.references.pop('EEG', None)
-        self.raw_display.frames.pop('EEG', None)
         self.raw_display.invalidate()
         self._raw_trace_selection_refresh = True
-        if 'EEG' in self.raw_vispy_plots:
-            self.raw_vispy_plots['EEG'].invalidate_history()
 
     def draw(self):
         """Submit a lightweight snapshot; never reduce data on the GUI thread."""
@@ -1969,11 +1999,14 @@ class MainWindow(QMainWindow):
             if kind in self.raw_display.autoscale_requests:
                 latest = None
                 replay_history = True
+            reference=self.raw_display.recording_reference(kind,display_count)
+            if reference is None:
+                continue  # Need two real startup samples to latch the recording reference.
             source = build_raw_source(
                 chunks, left=low, right=high,
                 replay_history=replay_history,
                 origin=self.raw_display.origin,
-                reference=self.raw_display.references.get(kind),
+                reference=reference,
                 vispy=self.raw_renderer_mode == 'vispy',
                 latest=latest, sweep_seconds=self.raw_display.view_seconds,
                 max_channels=display_count,
@@ -2013,6 +2046,7 @@ class MainWindow(QMainWindow):
                 continue
             timestamps, raw, filtered, centers, spreads, names = frame
             self.raw_autoscale_buttons[kind].setEnabled(True)
+            self.raw_center_buttons[kind].setEnabled(True)
             if kind in self.raw_display.autoscale_requests:
                 self.raw_display.autoscale_requests.discard(kind)
                 self._apply_autoscale(kind, frame)

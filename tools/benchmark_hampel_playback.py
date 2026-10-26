@@ -86,7 +86,7 @@ try:
     (root/'.test-tmp/hampel-live-display.json').write_text(json.dumps(report,indent=2))
     print(json.dumps(report))
     assert not errors
-    assert report['presentation_buffer_seconds']<=.05,report
+    assert report['presentation_buffer_seconds']==w.settings.presentation_delay_seconds,report
 finally:
     for worker in workers.values():worker.stop()
     w.workers.clear();w.close();app.processEvents()

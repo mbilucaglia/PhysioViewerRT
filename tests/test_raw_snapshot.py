@@ -48,5 +48,20 @@ class RawSnapshotTests(unittest.TestCase):
             self.chunks, left=30., right=40., origin=100.))
 
 
+class FixedPeripheralSnapshotTests(unittest.TestCase):
+    def test_latched_peripheral_reference_uses_new_tail_not_full_window(self):
+        import numpy as np
+        from physiolab.raw_snapshot import build_raw_source
+        times=np.arange(1000)/100.
+        values=np.ones((1000,1))
+        chunks=((times,values,values,['PPG'],100.),)
+        source=build_raw_source(chunks,left=0.,right=10.,origin=0.,
+            vispy=True,latest=9.5,reference=(np.ones((2,1)),np.ones(1)),fit_traces=True)
+        self.assertAlmostEqual(source.left,9.4)
+        replay=build_raw_source(chunks,left=0.,right=10.,origin=0.,vispy=True,
+            latest=9.5,reference=(np.ones((2,1)),np.ones(1)),fit_traces=True,replay_history=True)
+        self.assertEqual(replay.left,0.)
+
+
 if __name__ == '__main__':
     unittest.main()

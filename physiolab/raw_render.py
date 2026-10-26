@@ -81,18 +81,17 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
     if fit_traces:
         # Single-channel displays retain source amplitudes but remove raw and
         # filtered DC offsets independently. A bandpass output need not have
-        # the same baseline as its raw input. Refit only when traces escape
-        # the reserved range, rather than freezing near-flat startup samples.
-        centers = np.stack((np.median(x, axis=0), np.median(y, axis=0)))
-        scales = None
+        # the same baseline as its raw input. Keep that reference until Center
+        # or a new recording explicitly requests a new one.
+        centers = scales = None
         if reference is not None:
             prior_centers, prior_scales = reference
             if np.shape(prior_centers) == (2, n) and np.shape(prior_scales) == (n,):
-                fits = (np.all(np.abs((x-prior_centers[0])/prior_scales) <= RAW_DISPLAY_POLICY.fit_limit)
-                        and np.all(np.abs((y-prior_centers[1])/prior_scales) <= RAW_DISPLAY_POLICY.fit_limit))
-                if fits:
-                    centers, scales = prior_centers, prior_scales
+                # Latched display reference: live drift must not move old
+                # traces or trigger automatic history replays. Center is explicit.
+                centers, scales = prior_centers, prior_scales
         if scales is None:
+            centers = np.stack((np.median(x,axis=0),np.median(y,axis=0)))
             extent = np.maximum(np.max(np.abs(x-centers[0]), axis=0),
                                 np.max(np.abs(y-centers[1]), axis=0))
             scales = np.maximum(extent / RAW_DISPLAY_POLICY.fit_target, 1e-9)

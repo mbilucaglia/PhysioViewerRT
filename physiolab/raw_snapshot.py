@@ -19,7 +19,7 @@ def build_raw_source(chunks, *, left, right, origin, reference=None,
     if not chunks or origin is None or right <= left:
         return None
     if vispy:
-        if replay_history or fit_traces:
+        if replay_history:
             pass  # Retain the requested two-cycle history for new GPU layers.
         elif latest is not None and reference is not None:
             left = max(left, latest - RAW_DISPLAY_POLICY.tail_overlap_seconds)

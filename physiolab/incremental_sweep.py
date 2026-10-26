@@ -151,10 +151,9 @@ def _incremental_visual_class():
         uniform float u_point_size;
         uniform float u_gain;
         uniform float u_center;
-        uniform float u_offset;
         varying vec4 v_color;
         void main() {
-            vec2 position = vec2(a_position.x, u_center + u_gain * (a_position.y - u_center) + u_offset);
+            vec2 position = vec2(a_position.x, u_center + u_gain * (a_position.y - u_center));
             gl_Position = $transform(vec4(position, 0., 1.));
             gl_PointSize = u_point_size;
             v_color = u_color;
@@ -178,7 +177,6 @@ def _incremental_visual_class():
             self.shared_program['u_point_size'] = float(point_size)
             self.shared_program['u_gain'] = 1.0
             self.shared_program['u_center'] = 0.0
-            self.shared_program['u_offset'] = 0.0
             self._draw_mode = mode
             self.set_gl_state('translucent', depth_test=False)
 
@@ -194,10 +192,6 @@ def _incremental_visual_class():
         def set_gain(self, gain, center):
             self.shared_program['u_gain'] = float(gain)
             self.shared_program['u_center'] = float(center)
-            self.update()
-
-        def set_offset(self, offset):
-            self.shared_program['u_offset'] = float(offset)
             self.update()
 
         def reset_capacity(self, capacity):
@@ -239,9 +233,6 @@ class IncrementalSweepLayer:
 
     def set_gain(self, gain, center):
         self.visual.set_gain(gain, center)
-
-    def set_offset(self, offset):
-        self.visual.set_offset(offset)
 
     def reconfigure(self, duration, rate, max_gap=None):
         """Reset display history without replacing the GPU visual/program."""

@@ -1903,6 +1903,16 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                         </property>
                        </widget>
                       </item>
+                      <item>
+                       <widget class="QToolButton" name="EEGCenter">
+                        <property name="text"><string>Center</string></property>
+                        <property name="enabled"><bool>false</bool></property>
+                        <property name="toolTip"><string>Center this signal once using the visible data. No automatic recentering during playback.</string></property>
+                        <property name="toolButtonStyle"><enum>Qt::ToolButtonTextBesideIcon</enum></property>
+                        <property name="icon"><iconset><normaloff>../assets/icons/center.svg</normaloff></iconset></property>
+                        <property name="iconSize"><size><width>16</width><height>16</height></size></property>
+                       </widget>
+                      </item>
                      </layout>
                     </widget>
                    </item>
@@ -2180,6 +2190,16 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          </property>
                         </widget>
                        </item>
+                      <item>
+                       <widget class="QToolButton" name="PPGCenter">
+                        <property name="text"><string>Center</string></property>
+                        <property name="enabled"><bool>false</bool></property>
+                        <property name="toolTip"><string>Center this signal once using the visible data. No automatic recentering during playback.</string></property>
+                        <property name="toolButtonStyle"><enum>Qt::ToolButtonTextBesideIcon</enum></property>
+                        <property name="icon"><iconset><normaloff>../assets/icons/center.svg</normaloff></iconset></property>
+                        <property name="iconSize"><size><width>16</width><height>16</height></size></property>
+                       </widget>
+                      </item>
                       </layout>
                      </widget>
                     </item>
@@ -2453,6 +2473,16 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          </property>
                         </widget>
                        </item>
+                      <item>
+                       <widget class="QToolButton" name="EDACenter">
+                        <property name="text"><string>Center</string></property>
+                        <property name="enabled"><bool>false</bool></property>
+                        <property name="toolTip"><string>Center this signal once using the visible data. No automatic recentering during playback.</string></property>
+                        <property name="toolButtonStyle"><enum>Qt::ToolButtonTextBesideIcon</enum></property>
+                        <property name="icon"><iconset><normaloff>../assets/icons/center.svg</normaloff></iconset></property>
+                        <property name="iconSize"><size><width>16</width><height>16</height></size></property>
+                       </widget>
+                      </item>
                       </layout>
                      </widget>
                     </item>

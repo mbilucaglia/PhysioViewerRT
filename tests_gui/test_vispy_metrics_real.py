@@ -119,7 +119,7 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
         finally:
             plot.close()
 
-    def test_raw_cursor_follows_shared_clock_without_retiming_samples(self):
+    def test_raw_cursor_stops_at_its_drawn_samples_without_retiming_them(self):
         plot = VisPyRawPlot('EEG')
         try:
             samples = np.array([5., 5.1, 5.2, 5.3])
@@ -128,7 +128,7 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
             # Simulate viewport clock running 80 ms ahead of acquisition.
             plot.set_frame(frame, 0., 5., sweep_head=5.38)
             np.testing.assert_allclose(
-                plot.engine.sweep_cursor._pos[:, 0], [.076, .076], atol=1e-5
+                plot.engine.sweep_cursor._pos[:, 0], [.06, .06], atol=1e-5
             )
             self.assertAlmostEqual(plot._latest, 5.3)
         finally:
@@ -158,22 +158,21 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
         finally:
             plot.close()
 
-    def test_three_stream_cursors_align_despite_different_delivery_times(self):
-        plots = [VisPyRawPlot(kind) for kind in ('EEG', 'PPG', 'EDA')]
+    def test_each_stream_cursor_follows_its_own_drawn_tip(self):
+        plots=[]
         try:
-            for plot, end in zip(plots, (.22, .35, .5)):
-                times = np.array([0., end])
-                values = np.array([[0.], [1.]])
-                plot.set_frame((times, values, values, None, None, ('signal',)),
-                               0., 5., sweep_head=.6)
-                np.testing.assert_allclose(plot.engine.sweep_cursor._pos[:, 0], [.12, .12])
-                self.assertEqual(plot._latest, end)
-            for plot in plots:
-                plot.set_sweep_head(.8)
-                np.testing.assert_allclose(plot.engine.sweep_cursor._pos[:, 0], [.16, .16])
+            for kind,end in (('EEG',.6),('PPG',.5),('EDA',.3)):
+                plot=VisPyRawPlot(kind);plots.append(plot)
+                times=np.arange(0.,end+.001,.1)
+                values=np.zeros((len(times),1))
+                plot.set_frame((times,values,values,None,None,('signal',)),0.,5.,sweep_head=.8,nominal_fs=10.)
+                np.testing.assert_allclose(plot.engine.sweep_cursor._pos[:,0],[end/5.,end/5.])
+                original=plot.layers['raw'][0].ring.positions.copy()
+                plot.set_sweep_head(1.2)
+                np.testing.assert_allclose(plot.engine.sweep_cursor._pos[:,0],[end/5.,end/5.])
+                np.testing.assert_array_equal(plot.layers['raw'][0].ring.positions,original)
         finally:
-            for plot in plots:
-                plot.close()
+            for plot in plots:plot.close()
 
     def test_raw_uses_same_engine_with_labels_and_gain(self):
         plot = VisPyRawPlot('EEG')

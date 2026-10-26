@@ -14,15 +14,20 @@ class RawDisplayStateTests(unittest.TestCase):
         state.append(kind, values, values, ['channel'], 10., times, received_at=1.)
         return values
 
-    def test_display_buffer_does_not_grow_with_delivered_block_size(self):
+    def test_initial_centers_survive_drift_fit_and_display_channel_changes(self):
         state=RawDisplayState()
-        for count in (16,32,256):
-            times=100.+np.arange(count)/32.
-            values=np.zeros((count,1))
-            state.reset('EDA')
-            state.append('EDA',values,values,['SCL'],32.,times,received_at=1.)
-            self.assertEqual(state.clock.presentation_delay,.05)
-
+        x=np.arange(32,dtype=float).reshape(4,8)
+        state.append('EEG',x,x,['C']*8,10.,100.+np.arange(4)/10.,center_trace='filtered')
+        centers=state.recording_reference('EEG',8)[0].copy()
+        state.append('EEG',x+100.,x+100.,['C']*8,10.,101.+np.arange(4)/10.)
+        np.testing.assert_array_equal(state.recording_reference('EEG',4)[0],centers[:4])
+        state.frames['EEG']=(None,None,None,centers,np.ones(8),['C']*8)
+        state.request_autoscale('EEG')
+        np.testing.assert_array_equal(state.recording_reference('EEG',8)[0],centers)
+        state.reset('EEG')
+        self.assertIsNone(state.recording_reference('EEG',8))
+        state.append('EEG',x+100.,x+100.,['C']*8,10.,102.+np.arange(4)/10.)
+        np.testing.assert_array_equal(state.recording_reference('EEG',8)[0],centers+100.)
 
     def test_ingress_owns_samples_and_discards_duplicate_timestamps(self):
         state = RawDisplayState()
@@ -44,16 +49,16 @@ class RawDisplayStateTests(unittest.TestCase):
         self.assertEqual(state.inflight_ticket, current.ticket)
         self.assertTrue(state.accepts(current.ticket, current.version))
 
-    def test_slow_source_does_not_delay_other_panels_and_clock_never_rewinds(self):
+    def test_shared_clock_uses_fresh_slowest_source_and_never_rewinds(self):
         state = RawDisplayState()
         state.origin = 100.
         state.clock = SimpleNamespace(advance=lambda now: 110.)
         state.last_sample = {'EEG': 110., 'EDA': 109.5, 'PPG': 100.}
         state.advance(1.)
-        self.assertEqual(state.bounds, (5., 10.))
+        self.assertEqual(state.bounds, (4.5, 9.5))
         state.committed_head = 9.8
         state.advance(2.)
-        np.testing.assert_allclose(state.bounds, (5., 10.))
+        np.testing.assert_allclose(state.bounds, (4.8, 9.8))
 
     def test_reset_retains_other_sources_and_last_reset_clears_clock(self):
         state = RawDisplayState()

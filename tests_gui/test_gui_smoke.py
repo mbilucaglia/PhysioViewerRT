@@ -531,7 +531,7 @@ class GuiSmokeTests(unittest.TestCase):
             self.assertTrue(gain.isHidden())
             visible = [header.itemAt(i).widget().objectName() for i in range(header.count())
                        if header.itemAt(i).widget() is not None and not header.itemAt(i).widget().isHidden()]
-            self.assertEqual(visible[-3:], [kind+'AmplitudeMinus',kind+'Autoscale',kind+'AmplitudePlus'])
+            self.assertEqual(visible[-4:], [kind+'AmplitudeMinus',kind+'Autoscale',kind+'AmplitudePlus',kind+'Center'])
             for suffix in ('Minus', 'Plus'):
                 self.assertFalse(self.window.findChild(QPushButton, f'{kind}Amplitude{suffix}').isHidden())
 

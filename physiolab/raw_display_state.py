@@ -13,6 +13,7 @@ from .display_units import DEFAULT_EEG_DISPLAY_STEP, ARBITRARY_UNIT
 from .raw_timing import clean_lsl_chunk, SmoothViewportClock
 from .render_contracts import RawFrameRequest
 from .settings import DEFAULT_VIEWER_SETTINGS
+from .render_policy import RAW_DISPLAY_POLICY
 
 
 class RawDisplayState:
@@ -28,6 +29,8 @@ class RawDisplayState:
         self.clock = SmoothViewportClock(settings.presentation_delay_seconds)
         self.committed_head = None
         self.references = {}
+        self.initial_references = {}
+        self.initial_center_trace = {}
         self.display_scales = {'EEG': DEFAULT_EEG_DISPLAY_STEP}
         self.units = dict.fromkeys(modalities, ARBITRARY_UNIT)
         self.frames = {}
@@ -58,13 +61,15 @@ class RawDisplayState:
         self.history[kind].clear()
         self.last_sample.pop(kind, None)
         self.references.pop(kind, None)
+        self.initial_references.pop(kind,None)
+        self.initial_center_trace.pop(kind,None)
         if not self.last_sample:
             self.clock.reset()
             self.committed_head = None
             self.origin = self.latest_time = self.last_received_at = None
         self.invalidate()
 
-    def append(self, kind, raw, filtered, names, fs, timestamps, received_at=None):
+    def append(self, kind, raw, filtered, names, fs, timestamps, received_at=None, center_trace='raw'):
         t, raw, filtered = clean_lsl_chunk(timestamps, raw, filtered,
                                          self.last_sample.get(kind))
         if not len(t):
@@ -73,6 +78,22 @@ class RawDisplayState:
         if self.origin is None:
             self.origin = float(t[0])
         self.history[kind].append((t, raw.copy(), filtered.copy(), list(names), float(fs)))
+        if kind not in self.initial_references:
+            self.initial_center_trace.setdefault(kind,center_trace)
+            first_raw=np.concatenate([chunk[1] for chunk in self.history[kind]])
+            first_filtered=np.concatenate([chunk[2] for chunk in self.history[kind]])
+            if len(first_raw)>=2:
+                if kind in ('PPG','EDA'):
+                    centers=np.stack((np.median(first_raw,axis=0),np.median(first_filtered,axis=0)))
+                    extent=np.maximum(np.max(np.abs(first_raw-centers[0]),axis=0),
+                                      np.max(np.abs(first_filtered-centers[1]),axis=0))
+                    scales=np.maximum(extent/RAW_DISPLAY_POLICY.fit_target,1e-9)
+                else:
+                    anchor=first_filtered if self.initial_center_trace[kind]=='filtered' else first_raw
+                    centers=np.median(anchor,axis=0)
+                    floor=np.maximum(np.max(np.abs(first_raw),axis=0)*1e-6,1e-9)
+                    scales=np.maximum(np.std(first_raw,axis=0),floor)
+                self.initial_references[kind]=(centers,scales)
         if self.latest_time is None or float(t[-1]) > self.latest_time:
             self.latest_time = float(t[-1])
             self.last_received_at = time.monotonic() if received_at is None else received_at
@@ -83,6 +104,13 @@ class RawDisplayState:
             chunks.popleft()
         self.dirty = True
 
+    def recording_reference(self,kind,count):
+        reference=self.initial_references.get(kind)
+        if reference is None:
+            return None
+        centers,scales=reference
+        return (centers[:,:count] if centers.ndim==2 else centers[:count],scales[:count])
+
     def advance(self, now):
         head = self.clock.advance(now)
         # Acquisition time continues while a tab is hidden or plotting paused.
@@ -91,9 +119,9 @@ class RawDisplayState:
             return False
         if self.last_sample:
             newest = max(self.last_sample.values())
-            # Shared source-time axis, without making a slower modality hold
-            # back faster ones. Each trace still uses only its acquired data.
-            head = min(head, newest)
+            fresh = [stamp for stamp in self.last_sample.values()
+                     if newest-stamp <= self.settings.stale_source_seconds]
+            head = min(head, min(fresh))
         end = head-self.origin
         if self.committed_head is not None:
             end = max(end, self.committed_head)

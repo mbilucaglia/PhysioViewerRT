@@ -74,14 +74,10 @@ class SmoothViewportClock:
         dt = max(0., min(now - self.frame_at, .1))
         self.frame_at = now
         # Keep no more than ~80ms of visual lead on the newest *real* data.
-        target = min(self.latest_sample + .08,
-                     self.latest_sample - self.presentation_delay
-                     + max(now - self.received_at, 0.))
+        target = (self.latest_sample - self.presentation_delay
+                  + min(max(now - self.received_at, 0.), .08))
         distance = target - self.head
         # Slew correction at at most 50% of normal speed, never jump.
         speed = max(0., min(1.5, 1. + distance * 3.))
-        # A newly arrived block can move the estimated target backwards by a
-        # few milliseconds. Slew its speed instead of freezing until it catches
-        # up. Only the real-data bound may stop the presentation clock.
-        self.head = min(self.latest_sample + .08,self.head + dt * speed)
+        self.head += min(dt * speed, max(0., target - self.head))
         return self.head

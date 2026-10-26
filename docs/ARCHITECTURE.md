@@ -205,48 +205,35 @@ stretch row below its footer: it creates a large unused area when maximized.
 Intro/footer rows keep natural height, and card rows may grow within the viewport.
 
 
-## Raw display clock and peripheral baseline placement
+## Raw display clock, cursors and recording references
 
-Acquisition timestamps remain authoritative. The presentation buffer is fixed
-at 50 ms by default and does not increase with incoming block size. PPG/SC LSL
-pulls target 25 ms blocks/timeouts so the application does not accumulate large
-waveform blocks before display. EEG/ASR keeps its existing transport partition
-because the backend is chunk-dependent. Metric cadence and denoising algorithms
-are unchanged. Hampel still needs three future samples; wavelet still buffers
-eight seconds initially and emits one-second updates.
+The earlier 250 ms presentation clock and receiver policy are restored after
+the 50 ms/fastest-source experiment regressed user playback. The short-block
+PPG/SC change and per-frame shader panning are removed. Denoising, baseline
+processing and metric cadence are unchanged. Each VisPy cursor is clamped to
+that modality's latest committed sample, even when a shared viewport is ahead.
+No cursor advance is used as proof that new waveform geometry was drawn.
 
-The shared source-time axis follows the newest available source; a slower
-modality no longer holds back the other panels. Slower traces retain their own
-actual timestamps and can lag behind the cursor. Bursty hardware or upstream
-outlets cannot be made immediate by this change: no unavailable samples are
-invented. Removing the former block-size-plus-250-ms adaptive delay prioritizes
-low latency over smoothing arbitrarily large delivery bursts.
+RawDisplayState latches an initial reference after the first two or more real
+startup samples. It retains references for every acquired channel independently
+of the displayed subset and viewport history pruning. PPG/SC retain separate
+initial raw/processed DC offsets; EEG uses the selected startup trace anchor.
+Playback drift, Fit, trace toggles and display-count changes reuse those
+references. A new acquisition resets them. Center explicitly computes new
+baselines for currently displayed channels from visible samples and performs
+one history replay. Fit adjusts gain only. This behavior is common to the CPU
+and GPU presentations and does not change acquired samples or metric inputs.
 
-Between arrivals the clock consumes buffered real samples; late-block phase
-corrections slew speed rather than stopping at an estimated target. The clock
-can still stop when actual data runs out. Its internal 80 ms maximum lead is
-clamped to the newest actual source data by RawDisplayState, and never fabricates
-signal samples. Source resets remove their cadence estimate.
+Fixed peripheral references allow incremental snapshot tails, like EEG, instead
+of full-window copies/median calculations at every frame. Explicit Center and
+other genuine geometry resets request a full history replay once. Sweep rings
+retain initial sample-bin phase anchoring, so half-bin timestamp jitter does
+not create false gaps. Actual gaps and sweep-cycle boundaries remain separate.
 
-Sweep rings fix bin phase at their first real sample, preserving measured
-timestamp geometry. Half-bin jitter must not create alternating skipped bins.
-Missing observations and sweep-cycle boundaries remain disconnected. The
-old/current sweep join is not a continuous time interval and must not be joined
-by an invented line segment.
-
-Single-channel Y bounds are symmetric around the channel baseline. VisPy PPG/SC
-also pan each raw/processed trace's visible median to that baseline with a
-shader offset. This translation does not rewrite retained vertices, units,
-amplitudes, history or signal-processing inputs. Gain applies to the offset too,
-so zoom stays anchored to the label. Multi-channel EEG retains its centering
-policy. Use tools/benchmark_hampel_playback.py for native LSL/playback checks;
-results depend on the driver, machine and concurrent workload.
-
-Native synthetic-LSL reproduction with both modalities using Hampel, 25 ms source
-blocks, PPG 128 Hz and SC 32 Hz: 240 measured frames, zero stopped playhead frames;
-median/p95 GUI intervals 31/47 ms. Measured age of the newest GPU-drawn original
-sample timestamp was PPG 103/121 ms median/p95 and SC 159/182 ms. This includes
-reducer lookahead, delivery, processing and frame preparation on the test PC;
-it is not a guarantee for another device or machine. The display buffer itself
-was 50 ms. tools/benchmark_hampel_playback.py now reports actual drawn-sample age;
---block-seconds 0.5 can separately demonstrate unavoidable upstream burstiness.
+Use tools/benchmark_three_stream_playback.py for native EEG-ASR plus PPG/SC-Hampel
+LSL playback. It records actual canvas draw events, data-tip advances and cursor
+lead over each drawn tip. A local 16-second run with 32 EEG channels acquired,
+eight displayed, reported 298–299 draws per panel, about 33/66 ms median/p95 draw
+intervals, and zero cursor lead for all three panels. It does not establish
+smoothness on another PC or real hardware. The earlier PPG/SC-only 50 ms-buffer
+measurements are historical and do not describe the restored implementation.

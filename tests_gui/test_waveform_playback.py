@@ -1,37 +1,32 @@
-"""Native pixel alignment and retained GPU geometry for peripheral DC drift."""
+"""Native cursor-to-trace alignment, including a delayed modality."""
 import os,time,unittest
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 import numpy as np
 from PySide6.QtWidgets import QApplication
 from physiolab.vispy_raw import VisPyRawPlot
-from physiolab.render_policy import RAW_DISPLAY_POLICY
 
 class WaveformPlaybackTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
 
     @unittest.skipUnless(os.environ.get('QT_QPA_PLATFORM')=='windows','Native OpenGL pixel verification')
-    def test_drifting_peripheral_trace_stays_at_its_label_without_rewriting_samples(self):
-        for kind in ('EDA','PPG'):
+    def test_slow_stream_cursor_is_at_drawn_endpoint_and_history_does_not_pan(self):
+        for kind in ('EEG','PPG','EDA'):
             plot=VisPyRawPlot(kind)
             try:
                 plot.widget.resize(900,500);plot.widget.show()
                 for _ in range(4):self.app.processEvents();time.sleep(.01)
-                t=(np.arange(128)+.5)/32.
-                values=np.ones((128,1))*1.5
-                original=values.copy()
-                plot.set_frame((t,values,values,None,None,('SCL',)),0.,5.,show_raw=False,nominal_fs=32.)
-                layer=plot.layers['filtered'][0]
-                geometry=layer.ring.positions.copy()
-                for gain in (1.,2.,.5):
-                    plot.set_vertical_gain(gain)
-                    for _ in range(3):self.app.processEvents()
-                    pixels=plot.canvas.render()
-                    black=np.max(pixels[:,:,:3],axis=2)<80
-                    row=int(np.argmax(black.sum(axis=1)))
-                    expected=plot.engine.label_gutter.label_center(0)
-                    self.assertLessEqual(abs(row-expected),1.5)
-                    np.testing.assert_array_equal(layer.ring.positions,geometry)
-                np.testing.assert_array_equal(values,original)
+                times=np.arange(1.,3.,1/32.)
+                values=np.zeros((len(times),1))
+                plot.set_frame((times,values,values,None,None,('channel',)),0.,5.,show_raw=False,sweep_head=4.,nominal_fs=32.)
+                for _ in range(3):self.app.processEvents()
+                geometry=plot.layers['filtered'][0].ring.positions.copy()
+                plot.set_sweep_head(4.8)
+                pixels=plot.canvas.render()
+                blue=(pixels[:,:,2]>150)&(pixels[:,:,0]<60)&(pixels[:,:,1]>60)&(pixels[:,:,1]<160)
+                column=int(np.argmax(blue.sum(axis=0)))
+                expected=times[-1]/5.*pixels.shape[1]
+                self.assertLessEqual(abs(column-expected),2.)
+                np.testing.assert_array_equal(plot.layers['filtered'][0].ring.positions,geometry)
             finally:
                 plot.widget.close();plot.close();self.app.processEvents()

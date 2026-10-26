@@ -124,7 +124,6 @@ class VisPyRawPlot:
         self.view = self.engine.view
         self.labels = []  # Legacy public attribute; channel names now live in Qt gutter.
         self.vertical_gain = 1.
-        self._trace_offsets = {}
         self._amplitude_step = None
         self._amplitude_unit = ARBITRARY_UNIT
         self.sweep_duration = 5.
@@ -156,7 +155,6 @@ class VisPyRawPlot:
         self._configuration = None
         self._target_channels = 0
         self._latest = -np.inf
-        self._trace_offsets = {}
 
     def set_vertical_gain(self, gain):
         gain = float(gain)
@@ -178,7 +176,6 @@ class VisPyRawPlot:
             center = centers[i]
             for layer_name in ('raw', 'filtered'):
                 self.layers[layer_name][i].set_gain(self.vertical_gain, center)
-                self.layers[layer_name][i].set_offset(self.vertical_gain*self._trace_offsets.get((layer_name,i),0.))
         self._update_amplitude_ruler()
 
     def set_amplitude_units(self, step, unit):
@@ -187,9 +184,11 @@ class VisPyRawPlot:
 
     def set_sweep_head(self, head):
         """Use the shared display clock without altering sample timestamps."""
-        if head is not None and np.isfinite(head):
-            self._sweep_head = float(head)
-            self.engine.set_sweep_cursor((float(head) % self.sweep_duration)
+        if head is not None and np.isfinite(head) and np.isfinite(self._latest):
+            # A shared viewport is not evidence that this modality has drawn
+            # samples that far. Pin its marker to its own committed trace tip.
+            self._sweep_head = min(float(head),self._latest)
+            self.engine.set_sweep_cursor((self._sweep_head % self.sweep_duration)
                                          / self.sweep_duration)
 
     def _update_amplitude_ruler(self):
@@ -212,7 +211,6 @@ class VisPyRawPlot:
         self.layers = {'raw': [], 'filtered': []}
         self._configuration = self._pending_configuration = self._pending_layers = None
         self._target_channels = 0
-        self._trace_offsets = {}
         self._latest = -np.inf
         self.raw_line = self.filtered_line = None
         self.engine.set_channel_labels(())
@@ -353,6 +351,7 @@ class VisPyRawPlot:
             return True
         n, configured_duration, _ = self._configuration
         return (n != count or configured_duration != duration
+                or not np.isfinite(self._latest)
                 or self._pending_layers is not None)
 
     @property
@@ -434,18 +433,6 @@ class VisPyRawPlot:
         self.set_sweep_head(self._latest if sweep_head is None else sweep_head)
         # Channel labels are rendered by a separate Qt gutter outside the
         # OpenGL viewport. No overlay can obscure the first EEG samples.
-        # Peripheral DC drift should not detach a signal from its channel
-        # label. Pan existing GPU geometry instead of rebuilding history or
-        # changing stored samples/scales. Raw and processed DC are independent.
-        if self.kind in ('PPG','EDA'):
-            visible = times >= (self._latest if sweep_head is None else sweep_head)-duration
-            if not np.any(visible):
-                visible = np.ones(len(times),dtype=bool)
-            for key,values in (('raw',raw),('filtered',filtered)):
-                for i,layer in enumerate(self.layers[key]):
-                    offset = -float(np.median(values[visible,i])-RAW_DISPLAY_POLICY.offsets(n)[i])/(upper-lower)
-                    self._trace_offsets[key,i] = offset
-                    layer.set_offset(self.vertical_gain*offset)
         channel_names = tuple(
             str(names[i]) if i < len(names) else f'Ch {i+1}'
             for i in range(n)
