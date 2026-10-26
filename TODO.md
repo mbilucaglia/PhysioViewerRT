@@ -230,3 +230,15 @@ The measures, statistical assumptions and presentation still need discussion.
       eight displayed; Expand/Restore for EEG/PPG/SC passed, all receivers stayed
       active, no maximized horizontal or vertical scrolling. Captured wide and
       1024×700 live previews. GUI smoke/flow checks passed.
+
+
+## Rearrange Raw Data panes — 26 October 2026
+
+- [x] Add Designer-owned Move buttons beside each signal title. Swap a signal
+      with either other pane or restore the default EEG/PPG/SC arrangement.
+      Arrangement is session-local; moving panels does not change acquisition,
+      signal history, gain, processing or renderer ownership.
+- [x] Keep Expand/Restore and narrow-window stacking correct after a swap.
+- Validation: all six arrangements checked with native OpenGL and three live
+      synthetic streams, including EEG upper-right / PPG main. Fifty affected
+      GUI checks passed; live receivers and renderer objects were preserved.

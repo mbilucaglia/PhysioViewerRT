@@ -1227,7 +1227,7 @@ QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-r
                <bool>true</bool>
               </property>
               <property name="text">
-               <string>Live waveforms · EEG alongside PPG and SC on wide screens. Drag dividers or expand a signal.</string>
+               <string>Live waveforms · Use Move to swap signal positions, drag dividers to resize, or expand a signal.</string>
               </property>
              </widget>
             </item>
@@ -1593,6 +1593,24 @@ QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-r
                         </property>
                        </widget>
                       </item>
+                      <item>
+                       <widget class="QToolButton" name="EEGMove">
+                        <property name="text">
+                         <string>Move</string>
+                        </property>
+                        <property name="toolTip">
+                         <string>Swap this signal with another pane, or restore the default arrangement.</string>
+                        </property>
+                        <property name="toolButtonStyle">
+                         <enum>Qt::ToolButtonTextBesideIcon</enum>
+                        </property>
+                        <property name="icon">
+                         <iconset>
+                          <normaloff>../assets/icons/move.svg</normaloff>
+                         </iconset>
+                        </property>
+                       </widget>
+                      </item>
                      </layout>
                     </widget>
                    </item>
@@ -1815,6 +1833,24 @@ QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-r
                          </property>
                         </widget>
                        </item>
+                       <item>
+                        <widget class="QToolButton" name="PPGMove">
+                         <property name="text">
+                          <string>Move</string>
+                         </property>
+                         <property name="toolTip">
+                          <string>Swap this signal with another pane, or restore the default arrangement.</string>
+                         </property>
+                         <property name="toolButtonStyle">
+                          <enum>Qt::ToolButtonTextBesideIcon</enum>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/move.svg</normaloff>
+                          </iconset>
+                         </property>
+                        </widget>
+                       </item>
                       </layout>
                      </widget>
                     </item>
@@ -2030,6 +2066,24 @@ QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-r
                            <width>16</width>
                            <height>16</height>
                           </size>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QToolButton" name="EDAMove">
+                         <property name="text">
+                          <string>Move</string>
+                         </property>
+                         <property name="toolTip">
+                          <string>Swap this signal with another pane, or restore the default arrangement.</string>
+                         </property>
+                         <property name="toolButtonStyle">
+                          <enum>Qt::ToolButtonTextBesideIcon</enum>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/move.svg</normaloff>
+                          </iconset>
                          </property>
                         </widget>
                        </item>

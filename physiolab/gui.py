@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QLabel, QComboBox, QGridLayout, QTabWidget, QCheckBox,
     QMessageBox, QFileDialog, QDialog, QPlainTextEdit, QToolButton,
     QScrollArea, QSizePolicy, QApplication, QStackedWidget, QSplitter, QDoubleSpinBox, QFrame, QStatusBar, QSpinBox,
-    QProgressDialog
+    QProgressDialog, QMenu
 )
 from .worker import Receiver
 from .processing import validate_preprocessing
@@ -589,6 +589,8 @@ class MainWindow(QMainWindow):
         self.raw_peripheral_splitter.setHandleWidth(9)
         self.raw_peripheral_splitter.setStretchFactor(0, 1)
         self.raw_peripheral_splitter.setStretchFactor(1, 1)
+        self.raw_panel_order = ('EEG', 'PPG', 'EDA')
+        self.raw_move_menus = {}
         self.raw_focus_buttons = {}
         self.focused_raw_kind = None
         for kind in ('EEG', 'PPG', 'EDA'):
@@ -596,6 +598,12 @@ class MainWindow(QMainWindow):
             focus.setToolTip(f'Give {modality_label(kind)} the full plot area; all streams keep acquiring')
             focus.toggled.connect(lambda checked, k=kind: self.set_raw_focus(k, checked))
             self.raw_focus_buttons[kind] = focus
+            move = self._required_ui(f'{kind}Move', QToolButton)
+            menu = QMenu(move)
+            move.setMenu(menu)
+            move.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            menu.aboutToShow.connect(lambda k=kind: self.update_raw_move_menu(k))
+            self.raw_move_menus[kind] = menu
             plot = pg.PlotWidget(title=(
                 f'{modality_label(kind)} — {self.settings.default_view_seconds:g} s view, '
                 f'{self.settings.history_seconds / 60:g} min history'))
@@ -837,6 +845,46 @@ class MainWindow(QMainWindow):
     def eeg_focus_button(self):
         return self.raw_focus_buttons['EEG']
 
+    def update_raw_move_menu(self, kind):
+        menu = self.raw_move_menus[kind]
+        menu.clear()
+        for other in self.raw_panel_order:
+            if other != kind:
+                action = menu.addAction(f'Swap with {modality_label(other)}')
+                action.triggered.connect(lambda checked=False, a=kind, b=other: self.swap_raw_panels(a, b))
+        menu.addSeparator()
+        menu.addAction('Restore default layout').triggered.connect(
+            lambda: self.set_raw_panel_order(('EEG', 'PPG', 'EDA')))
+
+    def swap_raw_panels(self, first, second):
+        order = list(self.raw_panel_order)
+        a, b = order.index(first), order.index(second)
+        order[a], order[b] = order[b], order[a]
+        self.set_raw_panel_order(tuple(order))
+
+    def set_raw_panel_order(self, order):
+        order = tuple(order)
+        if len(order) != 3 or set(order) != {'EEG', 'PPG', 'EDA'}:
+            raise ValueError('Raw layout must include EEG, PPG and SC exactly once')
+        if self.focused_raw_kind is not None:
+            self.set_raw_focus(self.focused_raw_kind, False)
+        if order == self.raw_panel_order:
+            return
+        sizes = self.raw_plot_splitter.sizes()
+        side_sizes = self.raw_peripheral_splitter.sizes()
+        panels = {kind:self._required_ui(f'{kind}PlotPanel', QWidget) for kind in order}
+        # Move the existing panels, including their canvas and controls. No
+        # receiver, signal history, gain or renderer is replaced by a layout swap.
+        self.raw_plot_splitter.insertWidget(0, panels[order[0]])
+        for index, kind in enumerate(order[1:]):
+            self.raw_peripheral_splitter.insertWidget(index, panels[kind])
+        for panel in panels.values():
+            panel.show()
+        self.raw_panel_order = order
+        self.raw_plot_splitter.setSizes(sizes)
+        self.raw_peripheral_splitter.setSizes(side_sizes)
+        self.raw_display.dirty = True
+
     def set_raw_focus(self, kind, focused):
         """One shared expansion policy for every raw signal panel."""
         if focused:
@@ -853,7 +901,7 @@ class MainWindow(QMainWindow):
             set_action(button, 'Show all' if selected else 'Expand', 'collapse' if selected else 'expand')
             self._required_ui(f'{modality}PlotPanel', QWidget).setVisible(
                 self.focused_raw_kind is None or selected)
-        self.raw_peripheral_splitter.setVisible(self.focused_raw_kind != 'EEG')
+        self.raw_peripheral_splitter.setVisible(self.focused_raw_kind != self.raw_panel_order[0])
         if not focused and hasattr(self, '_raw_splitter_sizes'):
             self.raw_plot_splitter.setSizes(self._raw_splitter_sizes)
         self.raw_display.dirty = True

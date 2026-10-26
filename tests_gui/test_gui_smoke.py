@@ -236,6 +236,46 @@ class GuiSmokeTests(unittest.TestCase):
                 self.assertFalse(self.window.findChild(QWidget, f'{modality}PlotPanel').isHidden())
         self.assertEqual(self.window.workers, original)
 
+    def test_raw_move_menu_swaps_panes_without_replacing_live_state(self):
+        from itertools import permutations
+        workers = {kind:self.prepare_selected_receiver(kind) for kind in ('EEG','PPG','EDA')}
+        for kind, worker in workers.items():
+            samples = np.ones((2, len(worker.selected_names)))
+            self.window.receive(kind, samples, samples, worker.selected_names, None, 32., [100.,100.03])
+        chunks = {kind:self.window.raw_display.history[kind][0] for kind in workers}
+        stacks = dict(self.window.raw_plot_stacks)
+        self.window.raw_vertical_gains['EEG'].setValue(2.)
+        self.window.update_raw_move_menu('EEG')
+        self.window.raw_move_menus['EEG'].actions()[0].trigger()
+        self.assertEqual(self.window.raw_panel_order, ('PPG','EEG','EDA'))
+        for order in permutations(('EEG','PPG','EDA')):
+            self.window.set_raw_panel_order(order)
+            root = self.window.raw_plot_splitter
+            side = self.window.raw_peripheral_splitter
+            self.assertEqual(root.count(), 2)
+            self.assertEqual(side.count(), 2)
+            self.assertEqual(root.widget(0).objectName(), order[0]+'PlotPanel')
+            self.assertEqual([side.widget(i).objectName() for i in range(2)],
+                             [kind+'PlotPanel' for kind in order[1:]])
+            for kind in workers:
+                self.assertIs(self.window.workers[kind], workers[kind])
+                self.assertIs(self.window.raw_display.history[kind][0], chunks[kind])
+                self.assertIs(self.window.raw_plot_stacks[kind], stacks[kind])
+            self.assertEqual(self.window.raw_vertical_gains['EEG'].value(), 2.)
+        self.window.update_raw_move_menu('EDA')
+        self.window.raw_move_menus['EDA'].actions()[-1].trigger()
+        self.assertEqual(self.window.raw_panel_order, ('EEG','PPG','EDA'))
+
+    def test_expand_and_restore_follow_rearranged_main_pane(self):
+        self.window.set_raw_focus('EEG', True)
+        self.window.swap_raw_panels('EEG', 'PPG')
+        self.assertIsNone(self.window.focused_raw_kind)
+        for kind in ('EEG','PPG','EDA'):
+            self.window.set_raw_focus(kind, True)
+            self.assertEqual(self.window.raw_peripheral_splitter.isHidden(), kind=='PPG')
+            self.window.set_raw_focus(kind, False)
+            self.assertFalse(self.window.raw_peripheral_splitter.isHidden())
+
     def test_conversion_editor_keeps_settings_per_source_and_compact_numbers(self):
         from physiolab.source_conversion_widgets import SourceConversionControls
         controls = SourceConversionControls()
