@@ -82,16 +82,40 @@ class ASRFitTask(QThread):
             self.completed.emit(self.generation, None, str(exc))
 
 
-class EEGReferenceTask(QThread):
+def matched_recording(eeg, live):
+    """Recorded samples are already converted; only filtering can be replayed."""
+    if live is None:
+        return eeg
+    recorded = eeg_configuration(eeg)
+    for key in ('fs', 'channels', 'conversion', 'units'):
+        if recorded[key] != live[key]:
+            raise ValueError(f'EEG calibration {key} differs from live source; record matching EYC/BSL')
+    return {**eeg, 'preprocessing': dict(live['preprocessing'])}
+
+
+def calibration_references(eyc, bsl, analysis, iaf_hz, model, live):
+    """Replay EYC first, then BSL with its new IAF and the same processing."""
+    from .calibration import analyze_eyc
+    eye = None
+    if eyc is not None:
+        eye = analyze_eyc(matched_recording(eyc, live), model)
+        iaf_hz = float(eye['iaf_hz'])
+    baseline = (eeg_reference_analysis(matched_recording(bsl, live), analysis, iaf_hz, model)
+                if bsl is not None else None)
+    return {'eyc': eye, 'bsl': baseline, 'iaf_hz': iaf_hz}
+
+
+class CalibrationReferenceTask(QThread):
     completed = Signal(object, object, object)
 
-    def __init__(self, generation, eeg, analysis, iaf_hz, model, parent=None):
+    def __init__(self, generation, eyc, bsl, analysis, iaf_hz, model, live, parent=None):
         super().__init__(parent)
         self.generation = generation
-        self.arguments = eeg, analysis, iaf_hz, model
+        self.arguments = eyc, bsl, deepcopy(analysis), iaf_hz, model, deepcopy(live)
 
     def run(self):
         try:
-            self.completed.emit(self.generation, eeg_reference_analysis(*self.arguments), None)
+            result = calibration_references(*self.arguments)
+            self.completed.emit(self.generation, result, None)
         except Exception as exc:
             self.completed.emit(self.generation, None, str(exc))

@@ -376,3 +376,21 @@ partial-GPU-write sweep and thin blue cursor remain unchanged.
 
 Designer controls are still the authoritative placement and styling
 source. Their stable objectName values must be preserved.
+
+## Matched EYC and BSL replay (26 October 2026)
+
+The session retains EYC EEG samples as well as BSL recordings. On an ASR mode
+or model change, or when a restarted EEG stream adopts new filters, a background
+worker recomputes EYC IAF first and then EEG BSL statistics with the same IAF,
+filters and ASR model. PPG/SC statistics are preserved. Newer requests supersede
+older results; clearing/replacing a calibration invalidates pending work.
+
+Metrics/Affect are unavailable while references are pending or replay has failed.
+Raw acquisition remains available. Recorded samples have already undergone unit
+conversion, so changed channels, sample rate, units or gain/offset are rejected
+rather than relabeled or converted twice. Restore the matching configuration or
+record matching EYC/BSL. Changing filters can invalidate ASR training, requiring
+new independent ASR training; calibration replay does not retrain ASR.
+
+Filter controls retain their existing Stop/Play behavior. Saved calibration files
+are not overwritten by session replay, and retained recordings are lost on exit.

@@ -101,9 +101,10 @@ Restart the app and train a fresh ASR model next time; models remain in memory o
 - [ ] Validate with real EEG, SC and PPG hardware: units/gain/offset, clean ASR
       training, motion artifacts, stream gaps/reconnection and long sessions.
       Confirm channel order and corrected-signal amplitudes against recordings.
-- [ ] Retain EYC raw recording in session state and automatically recompute
-      IAF when ASR/filter settings change. Currently record/reload EYC after
-      such changes; automatic BSL reference replay already exists.
+- [x] Retain EYC raw recording and replay EYC first, then EEG BSL, when
+      active ASR/filter settings change. BSL uses the new IAF and matching cleaned
+      pipeline. Pending/failed replay blocks references; incompatible recordings
+      are rejected. Completed 26 October 2026; see WINDOWS_SETUP.md.
 - [ ] Add optional ASR model save/load using the existing JSON-safe coefficient,
       source-configuration and integrity metadata. Reject incompatible channels,
       units, filters and backend versions; preserve every channel.

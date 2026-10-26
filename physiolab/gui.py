@@ -3,6 +3,7 @@ import os
 import importlib.util
 import time
 from pathlib import Path
+from copy import deepcopy
 from dataclasses import replace
 
 import numpy as np
@@ -43,7 +44,7 @@ from .affect_widgets import AffectView
 from .asr_widgets import ASRControls
 from .ui_icons import set_action
 from .asr_session import ASRSession
-from .asr_tasks import ASRFitTask, EEGReferenceTask
+from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
 from .desktop_widgets import CheckChannelDropdown, CalibrationScreen
 from .source_conversion_widgets import SourceConversionControls
@@ -66,6 +67,9 @@ class MainWindow(QMainWindow):
         self.asr_tasks = []
         self.eeg_reference_tasks = []
         self.eeg_reference_pending = False
+        self.eeg_reference_error = None
+        self.eyc_recording = None
+        self._reference_source_configuration = None
         self._asr_resume_after_fit = False
         self.affect_state = AffectState(max_points=settings.metric_history_capacity,
                                         history_seconds=settings.history_seconds)
@@ -293,20 +297,54 @@ class MainWindow(QMainWindow):
         session = self.asr_session
         session.reference_generation += 1
         self.eeg_reference_pending = False
+        self.eeg_reference_error = None
         self.metric_state.reset('EEG')
         self.affect_state.reset('EEG')
-        if self.loaded_bsl is not None:
-            self.loaded_bsl = {**self.loaded_bsl, 'analysis': session.base_analysis}
-            eeg = session.streams.get('EEG')
-            if eeg is not None:
-                self.eeg_reference_pending = True
-                model = session.model if session.enabled else None
-                task = EEGReferenceTask(session.reference_generation, eeg, session.base_analysis,
-                                        self.iaf_hz, model, self)
-                self.eeg_reference_tasks.append(task)
-                task.completed.connect(self.eeg_references_ready)
-                task.finished.connect(lambda t=task: self._eeg_reference_finished(t))
-                task.start()
+        live = getattr(self.workers.get('EEG'), 'source_configuration', None)
+        self._reference_source_configuration = deepcopy(live)
+        if self._reference_source_configuration is not None:
+            self._reference_source_configuration.pop('asr_model_id', None)
+        eeg = session.streams.get('EEG') if self.loaded_bsl is not None else None
+        if self.eyc_recording is not None or eeg is not None:
+            self.eeg_reference_pending = True
+            self.calibration_state.setText('Recalculating EEG EYC and BSL references…')
+            model = session.model if session.enabled else None
+            live = getattr(self.workers.get('EEG'), 'source_configuration', None)
+            task = CalibrationReferenceTask(session.reference_generation,
+                self.eyc_recording, eeg, session.base_analysis, self.iaf_hz, model, live, self)
+            self.eeg_reference_tasks.append(task)
+            task.completed.connect(self.calibration_references_ready)
+            task.finished.connect(lambda t=task: self._eeg_reference_finished(t))
+            task.start()
+        self.update_metrics_availability()
+        self.refresh_metrics()
+        self.refresh_affect_references()
+
+    def calibration_references_ready(self, generation, result, error):
+        if self._closing or generation != self.asr_session.reference_generation:
+            return
+        self.eeg_reference_pending = False
+        self.eeg_reference_error = error
+        if error:
+            self.statusBar().showMessage(error)
+        else:
+            iaf_changed = not np.isclose(self.iaf_hz, result['iaf_hz'])
+            self.iaf_hz = result['iaf_hz']
+            if result['eyc'] is not None and self.loaded_eyc is not None:
+                self.loaded_eyc = {**self.loaded_eyc, 'analysis': result['eyc']}
+            if result['bsl'] is not None and self.loaded_bsl is not None:
+                self.loaded_bsl = {**self.loaded_bsl, 'analysis': result['bsl']}
+                if self.asr_session.enabled:
+                    self.asr_session.cleaned_analysis = result['bsl']
+            worker = self.workers.get('EEG')
+            if worker is not None:
+                worker.iaf_hz = self.iaf_hz
+            if iaf_changed:
+                self.metric_state.reset('EEG')
+                self.affect_state.reset('EEG')
+            self.calibration_state.setText(
+                f'EYC: {self.iaf_hz:.2f} Hz | BSL: {"loaded" if self.loaded_bsl else "none"}')
+        self.update_metrics_availability()
         self.refresh_metrics()
         self.refresh_affect_references()
 
@@ -314,19 +352,6 @@ class MainWindow(QMainWindow):
         if task in self.eeg_reference_tasks:
             self.eeg_reference_tasks.remove(task)
         task.deleteLater()
-
-    def eeg_references_ready(self, generation, analysis, error):
-        if self._closing or generation != self.asr_session.reference_generation:
-            return
-        self.eeg_reference_pending = False
-        if error:
-            self.statusBar().showMessage(error)
-        elif self.loaded_bsl is not None:
-            if self.asr_session.enabled:
-                self.asr_session.cleaned_analysis = analysis
-            self.loaded_bsl = {**self.loaded_bsl, 'analysis': analysis}
-        self.refresh_metrics()
-        self.refresh_affect_references()
 
     def set_eeg_asr_enabled(self, enabled):
         if self.capture is not None:
@@ -382,7 +407,7 @@ class MainWindow(QMainWindow):
             live = getattr(self.workers.get(kind), 'source_configuration', None)
             if live is not None and live != baseline:
                 references.pop(kind, None)
-        if (self.eeg_reference_pending
+        if (self.eeg_reference_pending or self.eeg_reference_error
                 or not np.isclose(analysis.get('iaf_hz_used', self.iaf_hz), self.iaf_hz)
                 or (self.asr_session.enabled and 'asr_model_id' not in configurations.get('EEG', {}))):
             references.pop('EEG', None)
@@ -695,6 +720,7 @@ class MainWindow(QMainWindow):
     def clear_calibration(self, kind):
         if kind == 'EYC':
             self.loaded_eyc = None
+            self.eyc_recording = None
             self.iaf_hz = 10.
             for worker in self.workers.values():
                 if worker.kind == 'EEG':
@@ -721,7 +747,8 @@ class MainWindow(QMainWindow):
         bsl = self.loaded_bsl or {}
         iaf = (eyc.get('analysis') or {}).get('iaf_hz')
         refs = (bsl.get('analysis') or {}).get('metrics')
-        ready = iaf is not None and np.isfinite(float(iaf)) and bool(refs)
+        ready = (iaf is not None and np.isfinite(float(iaf)) and bool(refs)
+                 and not self.eeg_reference_pending and not self.eeg_reference_error)
         for page in (self.metrics_page, self.affect_page):
             index = self.tabs.indexOf(page)
             if index >= 0:
@@ -1682,10 +1709,15 @@ class MainWindow(QMainWindow):
     def ready_stream(self, kind, channels, fs):
         if kind == 'EEG':
             worker = self.workers.get(kind)
-            if self.asr_session.enabled and getattr(worker, 'eeg_asr_model', None) is None:
+            asr_bypassed = self.asr_session.enabled and getattr(worker, 'eeg_asr_model', None) is None
+            if asr_bypassed:
                 self.asr_session.set_enabled(False)
-                self._apply_asr_metric_references()
                 self.reset_stream_display('EEG')
+            live = deepcopy(getattr(worker, 'source_configuration', None))
+            if live is not None:
+                live.pop('asr_model_id', None)
+            if asr_bypassed or live != self._reference_source_configuration:
+                self._apply_asr_metric_references()
             self.update_asr_availability()
         if kind == 'EDA':
             metadata = getattr(self.workers.get(kind), 'tonic_metadata', None) or {}
@@ -1857,6 +1889,7 @@ class MainWindow(QMainWindow):
     def apply_calibration(self, kind, meta, filename=None, streams=None):
         if kind == 'EYC':
             self.loaded_eyc = meta
+            self.eyc_recording = deepcopy((streams or {}).get('EEG'))
             self.iaf_hz = float(meta['analysis']['iaf_hz'])
             for worker in self.workers.values():
                 if worker.kind == 'EEG':
