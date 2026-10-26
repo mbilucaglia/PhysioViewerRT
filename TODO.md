@@ -201,3 +201,18 @@ The measures, statistical assumptions and presentation still need discussion.
       horizontal/vertical scroll range. Smaller windows retain scrolling.
 - [x] Put Raw Data and Metrics Play/Pause beside Live, with matching icons
       and labels. Display pause keeps acquisition and ASR processing running.
+
+
+## Stop buttons after stream changes — 26 October 2026
+
+- [x] Keep Stop clickable while channel/source reconfiguration or metadata lookup
+      is pending, so it can cancel automatic restart. Explicitly enable Stop on
+      each replacement receiver; the old path left it disabled after reconnect.
+- [x] Verify display-count changes do not restart acquisition or disable other
+      modalities. Native Windows test against all three running synthetic streams
+      passed Stop during pending EEG changes, after automatic reconnect, and for
+      PPG/SC after EEG display-count changes.
+- [x] Add button-click regressions for pending cancellation, post-reconnect Stop,
+      metadata-wait cancellation and independent stream Stop controls.
+- Validation: complete GUI/LSL suite 95 tests, 93 passed and two native
+      OpenGL checks skipped in offscreen mode; native three-stream checks passed.

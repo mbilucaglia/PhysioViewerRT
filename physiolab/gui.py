@@ -1015,8 +1015,9 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f'{modality_label(kind)}: selection will apply after calibration')
             return
         self.source_change_timers[kind].start()
-        self.stream_buttons[kind].setEnabled(False)
-        self.stream_buttons[kind].setText('Updating…')
+        self.stream_buttons[kind].setEnabled(True)
+        set_action(self.stream_buttons[kind], 'Stop', 'stop-white')
+        self.statusBar().showMessage(f'{modality_label(kind)}: updating settings; Stop cancels the restart.')
         if worker is not None:
             worker.request_stop()
         if not was_pending or was_active:
@@ -1071,6 +1072,9 @@ class MainWindow(QMainWindow):
         worker = self.workers.get(kind)
         if worker is None:
             set_action(self.stream_buttons[kind], 'Play', 'play-white')
+            info = self.selectors[kind].currentData()
+            self.stream_buttons[kind].setEnabled(
+                info is not None and info.uid() in self.channel_metadata_cache)
             return
         self.stream_buttons[kind].setEnabled(False)
         self.stream_buttons[kind].setText('Stopping…')
@@ -1087,8 +1091,8 @@ class MainWindow(QMainWindow):
         set_action(self.stream_buttons[kind], 'Play', 'play-white')
         self.reset_stream_display(kind)
         if kind in self.pending_source_changes:
-            self.stream_buttons[kind].setText('Updating…')
-            self.stream_buttons[kind].setEnabled(False)
+            set_action(self.stream_buttons[kind], 'Stop', 'stop-white')
+            self.stream_buttons[kind].setEnabled(True)
             self.apply_pending_source_change(kind)
             return
         if worker.active:
@@ -1137,6 +1141,7 @@ class MainWindow(QMainWindow):
         self.sync_affect_sources()
         self.source_conversions[kind].setEnabled(False)
         set_action(self.stream_buttons[kind], 'Stop', 'stop-white')
+        self.stream_buttons[kind].setEnabled(True)
         worker.start()
         self.statusBar().showMessage(f'{modality_label(kind)}: starting selected LSL stream reception')
 

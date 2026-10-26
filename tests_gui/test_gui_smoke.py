@@ -47,6 +47,9 @@ class FakeReceiver:
         self.active = False
         return True
 
+    def isRunning(self):
+        return True
+
     def request_stop(self):
         self.active = False
 
@@ -148,15 +151,63 @@ class GuiSmokeTests(unittest.TestCase):
             connect.assert_called_once_with('EDA')
         self.assertEqual(self.window.channel_selectors['EDA'].names, ['new-a', 'new-b'])
 
-    def test_stop_cancels_pending_automatic_reconnect(self):
+    def test_stop_button_cancels_pending_automatic_reconnect(self):
         old = self.prepare_selected_receiver('EEG')
         self.window.channel_selectors['EEG'].select(1, False)
-        self.window.stop_stream('EEG')
+        button = self.window.stream_buttons['EEG']
+        self.assertTrue(button.isEnabled(), 'Pending reconfiguration must remain cancellable')
+        button.click()
         with patch.object(self.window, 'connect_stream') as connect:
             self.window.receiver_finished('EEG', old)
             self.window.apply_pending_source_change('EEG')
             connect.assert_not_called()
         self.assertFalse(self.window.pending_source_changes)
+
+    def test_stop_button_enabled_after_automatic_reconnect(self):
+        from unittest.mock import MagicMock
+        old = self.prepare_selected_receiver('EEG')
+        self.window.channel_selectors['EEG'].select(1, False)
+        self.window.source_change_timers['EEG'].stop()
+        new = MagicMock(active=True)
+        new.isRunning.return_value = True
+        with patch('physiolab.gui.Receiver', return_value=new):
+            self.window.receiver_finished('EEG', old)
+        self.assertIs(self.window.workers['EEG'], new)
+        button = self.window.stream_buttons['EEG']
+        self.assertTrue(button.isEnabled(), 'Replacement receiver must have a usable Stop button')
+        self.assertEqual(button.text(), 'Stop')
+        button.click()
+        new.request_stop.assert_called_once()
+        self.window.workers.pop('EEG')
+
+    def test_display_count_and_channel_changes_leave_other_stop_buttons_usable(self):
+        eeg = self.prepare_selected_receiver('EEG')
+        others = {kind:self.prepare_selected_receiver(kind) for kind in ('PPG','EDA')}
+        self.window.eeg_display_count.setValue(1)
+        self.assertTrue(eeg.active)
+        self.assertFalse(self.window.pending_source_changes)
+        self.window.channel_selectors['EEG'].select(1, False)
+        for kind, worker in others.items():
+            self.assertTrue(self.window.stream_buttons[kind].isEnabled())
+            self.window.stream_buttons[kind].click()
+            self.assertFalse(worker.active, kind)
+
+    def test_stop_while_waiting_for_metadata_cancels_reconnect(self):
+        old = self.prepare_selected_receiver('EDA')
+        self.window.selectors['EDA'].addItem('new', FakeInfo('pending-source', 2))
+        with patch.object(self.window, 'queue_lsl_task', return_value=88):
+            self.window.selectors['EDA'].setCurrentIndex(1)
+        self.window.source_change_timers['EDA'].stop()
+        self.window.receiver_finished('EDA', old)
+        self.assertIn('EDA', self.window.pending_source_changes)
+        button = self.window.stream_buttons['EDA']
+        self.assertTrue(button.isEnabled())
+        button.click()
+        with patch.object(self.window, 'connect_stream') as connect:
+            self.window.lsl_task_completed(88, (['one','two'], ''), None)
+            self.window.apply_pending_source_change('EDA')
+            connect.assert_not_called()
+        self.assertNotIn('EDA', self.window.pending_source_changes)
 
     def test_source_change_is_deferred_during_calibration(self):
         old = self.prepare_selected_receiver('EEG')
