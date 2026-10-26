@@ -1,5 +1,38 @@
-# PhysioViewerRT handoff — 23 October 2026
+# PhysioViewerRT handoff — 26 October 2026
 
+
+## End-of-day handoff — 26 October 2026
+
+Latest implementation: b675999 on main. Code, Designer changes, tests,
+benchmarks and timing evidence are committed and pushed. Pull main before
+continuing on another PC; today's final change needs no new dependencies.
+
+Current behavior: independent signal display clocks with a 250 ms buffer;
+each cursor follows its own drawn samples. Automatic centering occurs only
+at acquisition start. Center is explicit; Fit changes amplitude only. ASR,
+PPG/SC denoising and baseline algorithms are unchanged by the playback fix.
+
+Final validation: 233 core tests passed; the GUI suite ran 124 tests with three
+platform skips and no failures. Native timebase/cursor checks passed. Local
+Off/Hampel comparisons and the pre-Hampel snapshot are documented in
+docs/PERIPHERAL_PLAYBACK_TIMING.md and its JSON evidence.
+
+### First priority next session
+
+- [ ] Pull main, restart the app and confirm playback on the user's real PC
+      and streams. Exercise 5/10/30/5/15 s timebases and verify cursor positions.
+- [ ] Compare EEG active/inactive and peripheral reduction Off, one Hampel,
+      then both Hampel under the same conditions. Check native draws and
+      data-tip progression, not just moving clocks. Record any remaining stall.
+- [ ] Confirm initial-only centering for EEG/PPG/SC, explicit Center, and
+      gain-only Fit through trace toggles and channel-display/timebase changes.
+- [ ] After real-device playback confirmation, continue the published causal
+      denoiser evaluation below, including complete parameters, actual latency,
+      reference requirements and physiological waveform preservation.
+
+Personal bsl_calibration.npz and eyc_calibration.npz remain local and untracked.
+They are not part of the GitHub handoff. Work stops here for today; no further
+algorithm or display changes are scheduled.
 
 ## Independent clocks for Hampel/timebase playback — 26 October 2026
 
@@ -15,8 +48,9 @@
       to 37–39 ms; Off was about 37 ms after the fix. Timebases 5/10/30/5/15 s
       were exercised with full seeded history and 32 EEG channels acquired,
       eight displayed. These local synthetic measurements need device confirmation.
-- [x] Core: 233 passed. Native timebase/cursor tests passed; fallback handoff
-      passed with one native-only pixel check skipped. Save comparison results in
+- [x] Core: 233 passed. GUI: 124 tests, three platform skips, no failures.
+      Native timebase/cursor tests passed; fallback handoff passed with one
+      native-only pixel check skipped. Save comparison results in
       docs/PERIPHERAL_PLAYBACK_TIMING.md/json and tools/benchmark_timebase_switches.py.
 - [ ] Confirm the improvement on the user's actual streams and PC.
 
