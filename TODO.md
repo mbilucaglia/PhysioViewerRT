@@ -145,3 +145,13 @@ The measures, statistical assumptions and presentation still need discussion.
   windows, and repeated live comparisons. A density value alone should not be
   labeled as the probability that an effect is real. Define the intended
   interpretation before choosing an estimator or a UI confidence indicator.
+
+
+## Compact Sources UI — 26 October 2026
+
+- [x] Group existing filters into Designer-owned Processing panels for EEG,
+      PPG and SC; EEG also includes ASR with compact training/threshold rows.
+- [x] Scroll Sources vertically and stack cards on narrow windows. Native
+      Windows previews checked at 1024×700, 1280×720 and 1600×1000.
+- [x] Keep channel checkbox popup open for repeated selections; Escape/outside
+      click dismisses it. EEG remains multichannel; PPG/SC select one channel.

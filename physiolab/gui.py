@@ -46,7 +46,7 @@ from .ui_icons import set_action
 from .asr_session import ASRSession
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
-from .desktop_widgets import CheckChannelDropdown, CalibrationScreen
+from .desktop_widgets import CheckChannelDropdown, CalibrationScreen, ResponsiveSources
 from .source_conversion_widgets import SourceConversionControls
 from .amplitude_display import visible_gain
 from .calibration import (
@@ -165,6 +165,7 @@ class MainWindow(QMainWindow):
         apply_window_branding(self)
         self.tabs = self._required_ui('mainTabs', QTabWidget)
         self.sources_page = self._required_ui('sourcesTab', QWidget)
+        self._responsive_sources = ResponsiveSources(self._required_ui('sourcesScroll', QScrollArea))
         self.raw_page = self._required_ui('rawDataTab', QWidget)
         self.metrics_page = self._required_ui('metricsTab', QWidget)
         self.affect_page = self._required_ui('affectTab', QWidget)
@@ -460,7 +461,7 @@ class MainWindow(QMainWindow):
             conversion = SourceConversionControls()
             self.source_conversions[kind] = conversion
             source_layout = self._required_ui(f'{kind}SourceLayout', QVBoxLayout)
-            conversion_position = (source_layout.indexOf(self._required_ui('EEGASRPanel', QFrame))+1
+            conversion_position = (source_layout.indexOf(self._required_ui('EEGProcessingPanel', QWidget))+1
                                    if kind == 'EEG' else 2)
             source_layout.insertWidget(conversion_position, conversion)
             combo = self._required_ui(f'{kind}StreamSelector', QComboBox)

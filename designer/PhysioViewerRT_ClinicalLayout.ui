@@ -52,6 +52,11 @@ QLabel[metricValue="true"] { color: #25234a; font-size: 13pt; font-weight: 600; 
 QLabel[metricStatus="true"] { color: #77768f; font-size: 9pt; }
 QCheckBox[metricSelector="true"] { background: #fafafe; border: 1px solid #e5e3f1; border-radius: 6px; padding: 6px 10px; }
 QCheckBox[metricSelector="true"]:checked { background: #eeecfa; border-color: #d4ceee; }
+
+QWidget#sourcesScrollContent, QScrollArea#sourcesScroll { background: #f1f2f9; }
+QMenu, QMenu QWidget { background: #ffffff; color: #25234a; }
+QCheckBox::indicator:unchecked { width: 14px; height: 14px; border: 1px solid #aaa9c1; border-radius: 3px; background: #ffffff; }
+QCheckBox::indicator:unchecked:disabled { border-color: #d8d7e2; background: #f5f5fa; }
 </string>
   </property>
   <property name="geometry">
@@ -171,822 +176,892 @@ QCheckBox[metricSelector="true"]:checked { background: #eeecfa; border-color: #d
        <attribute name="title">
         <string>Sources</string>
        </attribute>
-       <layout class="QGridLayout" name="sourcesLayout" columnstretch="1,1" rowstretch="0,1,1,0">
-        <property name="bottomMargin">
-         <number>16</number>
-        </property>
-        <property name="rightMargin">
-         <number>16</number>
+       <layout class="QVBoxLayout" name="sourcesPageLayout">
+        <property name="leftMargin">
+         <number>0</number>
         </property>
         <property name="topMargin">
-         <number>16</number>
+         <number>0</number>
         </property>
-        <property name="leftMargin">
-         <number>16</number>
+        <property name="rightMargin">
+         <number>0</number>
         </property>
-        <property name="spacing">
-         <number>10</number>
+        <property name="bottomMargin">
+         <number>0</number>
         </property>
-        <item row="0" column="0" colspan="2">
-         <widget class="QLabel" name="sourcesIntro">
-          <property name="wordWrap">
+        <item>
+         <widget class="QScrollArea" name="sourcesScroll">
+          <property name="widgetResizable">
            <bool>true</bool>
           </property>
-          <property name="text">
-           <string>Connect EEG, PPG and skin conductance streams, then start acquisition.</string>
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
           </property>
-         </widget>
-        </item>
-        <item row="1" column="0" colspan="1">
-         <widget class="QGroupBox" name="eegSourceGroup">
-          <property name="title">
-           <string>EEG • LSL source</string>
-          </property>
-          <layout class="QVBoxLayout" name="EEGSourceLayout">
-           <property name="spacing">
-            <number>10</number>
-           </property>
-           <item>
-            <layout class="QHBoxLayout" name="EEGSourcePicker" stretch="0,1,0,0">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="EEGStreamLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Stream</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="EEGStreamSelector">
-               <property name="toolTip">
-                <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
-               </property>
-               <item>
-                <property name="text">
-                 <string>Select LSL stream…</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="EEGRefresh">
-               <property name="text">
-                <string>Refresh</string>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/refresh.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="EEGPlay">
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/play-white.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Play</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="EEGPreprocessing">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="EEGFilterLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Pre-processing</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="EEGFilterPreset">
-               <item>
-                <property name="text">
-                 <string>Default (1–40 Hz)</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Wide (0.5–45 Hz)</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Focused (2–30 Hz)</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Off</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="EEGNotch">
-               <property name="text">
-                <string>Notch 50 / 100 Hz</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="EEGPreprocessingSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>24</width>
-                 <height>0</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <widget class="QFrame" name="EEGASRPanel">
-             <layout class="QGridLayout" name="EEGASRLayout">
-              <property name="leftMargin">
-               <number>10</number>
+          <widget class="QWidget" name="sourcesScrollContent">
+           <layout class="QGridLayout" name="sourcesLayout" columnstretch="1,1" rowstretch="0,1,1,0">
+            <property name="bottomMargin">
+             <number>16</number>
+            </property>
+            <property name="rightMargin">
+             <number>16</number>
+            </property>
+            <property name="topMargin">
+             <number>16</number>
+            </property>
+            <property name="leftMargin">
+             <number>16</number>
+            </property>
+            <property name="spacing">
+             <number>10</number>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QLabel" name="sourcesIntro">
+              <property name="wordWrap">
+               <bool>true</bool>
               </property>
-              <property name="topMargin">
-               <number>10</number>
+              <property name="text">
+               <string>Connect EEG, PPG and skin conductance streams, then start acquisition.</string>
               </property>
-              <property name="rightMargin">
-               <number>10</number>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="1">
+             <widget class="QGroupBox" name="eegSourceGroup">
+              <property name="title">
+               <string>EEG • LSL source</string>
               </property>
-              <property name="bottomMargin">
-               <number>10</number>
+              <layout class="QVBoxLayout" name="EEGSourceLayout">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item>
+                <layout class="QHBoxLayout" name="EEGSourcePicker" stretch="0,1,0,0">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="EEGStreamLabel">
+                   <property name="minimumWidth">
+                    <number>92</number>
+                   </property>
+                   <property name="text">
+                    <string>Stream</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="EEGStreamSelector">
+                   <property name="toolTip">
+                    <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>Select LSL stream…</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="EEGRefresh">
+                   <property name="text">
+                    <string>Refresh</string>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/refresh.svg</normaloff>
+                    </iconset>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="EEGPlay">
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/play-white.svg</normaloff>
+                    </iconset>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
+                   </property>
+                   <property name="text">
+                    <string>Play</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QGroupBox" name="EEGProcessingPanel">
+                 <property name="title">
+                  <string>Processing</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="EEGProcessingLayout">
+                  <property name="spacing">
+                   <number>8</number>
+                  </property>
+                  <item>
+                   <layout class="QHBoxLayout" name="EEGPreprocessing">
+                    <property name="spacing">
+                     <number>10</number>
+                    </property>
+                    <item>
+                     <widget class="QLabel" name="EEGFilterLabel">
+                      <property name="text">
+                       <string>Filters</string>
+                      </property>
+                      <property name="minimumWidth">
+                       <number>55</number>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="EEGFilterPreset">
+                      <item>
+                       <property name="text">
+                        <string>Default (1–40 Hz)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Wide (0.5–45 Hz)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Focused (2–30 Hz)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Off</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QCheckBox" name="EEGNotch">
+                      <property name="text">
+                       <string>Notch 50 / 100 Hz</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="EEGPreprocessingSpacer">
+                      <property name="orientation">
+                       <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>24</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <widget class="QFrame" name="EEGASRPanel">
+                    <layout class="QGridLayout" name="EEGASRLayout" columnstretch="0,1">
+                     <property name="leftMargin">
+                      <number>10</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>10</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>10</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>10</number>
+                     </property>
+                     <property name="spacing">
+                      <number>10</number>
+                     </property>
+                     <item row="0" column="0">
+                      <widget class="QCheckBox" name="EEGASREnable">
+                       <property name="text">
+                        <string>Apply ASR</string>
+                       </property>
+                       <property name="enabled">
+                        <bool>false</bool>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1" alignment="Qt::AlignLeft">
+                      <widget class="QPushButton" name="EEGASRTrain">
+                       <property name="text">
+                        <string>Train</string>
+                       </property>
+                       <property name="icon">
+                        <iconset>
+                         <normaloff>../assets/icons/play.svg</normaloff>../assets/icons/play.svg</iconset>
+                       </property>
+                       <property name="toolTip">
+                        <string>Record clean EEG to train ASR independently of EYC and BSL.</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="0">
+                      <widget class="QLabel" name="EEGASRThresholdLabel">
+                       <property name="text">
+                        <string>Threshold</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="1" alignment="Qt::AlignLeft">
+                      <widget class="QDoubleSpinBox" name="EEGASRCutoff">
+                       <property name="minimum">
+                        <double>2.5</double>
+                       </property>
+                       <property name="maximum">
+                        <double>100.0</double>
+                       </property>
+                       <property name="value">
+                        <double>20.0</double>
+                       </property>
+                       <property name="singleStep">
+                        <double>1.0</double>
+                       </property>
+                       <property name="decimals">
+                        <number>1</number>
+                       </property>
+                       <property name="suffix">
+                        <string> σ</string>
+                       </property>
+                       <property name="maximumWidth">
+                        <number>105</number>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="0" colspan="2">
+                      <widget class="QLabel" name="EEGASRStatus">
+                       <property name="text">
+                        <string>Start EEG, then Train ASR. All channels are kept and corrected.</string>
+                       </property>
+                       <property name="wordWrap">
+                        <bool>true</bool>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <layout class="QGridLayout" name="EEGChannels">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="EEGChannelLabel">
+                   <property name="minimumWidth">
+                    <number>92</number>
+                   </property>
+                   <property name="text">
+                    <string>Channels</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QPushButton" name="EEGChooseChannels">
+                   <property name="text">
+                    <string>Select channels…</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="eegCountLabel">
+                   <property name="text">
+                    <string>Display channels</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QSpinBox" name="eegDisplayChannelCount">
+                   <property name="enabled">
+                    <bool>false</bool>
+                   </property>
+                   <property name="minimum">
+                    <number>1</number>
+                   </property>
+                   <property name="maximum">
+                    <number>1</number>
+                   </property>
+                   <property name="value">
+                    <number>1</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="2">
+                  <spacer name="EEGChannelsSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>24</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <spacer name="EEGSourceBottomSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>0</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item row="1" column="1" colspan="1">
+             <widget class="QGroupBox" name="ppgSourceGroup">
+              <property name="title">
+               <string>PPG • LSL source</string>
               </property>
-              <property name="spacing">
-               <number>10</number>
+              <layout class="QVBoxLayout" name="PPGSourceLayout">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item>
+                <layout class="QHBoxLayout" name="PPGSourcePicker" stretch="0,1,0,0">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="PPGStreamLabel">
+                   <property name="minimumWidth">
+                    <number>92</number>
+                   </property>
+                   <property name="text">
+                    <string>Stream</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="PPGStreamSelector">
+                   <property name="toolTip">
+                    <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>Select LSL stream…</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="PPGRefresh">
+                   <property name="text">
+                    <string>Refresh</string>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/refresh.svg</normaloff>
+                    </iconset>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="PPGPlay">
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/play-white.svg</normaloff>
+                    </iconset>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
+                   </property>
+                   <property name="text">
+                    <string>Play</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QGroupBox" name="PPGProcessingPanel">
+                 <property name="title">
+                  <string>Processing</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="PPGProcessingLayout">
+                  <property name="spacing">
+                   <number>8</number>
+                  </property>
+                  <item>
+                   <layout class="QHBoxLayout" name="PPGPreprocessing">
+                    <property name="spacing">
+                     <number>10</number>
+                    </property>
+                    <item>
+                     <widget class="QLabel" name="PPGFilterLabel">
+                      <property name="text">
+                       <string>Filters</string>
+                      </property>
+                      <property name="minimumWidth">
+                       <number>55</number>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="PPGFilterPreset">
+                      <item>
+                       <property name="text">
+                        <string>Default (0.5–8 Hz)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Pulse (0.5–5 Hz)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Wide (0.5–10 Hz)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Off</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QCheckBox" name="PPGNotch">
+                      <property name="text">
+                       <string>Notch 50 / 100 Hz</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="PPGPreprocessingSpacer">
+                      <property name="orientation">
+                       <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>24</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="PPGChannels">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="PPGChannelLabel">
+                   <property name="minimumWidth">
+                    <number>92</number>
+                   </property>
+                   <property name="text">
+                    <string>Channels</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="PPGChooseChannels">
+                   <property name="text">
+                    <string>Select channels…</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="PPGChannelsSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>24</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <spacer name="PPGSourceBottomSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>0</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="1">
+             <widget class="QGroupBox" name="edaSourceGroup">
+              <property name="title">
+               <string>SC • LSL source</string>
               </property>
-              <item row="0" column="0">
-               <widget class="QCheckBox" name="EEGASREnable">
-                <property name="text">
-                 <string>Apply ASR</string>
-                </property>
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="QPushButton" name="EEGASRTrain">
-                <property name="text"><string>Train</string></property>
-                <property name="icon"><iconset><normaloff>../assets/icons/play.svg</normaloff>../assets/icons/play.svg</iconset></property>
-               </widget>
-              </item>
-              <item row="0" column="2">
-               <widget class="QLabel" name="EEGASRThresholdLabel">
-                <property name="text">
-                 <string>Threshold</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="3">
-               <widget class="QDoubleSpinBox" name="EEGASRCutoff">
-                <property name="minimum">
-                 <double>2.5</double>
-                </property>
-                <property name="maximum">
-                 <double>100.0</double>
-                </property>
-                <property name="value">
-                 <double>20.0</double>
-                </property>
-                <property name="singleStep">
-                 <double>1.0</double>
-                </property>
-                <property name="decimals">
-                 <number>1</number>
-                </property>
-                <property name="suffix">
-                 <string> σ</string>
-                </property>
-                <property name="maximumWidth">
-                 <number>105</number>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0" colspan="4">
-               <widget class="QLabel" name="EEGASRStatus">
-                <property name="text">
-                 <string>Start EEG, then Train ASR. All channels are kept and corrected.</string>
-                </property>
-                <property name="wordWrap">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item>
-            <layout class="QGridLayout" name="EEGChannels">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QLabel" name="EEGChannelLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Channels</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QPushButton" name="EEGChooseChannels">
-               <property name="text">
-                <string>Select channels…</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="eegCountLabel">
-               <property name="text">
-                <string>Display channels</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
-              <widget class="QSpinBox" name="eegDisplayChannelCount">
-               <property name="enabled">
-                <bool>false</bool>
-               </property>
-               <property name="minimum">
-                <number>1</number>
-               </property>
-               <property name="maximum">
-                <number>1</number>
-               </property>
-               <property name="value">
-                <number>1</number>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="2">
-              <spacer name="EEGChannelsSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>24</width>
-                 <height>0</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <spacer name="EEGSourceBottomSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>0</width>
-               <height>0</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="1" column="1" colspan="1">
-         <widget class="QGroupBox" name="ppgSourceGroup">
-          <property name="title">
-           <string>PPG • LSL source</string>
-          </property>
-          <layout class="QVBoxLayout" name="PPGSourceLayout">
-           <property name="spacing">
-            <number>10</number>
-           </property>
-           <item>
-            <layout class="QHBoxLayout" name="PPGSourcePicker" stretch="0,1,0,0">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="PPGStreamLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Stream</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="PPGStreamSelector">
-               <property name="toolTip">
-                <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
+              <layout class="QVBoxLayout" name="EDASourceLayout">
+               <property name="spacing">
+                <number>10</number>
                </property>
                <item>
-                <property name="text">
-                 <string>Select LSL stream…</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="PPGRefresh">
-               <property name="text">
-                <string>Refresh</string>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/refresh.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="PPGPlay">
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/play-white.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Play</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="PPGPreprocessing">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="PPGFilterLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Pre-processing</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="PPGFilterPreset">
-               <item>
-                <property name="text">
-                 <string>Default (0.5–8 Hz)</string>
-                </property>
+                <layout class="QHBoxLayout" name="EDASourcePicker" stretch="0,1,0,0">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="EDAStreamLabel">
+                   <property name="minimumWidth">
+                    <number>92</number>
+                   </property>
+                   <property name="text">
+                    <string>Stream</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="EDAStreamSelector">
+                   <property name="toolTip">
+                    <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>Select LSL stream…</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="EDARefresh">
+                   <property name="text">
+                    <string>Refresh</string>
+                   </property>
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/refresh.svg</normaloff>
+                    </iconset>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="EDAPlay">
+                   <property name="icon">
+                    <iconset>
+                     <normaloff>../assets/icons/play-white.svg</normaloff>
+                    </iconset>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>16</width>
+                     <height>16</height>
+                    </size>
+                   </property>
+                   <property name="text">
+                    <string>Play</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
                </item>
                <item>
-                <property name="text">
-                 <string>Pulse (0.5–5 Hz)</string>
-                </property>
+                <widget class="QGroupBox" name="EDAProcessingPanel">
+                 <property name="title">
+                  <string>Processing</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="EDAProcessingLayout">
+                  <property name="spacing">
+                   <number>8</number>
+                  </property>
+                  <item>
+                   <layout class="QHBoxLayout" name="EDAPreprocessing">
+                    <property name="spacing">
+                     <number>10</number>
+                    </property>
+                    <item>
+                     <widget class="QLabel" name="EDAFilterLabel">
+                      <property name="text">
+                       <string>Filters</string>
+                      </property>
+                      <property name="minimumWidth">
+                       <number>55</number>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="EDAFilterPreset">
+                      <item>
+                       <property name="text">
+                        <string>Default</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Low-pass 1 Hz</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Low-pass 2 Hz</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QCheckBox" name="EDANotch">
+                      <property name="text">
+                       <string>Notch 50 / 100 Hz</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="EDAPreprocessingSpacer">
+                      <property name="orientation">
+                       <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>24</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                 </layout>
+                </widget>
                </item>
                <item>
-                <property name="text">
-                 <string>Wide (0.5–10 Hz)</string>
-                </property>
+                <layout class="QHBoxLayout" name="EDAChannels">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="EDAChannelLabel">
+                   <property name="minimumWidth">
+                    <number>92</number>
+                   </property>
+                   <property name="text">
+                    <string>Channels</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="EDAChooseChannels">
+                   <property name="text">
+                    <string>Select channels…</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="EDAChannelsSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>24</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
                </item>
                <item>
-                <property name="text">
-                 <string>Off</string>
-                </property>
+                <spacer name="EDASourceBottomSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>0</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                </spacer>
                </item>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="PPGNotch">
-               <property name="text">
-                <string>Notch 50 / 100 Hz</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="PPGPreprocessingSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>24</width>
-                 <height>0</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="PPGChannels">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="PPGChannelLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Channels</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="PPGChooseChannels">
-               <property name="text">
-                <string>Select channels…</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="PPGChannelsSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>24</width>
-                 <height>0</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <spacer name="PPGSourceBottomSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>0</width>
-               <height>0</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="2" column="0" colspan="1">
-         <widget class="QGroupBox" name="edaSourceGroup">
-          <property name="title">
-           <string>SC • LSL source</string>
-          </property>
-          <layout class="QVBoxLayout" name="EDASourceLayout">
-           <property name="spacing">
-            <number>10</number>
-           </property>
-           <item>
-            <layout class="QHBoxLayout" name="EDASourcePicker" stretch="0,1,0,0">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="EDAStreamLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Stream</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="EDAStreamSelector">
-               <property name="toolTip">
-                <string>Choose a discovered LSL stream for this signal. Refresh to search again.</string>
+              </layout>
+             </widget>
+            </item>
+            <item row="2" column="1" colspan="1">
+             <widget class="QGroupBox" name="baselineGroup">
+              <property name="title">
+               <string>Baselines</string>
+              </property>
+              <layout class="QVBoxLayout" name="baselineLayout">
+               <property name="spacing">
+                <number>10</number>
                </property>
                <item>
-                <property name="text">
-                 <string>Select LSL stream…</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="EDARefresh">
-               <property name="text">
-                <string>Refresh</string>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/refresh.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="EDAPlay">
-               <property name="icon">
-                <iconset>
-                 <normaloff>../assets/icons/play-white.svg</normaloff>
-                </iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>16</width>
-                 <height>16</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Play</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="EDAPreprocessing">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="EDAFilterLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Pre-processing</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="EDAFilterPreset">
-               <item>
-                <property name="text">
-                 <string>Default</string>
-                </property>
+                <widget class="QLabel" name="baselineSummary">
+                 <property name="text">
+                  <string>EYC: none | BSL: none</string>
+                 </property>
+                </widget>
                </item>
                <item>
-                <property name="text">
-                 <string>Low-pass 1 Hz</string>
-                </property>
+                <layout class="QHBoxLayout" name="EYCBaselineRow">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="EYCTitle">
+                   <property name="text">
+                    <string>EYC</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="EYCMode">
+                   <item>
+                    <property name="text">
+                     <string>New — record 60 s</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Load existing…</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Default / none</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="EYCExecute">
+                   <property name="text">
+                    <string>Start / Load</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="EYCStatus">
+                   <property name="text">
+                    <string>Not selected</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
                </item>
                <item>
-                <property name="text">
-                 <string>Low-pass 2 Hz</string>
-                </property>
+                <layout class="QHBoxLayout" name="BSLBaselineRow">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="BSLTitle">
+                   <property name="text">
+                    <string>BSL</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="BSLMode">
+                   <item>
+                    <property name="text">
+                     <string>New — record 60 s</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Load existing…</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Default / none</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="BSLExecute">
+                   <property name="text">
+                    <string>Start / Load</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="BSLStatus">
+                   <property name="text">
+                    <string>Not selected</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
                </item>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="EDANotch">
-               <property name="text">
-                <string>Notch 50 / 100 Hz</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="EDAPreprocessingSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>24</width>
-                 <height>0</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="EDAChannels">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="EDAChannelLabel">
-               <property name="minimumWidth">
-                <number>92</number>
-               </property>
-               <property name="text">
-                <string>Channels</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="EDAChooseChannels">
-               <property name="text">
-                <string>Select channels…</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="EDAChannelsSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>24</width>
-                 <height>0</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <spacer name="EDASourceBottomSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>0</width>
-               <height>0</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="2" column="1" colspan="1">
-         <widget class="QGroupBox" name="baselineGroup">
-          <property name="title">
-           <string>Baselines</string>
-          </property>
-          <layout class="QVBoxLayout" name="baselineLayout">
-           <property name="spacing">
-            <number>10</number>
-           </property>
-           <item>
-            <widget class="QLabel" name="baselineSummary">
-             <property name="text">
-              <string>EYC: none | BSL: none</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="EYCBaselineRow">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="EYCTitle">
-               <property name="text">
-                <string>EYC</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="EYCMode">
-               <item>
-                <property name="text">
-                 <string>New — record 60 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Load existing…</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Default / none</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="EYCExecute">
-               <property name="text">
-                <string>Start / Load</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="EYCStatus">
-               <property name="text">
-                <string>Not selected</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="BSLBaselineRow">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="BSLTitle">
-               <property name="text">
-                <string>BSL</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="BSLMode">
-               <item>
-                <property name="text">
-                 <string>New — record 60 s</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Load existing…</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Default / none</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="BSLExecute">
-               <property name="text">
-                <string>Start / Load</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="BSLStatus">
-               <property name="text">
-                <string>Not selected</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="3" column="0" colspan="2">
-         <widget class="QPushButton" name="refreshAllStreams">
-          <property name="icon">
-           <iconset>
-            <normaloff>../assets/icons/refresh.svg</normaloff>
-           </iconset>
-          </property>
-          <property name="iconSize">
-           <size>
-            <width>16</width>
-            <height>16</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>Refresh all LSL streams</string>
-          </property>
+              </layout>
+             </widget>
+            </item>
+            <item row="3" column="0" colspan="2">
+             <widget class="QPushButton" name="refreshAllStreams">
+              <property name="icon">
+               <iconset>
+                <normaloff>../assets/icons/refresh.svg</normaloff>
+               </iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>16</width>
+                <height>16</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Refresh all LSL streams</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
          </widget>
         </item>
        </layout>
@@ -1705,6 +1780,12 @@ QCheckBox[metricSelector="true"]:checked { background: #eeecfa; border-color: #d
          </widget>
         </item>
        </layout>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
       </widget>
       <widget class="QWidget" name="metricsTab">
        <attribute name="title">
@@ -2419,6 +2500,12 @@ QCheckBox[metricSelector="true"]:checked { background: #eeecfa; border-color: #d
          </widget>
         </item>
        </layout>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
       </widget>
       <widget class="QWidget" name="affectTab">
        <attribute name="title">
@@ -2429,6 +2516,12 @@ QCheckBox[metricSelector="true"]:checked { background: #eeecfa; border-color: #d
          <widget class="QFrame" name="affectViewHost" />
         </item>
        </layout>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
       </widget>
      </widget>
     </item>

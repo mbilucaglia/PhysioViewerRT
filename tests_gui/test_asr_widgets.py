@@ -73,3 +73,32 @@ class ASRWidgetTests(unittest.TestCase):
             self.assertFalse(button.icon().isNull(), name)
             self.assertFalse(button.icon().pixmap(16,16).isNull(), name)
         self.assertFalse(self.form.windowIcon().isNull())
+
+
+    def test_each_modality_has_designer_processing_panel(self):
+        from PySide6.QtWidgets import QGroupBox, QComboBox
+        for kind in ('EEG', 'PPG', 'EDA'):
+            panel = self.form.findChild(QGroupBox, f'{kind}ProcessingPanel')
+            self.assertEqual(panel.title(), 'Processing')
+            self.assertIsNotNone(panel.findChild(QComboBox, f'{kind}FilterPreset'))
+        panel = self.form.findChild(QGroupBox, 'EEGProcessingPanel')
+        self.assertIs(panel.findChild(QFrame, 'EEGASRPanel'), self.view.panel)
+
+    def test_channel_checkboxes_stay_open_and_preserve_selection_rules(self):
+        from PySide6.QtCore import Qt, QPoint
+        from physiolab.desktop_widgets import CheckChannelDropdown
+        for kind in ('EEG', 'PPG', 'EDA'):
+            picker = CheckChannelDropdown(kind)
+            try:
+                picker.set_channels(['F3', 'F4', 'O1'])
+                picker.menu.popup(QPoint(50, 50))
+                QTest.qWait(30)
+                for index in (1, 2):
+                    QTest.mouseClick(picker.actions[index], Qt.MouseButton.LeftButton)
+                    self.assertTrue(picker.menu.isVisible())
+                self.assertEqual(picker.selected_indices(), [0] if kind == 'EEG' else [2])
+                QTest.keyClick(picker.actions[2], Qt.Key.Key_Escape)
+                self.assertFalse(picker.menu.isVisible())
+            finally:
+                picker.menu.close()
+                picker.deleteLater()

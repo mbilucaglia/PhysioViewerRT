@@ -1,8 +1,15 @@
 """Reusable desktop widgets without acquisition or application session state."""
 import time
-from PySide6.QtCore import QTimer, Qt, Signal
-from PySide6.QtWidgets import QToolButton, QMenu, QDialog, QVBoxLayout, QLabel, QPushButton
+from PySide6.QtCore import QTimer, Qt, Signal, QObject, QEvent
+from PySide6.QtWidgets import QToolButton, QMenu, QDialog, QVBoxLayout, QLabel, QPushButton, QCheckBox, QWidgetAction, QScrollArea, QWidget, QGridLayout
 from .calibration import DURATION_SECONDS
+
+
+class ChannelCheckBox(QCheckBox):
+    """Make the whole channel row clickable, including space after its label."""
+
+    def hitButton(self, position):
+        return self.rect().contains(position)
 
 
 class CheckChannelDropdown(QToolButton):
@@ -25,12 +32,25 @@ class CheckChannelDropdown(QToolButton):
         self.names = list(names)
         self.actions = []
         self.menu.clear()
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(8, 4, 8, 4)
         for index, name in enumerate(self.names):
-            action = self.menu.addAction(f'{index + 1}: {name}')
-            action.setCheckable(True)
-            action.setChecked(self.kind == 'EEG' or index == 0)
-            action.triggered.connect(lambda checked, i=index: self.select(i, checked))
-            self.actions.append(action)
+            checkbox = ChannelCheckBox(f'{index + 1}: {name}')
+            checkbox.setChecked(self.kind == 'EEG' or index == 0)
+            checkbox.clicked.connect(lambda checked, i=index: self.select(i, checked))
+            layout.addWidget(checkbox)
+            self.actions.append(checkbox)
+        if not self.names:
+            layout.addWidget(QLabel('No channels available'))
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(content)
+        scroll.setMinimumWidth(250)
+        scroll.setFixedHeight(min(320, content.sizeHint().height() + 6))
+        entry = QWidgetAction(self.menu)
+        entry.setDefaultWidget(scroll)
+        self.menu.addAction(entry)
         self.update_label()
 
     def select(self, index, checked):
@@ -58,7 +78,42 @@ class CheckChannelDropdown(QToolButton):
         self.setText(self.fontMetrics().elidedText(
             full, Qt.TextElideMode.ElideRight, self.width() - 30
         ))
-        self.setToolTip('Selected source channels:\\n' + '\\n'.join(selected))
+        self.setToolTip('Selected source channels:\n' + '\n'.join(selected))
+
+
+class ResponsiveSources(QObject):
+    """Reflow the Designer grid into one column when its cards need more room."""
+
+    def __init__(self, scroll):
+        super().__init__(scroll)
+        self.scroll = scroll
+        self.grid = scroll.findChild(QGridLayout, 'sourcesLayout')
+        self.entries = [(self.grid.itemAt(i).widget(), self.grid.getItemPosition(i))
+                        for i in range(self.grid.count())]
+        self.compact = None
+        scroll.viewport().installEventFilter(self)
+        self.reflow()
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.Resize:
+            self.reflow()
+        return super().eventFilter(watched, event)
+
+    def reflow(self):
+        cards = [widget for widget, (_, _, _, span) in self.entries if span == 1]
+        required = 2 * max(widget.minimumSizeHint().width() for widget in cards) + 64
+        compact = self.scroll.viewport().width() < required
+        if compact == self.compact:
+            return
+        self.compact = compact
+        for widget, _ in self.entries:
+            self.grid.removeWidget(widget)
+        for row in range(7):
+            self.grid.setRowStretch(row, 0)
+        self.grid.setColumnStretch(1, 0 if compact else 1)
+        for index, (widget, position) in enumerate(self.entries):
+            self.grid.addWidget(widget, index, 0, 1, 1) if compact else self.grid.addWidget(widget, *position)
+        self.grid.setRowStretch(len(self.entries) if compact else 4, 1)
 
 
 class CalibrationScreen(QDialog):
