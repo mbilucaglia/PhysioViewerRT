@@ -1,0 +1,40 @@
+{
+  "seed": 2026,
+  "fs_hz": 128,
+  "channels": [
+    "F3",
+    "F4",
+    "O1",
+    "O2"
+  ],
+  "chunk_samples": 16,
+  "training_seconds": 60,
+  "evaluation_seconds": 30,
+  "cutoff": 20.0,
+  "artifact": "1000 uV, 4 Hz sinusoid added to F3 from 10 to 14 seconds before filtering",
+  "artifact_error_rms_uV_asr_off": [
+    702.8638830666962,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "artifact_error_rms_uV_asr_on": [
+    217.05332662070617,
+    0.3126726005378798,
+    0.5429834033487535,
+    0.5106057416008148
+  ],
+  "F3_artifact_error_reduction_percent": 69.11872528238735,
+  "independent_clean_replay_normalized_rmse": [
+    6.420776778480443e-17,
+    6.409437461352359e-17,
+    6.527174686247238e-17,
+    6.554241861080808e-17
+  ],
+  "versions": {
+    "numpy": "2.3.5",
+    "scipy": "1.18.1",
+    "meegkit": "0.2.0"
+  },
+  "limitations": "One synthetic artifact and seed; no clinical efficacy claim. RMSE uses known synthetic clean reference. ASR is chunk-dependent."
+}

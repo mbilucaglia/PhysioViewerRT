@@ -85,8 +85,11 @@ $env:QT_QPA_PLATFORM = 'windows'
       [ASR off](docs/demos/asr-second-pc/asr-off.jpg),
       [artifacts with ASR](docs/demos/asr-second-pc/strong-artifacts-asr-on.jpg),
       and [artifacts without ASR](docs/demos/asr-second-pc/strong-artifacts-asr-off.jpg).
-- [ ] Replay the same artifact-contaminated recording with ASR on/off and compare
+- [x] Replay the same artifact-contaminated recording with ASR on/off and compare
       matched time windows at identical gain; quantify attenuation and preservation.
+      Completed for a controlled four-channel synthetic case on 26 October 2026;
+      see tools/asr_comparison.py and docs/demos/asr-matched/README.md.
+- [ ] Extend matched replay to multiple seeds, artifact types and real recordings.
 - [ ] Complete high-DPI and full Train → EYC → BSL → Metrics/Affect validation
       on this PC. The live check above covered EEG acquisition, ASR and Raw Data.
 
