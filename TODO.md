@@ -24,18 +24,25 @@ User clarification, 26 October 2026: reduce artifacts in original waveforms,
 not quality assessment or rejection of metric windows. Offer Off / spike
 reduction / broader motion reduction as selectable alternatives per modality.
 
-- [ ] Select reproducible, published waveform-reconstruction methods for PPG and
-      SC, with exact source citations, algorithm steps and documented parameters.
-      Research candidates and provenance checks: docs/PERIPHERAL_REDUCTION_EVIDENCE.md.
-- [ ] Verify complete papers/reference implementations and numerical reproduction
-      before integration. The unpublished causal Haar draft was removed, not shipped.
-- [ ] Implement selected methods with explicit streaming latency, boundaries and
-      settings. Clearly distinguish a faithful reproduction from an adaptation.
-- [ ] Add Designer Processing selectors, preserve original/processed comparison,
-      and apply identical transformations to BSL and live HR/SCL/EI/Affect.
-- [ ] Validate both attenuation and preservation of physiological morphology on
-      matched synthetic and real recordings. No peripheral-reduction code is
-      currently enabled; existing filters and cvxEDA remain unchanged.
+- [x] Add independent Off / Hampel spike / experimental wavelet choices in the
+      Designer PPG/SC Processing panels. Preserve original samples and use the
+      same selected reduction/filter chain for baseline and live HR/SCL/EI.
+- [x] Implement PPG db6/DWT/SURE and SC Haar/SWT/Laplace streaming adaptations;
+      document sources, parameters, boundary conventions, departures and measured
+      physiological distortion in docs/PERIPHERAL_REDUCTION_EVIDENCE.md.
+- [x] Account for buffering: matched raw/processed acquisition timestamps,
+      source-window metric plotting, separate availability times, gap resets,
+      pending tails and matching baseline metadata. Eight-second wavelet startup
+      then one-second batches; Hampel three-sample lookahead.
+- [x] Verify formulas, chunk independence, synthetic attenuation/preservation,
+      baseline parity and actual simultaneous PPG/SC LSL timing. Full GUI suite:
+      120 tests passed (two OpenGL checks skipped). Core: 224 passed. Three native
+      GUI/LSL timing checks passed; wide/compact Sources previews inspected.
+- [ ] Reproduce reference outputs when datasets/implementations are available.
+      These streaming adapters are not exact reproductions of study experiments.
+- [ ] Validate on matched real recordings/hardware, especially SCR attenuation,
+      boundary effects and downstream metric bias. Synthetic SC wavelet testing
+      reduced a genuine SCR peak by about 16.7%; default remains Off.
 
 
 ## Threshold updates and EEG display — 26 October 2026

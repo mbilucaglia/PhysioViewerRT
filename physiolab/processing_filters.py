@@ -8,10 +8,17 @@ FILTER_PRESETS = {
     'EDA': {'default': None, 'smooth_1hz': (None, 1.), 'smooth_2hz': (None, 2.)},
 }
 
-def validate_preprocessing(kind, preset='default', notch=True):
+def validate_preprocessing(kind, preset='default', notch=True, artifact_reduction='off', artifact_version=1):
     if kind not in FILTER_PRESETS or preset not in FILTER_PRESETS[kind]:
         raise ValueError('Unsupported preprocessing preset')
-    return {'preset': preset, 'notch': bool(notch)}
+    from .peripheral_reduction import METHODS,ALGORITHM_VERSION
+    if (artifact_reduction not in METHODS or artifact_version != ALGORITHM_VERSION
+            or (kind == 'EEG' and artifact_reduction != 'off')):
+        raise ValueError('Unsupported artifact reduction configuration')
+    result = {'preset':preset,'notch':bool(notch)}
+    if artifact_reduction != 'off':
+        result.update(artifact_reduction=artifact_reduction,artifact_version=artifact_version)
+    return result
 
 NOTCH_FREQUENCIES_HZ = (50.0, 100.0)
 NOTCH_QUALITY_FACTOR = 30.0

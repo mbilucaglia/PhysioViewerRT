@@ -112,7 +112,7 @@ class Receiver(QThread):
                     first_source_timestamp = float(timestamps[0])
                 selected = self.conversion.apply(selected)
                 try:
-                    metric = proc.push(selected)
+                    metric = proc.push(selected,timestamps=timestamps)
                 except ASRError as exc:
                     # A failed cleaner must not terminate raw acquisition.
                     cleaner = self.eeg_asr_model = None
@@ -121,8 +121,11 @@ class Receiver(QThread):
                                                  if key != 'asr_model_id'}
                     proc = Processor(self.kind, fs, count, names, iaf_hz=self.iaf_hz,
                                      preprocessing=self.preprocessing)
-                    metric = proc.push(selected)
+                    metric = proc.push(selected,timestamps=timestamps)
                     self.stream_ready.emit(self.kind, names, float(fs))
+                if not len(proc.last_filtered_chunk):
+                    continue  # Explicit reducer buffer; no fabricated processed samples.
+                selected,timestamps = proc.last_raw_chunk,proc.last_timestamps
                 monitor = self.asr_training_monitor
                 if monitor is not None:
                     monitor.push(selected, proc.last_preprocessed_chunk, timestamps)

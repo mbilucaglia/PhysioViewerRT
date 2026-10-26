@@ -24,6 +24,12 @@ class Processor:
         self.iaf_hz = float(iaf_hz)
         config = validate_preprocessing(kind, **(preprocessing or {}))
         self.preprocessing = config
+        from .peripheral_reduction import PeripheralReducer
+        method = config.get('artifact_reduction','off')
+        self.artifact_reducer = PeripheralReducer(kind,self.fs,channels,method) if method != 'off' else None
+        self._last_input_timestamp = None
+        self.last_raw_chunk = np.empty((0,channels))
+        self.last_timestamps = np.empty(0)
         self.sos, self.notch_frequencies = build_filter(kind, self.fs, config)
         self.zi = np.zeros((self.sos.shape[0], 2, channels)) if self.sos is not None else None
         calculator = METRIC_CALCULATORS.get(kind)
@@ -38,22 +44,42 @@ class Processor:
         self.since_metric = 0
         self.last_metric = {}
 
-    def push(self, chunk):
+    def push(self, chunk, timestamps=None):
         x = np.asarray(chunk, dtype=float).reshape(-1, self.channels)
         if not len(x):
             return None
         if not np.isfinite(x).all():
             raise ValueError('Signal contains NaN or infinite samples; check the source')
-        if self.sos is not None:
-            y, self.zi = sosfilt(self.sos, x, axis=0, zi=self.zi)
+        self._raw_history.append(x)
+        stamps = np.asarray(timestamps,dtype=float) if timestamps is not None else None
+        if self.artifact_reducer is not None:
+            if (stamps is not None and len(stamps) and self._last_input_timestamp is not None
+                    and stamps[0]-self._last_input_timestamp > max(.25,3/self.fs)):
+                from .peripheral_reduction import PeripheralReducer
+                self.artifact_reducer = PeripheralReducer(self.kind,self.fs,self.channels,
+                    self.preprocessing['artifact_reduction'])
+                if self.zi is not None:
+                    self.zi.fill(0.)
+                self._filtered_history = SampleRing(self.max_samples,self.channels)
+                self.since_metric = 0
+            if stamps is not None and len(stamps):
+                self._last_input_timestamp = float(stamps[-1])
+            x,y,stamps = self.artifact_reducer.push(x,stamps)
+            self.last_raw_chunk,self.last_timestamps = x,stamps
+            if not len(y):
+                self.last_filtered_chunk = self.last_preprocessed_chunk = np.empty((0,self.channels))
+                return None
         else:
             y = x.copy()
+            self.last_raw_chunk = x.copy()
+            self.last_timestamps = stamps if stamps is not None else np.empty(0)
+        if self.sos is not None:
+            y, self.zi = sosfilt(self.sos, y, axis=0, zi=self.zi)
         self.last_preprocessed_chunk = y
         if self.sample_transform is not None:
             y = np.asarray(self.sample_transform(y), dtype=float)
             if y.shape != x.shape or not np.isfinite(y).all():
                 raise ValueError('Sample transform must preserve finite samples and channel shape')
-        self._raw_history.append(x)
         self._filtered_history.append(y)
         self.last_filtered_chunk = y
         self.since_metric += len(x)

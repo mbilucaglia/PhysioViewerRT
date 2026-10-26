@@ -18,7 +18,7 @@ class MetricState:
         self.observations = {key: deque(maxlen=history_capacity) for key in self.keys}
         self.ei = BaselineEmotionalIndex()
 
-    def update(self, kind, metric, at):
+    def update(self, kind, metric, at, source_clock_offset=None):
         if metric is None:
             return
         at = float(at)
@@ -42,8 +42,13 @@ class MetricState:
                 value = metric.get(name)
                 value = (float(value) if isinstance(value, (int, float))
                          and np.isfinite(value) else float('nan'))
-                self.history[modality, name].append((at, value))
                 provenance = metric.get('_observations', {}).get(name)
+                event_at = at
+                if source_clock_offset is not None and provenance is not None:
+                    source_end = provenance.get('window_end')
+                    if isinstance(source_end,(int,float)) and np.isfinite(source_end):
+                        event_at = float(source_end)-source_clock_offset
+                self.history[modality, name].append((event_at, value))
                 if provenance is not None:
                     self.observations[modality, name].append(provenance)
         name = {'PPG': 'HR', 'EDA': 'SCL'}.get(kind)
@@ -58,8 +63,11 @@ class MetricState:
                            else self.ei_unavailable_reason()),
             }
             if ('EI', 'EI') in self.history:
+                input_times = [self.history[key][-1][0] for key in
+                               (('PPG','HR'),('EDA','SCL')) if self.history.get(key)]
+                event_at = max(input_times) if len(input_times) == 2 else at
                 self.history['EI', 'EI'].append(
-                    (at, float(value) if value is not None else float('nan')))
+                    (event_at, float(value) if value is not None else float('nan')))
 
     def ei_unavailable_reason(self):
         problem = self.ei.reference_problem()

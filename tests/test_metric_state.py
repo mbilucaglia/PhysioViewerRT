@@ -38,6 +38,21 @@ class MetricStateTests(unittest.TestCase):
         self.assertIsNone(MetricState.normalized_value('EDA', 'SCL', 2., 'zscore', refs))
         self.assertIsNone(MetricState.normalized_value('EEG', 'AWI', np.nan, 'identity', refs))
 
+    def test_delayed_metrics_and_ei_use_source_time_not_gui_arrival(self):
+        state = MetricState(DEFAULT_METRICS)
+        ref = {'mu':1.,'sigma':1.}
+        state.ei.set_references(ref,ref)
+        state.update('PPG',{'HR':2.,'_observations':{'HR':{'window_end':110.}}},
+                     at=500.,source_clock_offset=100.)
+        state.update('EDA',{'SCL':2.,'_observations':{'SCL':{'window_end':109.}}},
+                     at=505.,source_clock_offset=100.)
+        self.assertEqual(state.history['PPG','HR'][-1][0],10.)
+        self.assertEqual(state.history['EDA','SCL'][-1][0],9.)
+        self.assertEqual(state.history['EI','EI'][-1][0],10.)
+        state.update('EDA',{'SCL':3.,'_observations':{'SCL':{'window_end':111.}}},
+                     at=510.,source_clock_offset=100.)
+        self.assertEqual(state.history['EI','EI'][-1][0],11.)
+
     def test_none_update_does_not_change_observations(self):
         state = MetricState(DEFAULT_METRICS)
         state.update('EEG', None, 0.)

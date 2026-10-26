@@ -35,6 +35,17 @@ reports off, waiting, monitoring, correcting or bypassed. Its green LED pulses
 for 0.5 seconds after backend reconstruction; monitoring stays gray. ASR changes filtered
 traces; the Raw trace preserves original input. See [EEG ASR](docs/EEG_ASR.md).
 
+
+PPG and SC Processing panels offer **Off**, **Spike reduction (Hampel)** and
+**Wavelet (8 s · experimental)**. Choose processing before recording BSL; changing
+it requires a matching baseline. Hampel waits three samples. Wavelet buffers
+eight seconds initially, then updates every second. Raw and processed traces
+share original timestamps; metric histories use their source window end.
+Wavelet can alter real pulse/SCR morphology. These are research-based streaming
+adaptations with synthetic/LSL tests; real-hardware efficacy remains unverified.
+See [method sources, parameters and limits](docs/PERIPHERAL_REDUCTION_EVIDENCE.md).
+After pulling, rerun `setup_windows.cmd` to install pinned PyWavelets.
+
 See [WINDOWS_SETUP.md](WINDOWS_SETUP.md) for calibration and detailed controls.
 
 For continuation on another PC, see the setup steps and prioritized tasks in [TODO.md](TODO.md).

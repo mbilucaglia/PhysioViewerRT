@@ -9,7 +9,9 @@ metric-window rejection, as the next implementation scope. The quality-first
 recommendation below is historical and superseded for this work. Both spike and
 broader-motion reduction should be selectable, using published, reproducible
 methods. See [current research and provenance requirements](PERIPHERAL_REDUCTION_EVIDENCE.md).
-No new peripheral artifact reducer has been implemented or enabled.
+Off / Hampel / experimental wavelet reducers are now implemented in the common
+live/baseline pipeline. See the linked evidence document for timing, scientific
+departures, measured morphology distortion and remaining real-data validation.
 
 ## Earlier recommendation (superseded scope)
 

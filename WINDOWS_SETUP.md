@@ -31,6 +31,18 @@ If the installer cannot locate Python, open Command Prompt and run `python --ver
 
 Internet access is needed for the dependency installation, but not for ordinary local operation. LSL may trigger a Windows Defender Firewall prompt; allow only on trusted/private networks.
 
+## PPG and SC waveform artifact reduction
+
+PPG and SC Processing panels offer **Off**, **Spike reduction (Hampel)** and
+**Wavelet (8 s · experimental)**. Choose processing before recording BSL; changing
+it requires a matching baseline. Hampel waits three samples. Wavelet buffers
+eight seconds initially, then updates every second. Raw and processed traces
+share original timestamps; metric histories use their source window end.
+Wavelet can alter real pulse/SCR morphology. These are research-based streaming
+adaptations with synthetic/LSL tests; real-hardware efficacy remains unverified.
+See [method sources, parameters and limits](docs/PERIPHERAL_REDUCTION_EVIDENCE.md).
+After pulling, rerun `setup_windows.cmd` to install pinned PyWavelets.
+
 ## EEG correction and baseline order
 
 Start the EEG stream with its intended channels, source conversion and filter.

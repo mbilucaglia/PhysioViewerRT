@@ -121,15 +121,16 @@ def analyze_bsl(streams, iaf_hz=10.0, eeg_asr_model=None):
             source_configurations[kind]['asr_model_id'] = eeg_asr_model.model_id
         hop = max(1, round(fs*.5))
         sequence = {}
-        filtered_chunks = []
+        filtered_chunks,filtered_times = [],[]
         for start in range(0, len(data), hop):
-            metric = proc.push(data[start:start+hop])
-            if kind == 'EDA':
+            metric = proc.push(data[start:start+hop],timestamps=stamps[start:start+hop])
+            if kind == 'EDA' and len(proc.last_filtered_chunk):
                 filtered_chunks.append(proc.last_filtered_chunk.copy())
+                filtered_times.append(proc.last_timestamps.copy())
             if metric is None:
                 continue
             index = min(start+hop, len(stamps)) - 1
-            t = float(stamps[index])
+            t = float(proc.last_timestamps[-1]) if len(proc.last_timestamps) else float(stamps[index])
             for key, val in metric.items():
                 if key == 'IAF' or not (val is None or isinstance(val, (float,int))):
                     continue
@@ -146,7 +147,7 @@ def analyze_bsl(streams, iaf_hz=10.0, eeg_asr_model=None):
             unit = source_display_unit(item.get('units', []))
             tonic = TonicSCProcessor(unit=unit)
             observations = decompose_baseline(
-                np.concatenate(filtered_chunks), stamps, fs, settings=tonic.settings, unit=unit)
+                np.concatenate(filtered_chunks), np.concatenate(filtered_times), fs, settings=tonic.settings, unit=unit)
             summary = summarize_metric([observation.value for observation in observations])
             if summary is not None:
                 summaries.setdefault(kind, {})['SCL'] = summary

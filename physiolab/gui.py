@@ -615,6 +615,7 @@ class MainWindow(QMainWindow):
     def _connect_designer_controls(self):
         """Wire the live application to named Designer widgets, not a mockup."""
         self.filter_choices, self.filter_notches = {}, {}
+        self.artifact_choices = {}
         self.source_conversions = {}
         for kind in ('EEG', 'EDA', 'PPG'):
             conversion = SourceConversionControls()
@@ -662,6 +663,12 @@ class MainWindow(QMainWindow):
             notch = self._required_ui(f'{kind}Notch', QCheckBox)
             notch.setChecked(True)
             self.filter_notches[kind] = notch
+            if kind in ('PPG','EDA'):
+                artifacts = self._required_ui(f'{kind}ArtifactReduction',QComboBox)
+                for index,method in enumerate(('off','hampel','wavelet')):
+                    artifacts.setItemData(index,method)
+                self.artifact_choices[kind] = artifacts
+                artifacts.currentIndexChanged.connect(lambda _,k=kind:self.schedule_source_change(k))
             choices.setToolTip('Used on next stream start, not mid-capture')
             notch.setToolTip('Used on next stream start, not mid-capture')
         self._required_ui('refreshAllStreams', QPushButton).clicked.connect(self.refresh)
@@ -1186,6 +1193,12 @@ class MainWindow(QMainWindow):
             self._metadata_requests[identifier] = self.queue_lsl_task('metadata', info)
         self.schedule_source_change(kind)
 
+    def _receiver_processing_matches(self,kind,worker):
+        requested = validate_preprocessing(kind,preset=self.filter_choices[kind].currentData(),
+            notch=self.filter_notches[kind].isChecked(),
+            artifact_reduction=(self.artifact_choices[kind].currentData() if kind in self.artifact_choices else 'off'))
+        return getattr(worker,'preprocessing',validate_preprocessing(kind)) == requested
+
     def _receiver_asr_matches(self, kind, worker):
         """Changing the cleaning model requires a new receiver, even on the same source."""
         if kind != 'EEG':
@@ -1209,7 +1222,8 @@ class MainWindow(QMainWindow):
         if (worker is not None and kind not in self.pending_source_changes
                 and info is not None and worker.info.uid() == info.uid()
                 and worker.selected_indices == self.channel_selectors[kind].selected_indices()
-                and self._receiver_asr_matches(kind, worker)):
+                and self._receiver_asr_matches(kind, worker)
+                and self._receiver_processing_matches(kind,worker)):
             return
         self.pending_source_changes.add(kind)
         if self.capture is not None:
@@ -1322,7 +1336,8 @@ class MainWindow(QMainWindow):
                 return
             settings = validate_preprocessing(kind,
                 preset=self.filter_choices[kind].currentData(),
-                notch=self.filter_notches[kind].isChecked())
+                notch=self.filter_notches[kind].isChecked(),
+                artifact_reduction=(self.artifact_choices[kind].currentData() if kind in self.artifact_choices else 'off'))
             worker = Receiver(info, kind, indices,
                               self.channel_selectors[kind].names,
                               preprocessing=settings,
@@ -1356,7 +1371,7 @@ class MainWindow(QMainWindow):
         if metric is None:
             return
         at = time.monotonic() if metric_at is None else float(metric_at)
-        self.metric_state.update(kind, metric, at)
+        self.metric_state.update(kind, metric, at,source_clock_offset=self._affect_clock_offset)
         if len(timestamps):
             if '_tonic_pipeline' in metric:
                 configuration = metric['_tonic_pipeline']

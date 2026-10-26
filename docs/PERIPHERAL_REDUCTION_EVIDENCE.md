@@ -1,50 +1,141 @@
-# Peripheral artifact reduction: research and implementation status
+# Peripheral waveform artifact reduction — 26 October 2026
 
-## Current user requirements — 26 October 2026
+## Status and scope
 
-- Reduce artifacts in the actual PPG and SC waveforms. Do not substitute signal
-  quality scores, classification badges or rejection of metric windows.
-- Offer selectable alternatives for brief spikes and broader motion artifacts,
-  with one method active at a time per modality; Off preserves current behavior.
-- Use published research. Identify the exact algorithm, source, parameters and
-  implementation provenance. A generic wavelet transform is not enough to claim
-  a particular published artifact-removal method has been implemented.
-- Preserve original samples and apply identical selected processing to baseline
-  analysis and live downstream HR/SCL, EI and Affect calculations.
+Sources > PPG/SC > Processing now offers Off, Spike reduction (Hampel), and
+Wavelet (8 s · experimental), independently per modality. Off is the default.
+One method is active at a time, upstream of the existing filters and downstream
+metrics. Original acquired samples are retained. This adds waveform reduction,
+not quality scores or additional quality-based metric-window rejection.
 
-## Important status
+These are research-based streaming adaptations, not numerical reproductions of
+the published experiments or established real-hardware efficacy. No original
+reference output dataset was available for an output-for-output comparison.
+The earlier unpublished causal Haar/clipping draft was removed before shipping.
 
-No new peripheral artifact reducer is implemented or enabled in the application.
-An unpublished causal Haar/robust-clipping draft was removed before committing.
-It was not equivalent to the published SWT methods below. The existing filters
-and cvxEDA decomposition remain unchanged.
+## Sources, parameters and departures
 
-## Research candidates, not yet selected implementations
+### PPG wavelet
 
-| Signal | Published method | Relevance and outstanding checks |
-| --- | --- | --- |
-| SC | Shukla, Barreda-Ángeles, Oliver & Puig (2018), *Efficient wavelet-based artifact removal for electrodermal activity in real-world applications*, Biomedical Signal Processing and Control 42:45–52. [Publisher/DOI](https://doi.org/10.1016/j.bspc.2018.01.009) | SWT reconstruction with a Laplace model of detail coefficients; the publication reports online testing. Obtain and verify the complete algorithm, threshold formula, windows, padding and output delay before implementation. |
-| SC | Chen et al. (2015), *Wavelet-Based Motion Artifact Removal for Electrodermal Activity*. [Full paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC5413204/), [DOI](https://doi.org/10.1109/EMBC.2015.7319814) | SWT with a two-Gaussian coefficient model and tail thresholds, followed by waveform reconstruction. Its reported experiment used 8 Hz SC, Haar, eight levels, artifact proportion 0.01 and a 400-second estimation window. Do not silently substitute a short causal window and describe it as the same validated procedure. |
-| PPG | Biswas, Singha Roy & Gupta (2019), *Motion Artifact Reduction from Finger Photoplethysmogram Using Discrete Wavelet Transform*, pp. 89–98. [Publisher/DOI](https://doi.org/10.1007/978-981-10-8863-6_10) | A modality-specific DWT/thresholding study; an author-uploaded text reports comparisons including db6 and SURE soft thresholding. Verify the full decomposition depth, sampling/window assumptions, boundary handling and exact threshold definition against the paper before choosing it. |
-| PPG | Peng, Liu & Wang (2015), *A comb filter based signal processing method to effectively reduce motion artifacts from photoplethysmographic signals*. [PubMed](https://pubmed.ncbi.nlm.nih.gov/26334000/), [DOI](https://doi.org/10.1088/0967-3334/36/10/2159) | Wavelet preprocessing followed by period estimation and a period-dependent comb filter. Do not implement just a generic wavelet stage and label it as the full published method. Correct period estimation is a material dependency. |
+Biswas, Singha Roy & Gupta (2019), *Motion Artifact Reduction from Finger
+Photoplethysmogram Using Discrete Wavelet Transform*, pp. 89–98.
+[DOI](https://doi.org/10.1007/978-981-10-8863-6_10),
+[author-uploaded paper](https://www.researchgate.net/publication/325067603_Motion_Artifact_Reduction_from_Finger_Photoplethysmogram_Using_Discrete_Wavelet_Transform).
 
-Hampel/median despiking remains a candidate for the spike alternative, not an
-approved shared PPG/SC recipe. Confirm signal-specific supporting research and
-parameters. HeartPy's documented Hampel corrector subtracts a one-second median
-and can shift peaks; that should not be silently applied to tonic SC or described
-as a validated universal waveform repair. [Author documentation](https://python-heart-rate-analysis-toolkit.readthedocs.io/en/latest/algorithmfunctioning.html)
+The study used 60 Hz, 30-second recordings and compared wavelet/threshold
+choices. The selected implementation uses db6, five decomposition levels,
+SURE/rigrsure soft thresholds, including approximation A5 and details D5–D1,
+then inverse DWT. SURE minimizes the unit-noise soft-estimator risk and scales
+the threshold back to the coefficient units; it is not a universal threshold.
+[Threshold definition](https://www.mathworks.com/help/wavelet/ref/thselect.html).
 
-## Required implementation evidence
+Explicit application conventions: eight-second trailing windows, one-second
+updates; polyphase resampling to/from 60 Hz; symmetric DWT extension; a single
+noise scale median(abs(D1))/0.6744897501960817. These noise/boundary conventions
+are not fully specified in the paper. The shorter streaming window is a
+departure from its recording protocol and requires validation.
 
-1. Obtain the complete publication/reference implementation and select a
-   reproducible method separately for each modality and artifact type.
-2. Map every numerical stage and default to the source. Record any departures,
-   including reduced windows, downsampling, causal operation and edge handling.
-3. Reproduce reference outputs before introducing a streaming adapter. Specify
-   buffering delay and finalized samples; no hidden timestamp shifts or padding
-   presented as acquired data.
-4. Test artifact attenuation and preservation of clean PPG beats, tonic SC and
-   genuine SCRs on matched recordings. Synthetic tests do not establish real-data
-   efficacy. Record any real-time adaptation as an adaptation requiring validation.
-5. Only then wire the selected tools into Designer Processing panels and the
-   shared live/baseline pipeline. Keep quality assessment outside this scope.
+### SC wavelet
+
+Shukla, Barreda-Ángeles, Oliver & Puig (2018), *Efficient wavelet-based artifact
+removal for electrodermal activity in real-world applications*.
+[DOI](https://doi.org/10.1016/j.bspc.2018.01.009).
+The publisher abstract/partial Methods describes SWT/Laplace reconstruction and
+online testing. Full numerical steps were cross-checked against the authors'
+[companion technical disclosure EP3466322A1](https://patents.google.com/patent/EP3466322A1/en),
+rather than inventing parameters absent from the accessible article text.
+
+Eight-second windows, one-second updates; power-of-two analysis rate; Haar SWT
+with J=log2(fs)+2; zero detail bands at/above 0.5 Hz. For lower bands, fit a
+zero-location Laplace scale b=mean(abs(detail)), zero coefficients whose
+absolute value exceeds T=-b*log(0.10), retain approximation, then inverse SWT.
+This is a two-sided tail proportion of 0.10. The rendered disclosure's quantile
+equation has a sign/order inconsistency when log(delta)<0; the implementation
+uses ordered negative/positive quantiles and tests their tail probability.
+
+Explicit adapter conventions: nearest power-of-two analysis rate with polyphase
+resampling; four seconds of reflection at each edge plus divisibility padding;
+estimate b on the transformed original eight-second core, excluding padding.
+The disclosure permits padding but does not specify this extent/mode or this
+core-only estimator. PyWavelets SWT/ISWT uses norm=False and coefficient order
+AJ,DJ … A1,D1. [Backend documentation](https://pywavelets.readthedocs.io/en/latest/ref/swt-stationary-wavelet-transform.html).
+
+This is not Chen et al.'s Gaussian-mixture SWT method, which used a 400-second
+estimation window. [Chen full paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC5413204/).
+
+### Spike reduction for PPG and SC
+
+Standard centered seven-sample Hampel replacement: local median, scale
+1.4826*median(abs(x-median)), replace samples beyond three scales by the median.
+Three future samples are required. Endpoint reflection is internal. A zero
+local MAD replaces values different from the local median.
+
+[HeartPy author documentation](https://python-heart-rate-analysis-toolkit.readthedocs.io/en/latest/algorithmfunctioning.html)
+documents Hampel filtering and separately warns about its one-second
+median-subtraction corrector. We implement replacement, without that detrending
+step. SC use is a general robust-filter application, not a claim that HeartPy
+validated these SC parameters. It targets narrow impulses; it does not promise
+to reconstruct prolonged contact loss or separate motion from physiology.
+
+## Timing and common baseline/live processing
+
+- Hampel emits only points with three real future samples: about 23.4 ms at
+  128 Hz PPG or 93.8 ms at 32 Hz SC, plus transport and rendering time. The first
+  output waits for seven samples. The last three remain pending for future data.
+- Wavelet initially buffers eight seconds, emits that reconstructed window,
+  then finalizes the latest one-second interval from each trailing window.
+  Unfinished hops wait for more input. Startup backfill therefore contains
+  samples up to eight seconds old; steady-state delivery occurs in one-second
+  batches, not with zero latency. Emitted samples are never revised.
+- Original and processed waveforms are emitted together at identical original
+  acquisition timestamps. Padding is never displayed as acquired data. Both
+  traces wait for the reducer; time labels are not shifted to hide the delay.
+- Metrics use each observation's source window end, converted from LSL to the
+  GUI's monotonic clock. Availability time is retained separately. EI uses the
+  latest of its two input times; Affect retains source timing. Existing metric
+  analysis windows and cvxEDA computation add their own availability delay.
+  This alignment does not remove filter phase effects or imply synchronized
+  HR/SCL analysis windows.
+- BSL replay uses the same Processor and selected reduction/filter settings as
+  live analysis. Only emitted SC samples/timestamps reach cvxEDA. Pending tail
+  samples remain in the saved original recording. Mode/version are recorded in
+  source preprocessing metadata; changing mode invalidates incompatible BSL
+  references. Record or load a matching baseline after choosing processing.
+- A source gap resets reducer and filter history; no interpolation across gaps.
+  PyWavelets is pinned to 1.10.0. Rerun setup after pulling this dependency.
+
+## Verification and limits
+
+Independent SURE-risk and Laplace-tail checks; bulk versus 17-sample chunk
+invariance; exact original samples/timestamps; warmup/tail handling; bounded
+context; gap reset; baseline waveform/time parity; Designer controls; delayed
+metric history; actual simultaneous PPG/SC LSL acquisition are covered by tests.
+
+Matched 16-second synthetic noise-plus-two-sample-spike fixture (seed 2):
+
+| Signal / tool | Input RMSE | Output RMSE |
+| --- | ---: | ---: |
+| PPG Hampel | 0.1519 | 0.1165 |
+| PPG wavelet | 0.1520 | 0.0828 |
+| SC Hampel | 0.1879 | 0.0192 |
+| SC wavelet | 0.1874 | 0.0266 |
+
+These synthetic units/fixtures establish neither clinical nor real-motion
+efficacy. Artifact attenuation is incomplete. On a clean 24-second synthetic
+PPG, Hampel left the waveform unchanged; wavelet RMSE was 0.0252, preserved all
+29 detected beats and changed peak timing by at most one sample (128 Hz).
+Constant SC was preserved to numerical precision. A genuine synthetic SCR
+(0.7-second rise, 3-second decay) was attenuated: wavelet peak above 3 µS fell
+from 0.5178 to 0.4315 µS, about 16.7%; whole-signal RMSE was 0.0503 µS.
+Hampel left this SCR unchanged. This is why wavelet remains optional and marked
+experimental; it can alter genuine physiological morphology.
+
+On this PC, 25 eight-second block repetitions measured median/p95 runtimes
+of 0.64/0.71 ms for PPG at 128 Hz and 8.36/8.57 ms for SC at 32 Hz, below the
+one-second update interval. These are local processing benchmarks, not a
+guarantee of latency on another PC or with other concurrent workloads.
+
+Remaining: compare against reference implementations/data where available;
+validate on matched real clean/artifact recordings and target hardware, assess
+SCR morphology and HR/SCL/EI bias, and review boundary/window sensitivity.
+No automatic claim of signal quality or successful artifact removal is made.

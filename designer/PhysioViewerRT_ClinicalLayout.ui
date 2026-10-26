@@ -815,6 +815,39 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                     </item>
                    </layout>
                   </item>
+                  <item>
+                   <layout class="QHBoxLayout" name="PPGArtifactRow">
+                    <item>
+                     <widget class="QLabel" name="PPGArtifactLabel">
+                      <property name="text">
+                       <string>Artifact reduction</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="PPGArtifactReduction">
+                      <property name="toolTip">
+                       <string>Waveform reduction before filtering. Hampel: 3-sample lookahead. Wavelet: 8-second initial buffer, then 1-second updates. Original samples/timestamps are preserved. Changing this setting restarts the stream; BSL must use matching processing. Wavelet streaming is an adaptation of the cited research; see docs/PERIPHERAL_REDUCTION_EVIDENCE.md. Wavelet reconstruction can attenuate genuine physiological features; keep Off unless the trade-off is appropriate for the recording.</string>
+                      </property>
+                      <item>
+                       <property name="text">
+                        <string>Off</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Spike reduction (Hampel)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Wavelet (8 s · experimental)</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                   </layout>
+                  </item>
                  </layout>
                 </widget>
                </item>
@@ -1013,6 +1046,39 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                        </size>
                       </property>
                      </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <layout class="QHBoxLayout" name="EDAArtifactRow">
+                    <item>
+                     <widget class="QLabel" name="EDAArtifactLabel">
+                      <property name="text">
+                       <string>Artifact reduction</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="EDAArtifactReduction">
+                      <property name="toolTip">
+                       <string>Waveform reduction before filtering. Hampel: 3-sample lookahead. Wavelet: 8-second initial buffer, then 1-second updates. Original samples/timestamps are preserved. Changing this setting restarts the stream; BSL must use matching processing. Wavelet streaming is an adaptation of the cited research; see docs/PERIPHERAL_REDUCTION_EVIDENCE.md. Wavelet reconstruction can attenuate genuine physiological features; keep Off unless the trade-off is appropriate for the recording.</string>
+                      </property>
+                      <item>
+                       <property name="text">
+                        <string>Off</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Spike reduction (Hampel)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Wavelet (8 s · experimental)</string>
+                       </property>
+                      </item>
+                     </widget>
                     </item>
                    </layout>
                   </item>
