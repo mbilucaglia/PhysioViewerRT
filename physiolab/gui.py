@@ -43,7 +43,7 @@ from .affect_state import AffectState
 from .affect_widgets import AffectView
 from .asr_widgets import ASRControls
 from .asr_quality import training_report
-from .flow_layout import install_designer_flows, install_flow, AdaptiveCardRow, fit_scroll_page
+from .flow_layout import install_designer_flows, install_flow, AdaptiveCardRow, fit_scroll_page, AdaptiveRawWorkspace
 from .ui_icons import set_action
 from .asr_session import ASRSession
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
@@ -126,6 +126,8 @@ class MainWindow(QMainWindow):
         for scroll in self.findChildren(QScrollArea):
             if scroll.property("fitViewport"):
                 fit_scroll_page(scroll)
+        self._raw_workspace = AdaptiveRawWorkspace(
+            self._required_ui("rawDataTabScroll", QScrollArea).viewport(), self.raw_plot_splitter)
         self.update_metrics_availability()
         # Raw data reduction runs off the GUI thread; painting remains here.
         # Prefer GPU on normal desktop sessions when the optional VisPy
@@ -582,7 +584,11 @@ class MainWindow(QMainWindow):
         self.raw_plot_splitter.setHandleWidth(9)
         self.raw_plot_splitter.setStretchFactor(0, 4)
         self.raw_plot_splitter.setStretchFactor(1, 1)
-        self.raw_plot_splitter.setStretchFactor(2, 1)
+        self.raw_peripheral_splitter = self._required_ui('rawPeripheralSplitter', QSplitter)
+        self.raw_peripheral_splitter.setChildrenCollapsible(False)
+        self.raw_peripheral_splitter.setHandleWidth(9)
+        self.raw_peripheral_splitter.setStretchFactor(0, 1)
+        self.raw_peripheral_splitter.setStretchFactor(1, 1)
         self.raw_focus_buttons = {}
         self.focused_raw_kind = None
         for kind in ('EEG', 'PPG', 'EDA'):
@@ -637,7 +643,8 @@ class MainWindow(QMainWindow):
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/self.settings.gain_step))
             self._required_ui(f'{kind}AmplitudePlus', QPushButton).clicked.connect(
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, self.settings.gain_step))
-        self.raw_plot_splitter.setSizes([560, 190, 190])
+        self.raw_plot_splitter.setSizes([720, 360])
+        self.raw_peripheral_splitter.setSizes([240, 240])
         # No scroll area: the splitter shares the available screen height.
         self.raw_scroll = QScrollArea(self)
         self.raw_scroll.hide()  # Compatibility event source; not part of the layout.
@@ -846,6 +853,7 @@ class MainWindow(QMainWindow):
             set_action(button, 'Show all' if selected else 'Expand', 'collapse' if selected else 'expand')
             self._required_ui(f'{modality}PlotPanel', QWidget).setVisible(
                 self.focused_raw_kind is None or selected)
+        self.raw_peripheral_splitter.setVisible(self.focused_raw_kind != 'EEG')
         if not focused and hasattr(self, '_raw_splitter_sizes'):
             self.raw_plot_splitter.setSizes(self._raw_splitter_sizes)
         self.raw_display.dirty = True

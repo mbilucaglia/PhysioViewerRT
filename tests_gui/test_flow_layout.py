@@ -87,3 +87,31 @@ class FlowLayoutTests(unittest.TestCase):
             scroll.close()
             scroll.deleteLater()
             self.app.processEvents()
+
+
+    def test_raw_workspace_switches_orientation_without_replacing_panels(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QSplitter
+        from physiolab.flow_layout import AdaptiveRawWorkspace
+        viewport = QWidget()
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        panels = [QWidget(), QWidget()]
+        for panel in panels:
+            panel.setMinimumWidth(200)
+            splitter.addWidget(panel)
+        controller = AdaptiveRawWorkspace(viewport, splitter)
+        viewport.show()
+        try:
+            for width, expected in ((1600, Qt.Orientation.Horizontal),
+                                    (800, Qt.Orientation.Vertical),
+                                    (1600, Qt.Orientation.Horizontal)):
+                viewport.resize(width, 800)
+                self.app.processEvents()
+                self.assertEqual(splitter.orientation(), expected)
+                self.assertEqual([splitter.widget(i) for i in range(2)], panels)
+        finally:
+            viewport.close()
+            splitter.close()
+            viewport.deleteLater()
+            splitter.deleteLater()
+            self.app.processEvents()

@@ -167,3 +167,27 @@ def minimum_layout_height(layout, width):
     else:
         height = sum(minimum_item_height(item, width) for item, _ in items) + gaps
     return margins.top() + margins.bottom() + height
+
+
+class AdaptiveRawWorkspace(QObject):
+    """Wide EEG/peripheral columns; vertical signal stack on narrow viewports."""
+    def __init__(self, viewport, splitter):
+        super().__init__(viewport)
+        self.viewport, self.splitter = viewport, splitter
+        viewport.installEventFilter(self)
+        self.reflow()
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.Resize:
+            self.reflow()
+        return super().eventFilter(watched, event)
+
+    def reflow(self):
+        required = max(1100, sum(self.splitter.widget(i).minimumSizeHint().width()
+                                for i in range(self.splitter.count())) + 48)
+        horizontal = self.viewport.width() >= required
+        orientation = Qt.Orientation.Horizontal if horizontal else Qt.Orientation.Vertical
+        if self.splitter.orientation() != orientation:
+            self.splitter.setOrientation(orientation)
+            span = self.viewport.width() if horizontal else self.viewport.height()
+            self.splitter.setSizes([int(span * .68), int(span * .32)])

@@ -65,6 +65,8 @@ QFrame#EEGASRPanel { border: none; background: transparent; }
 QTabBar::tab { padding: 8px 18px; }
 
 QPushButton#rawPlotPause, QPushButton#metricsPlotPause { color: #312b79; background: #eeecfa; border-color: #d4ceee; font-weight: 600; }
+
+QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 8px; padding: 4px; }
 </string>
   </property>
   <property name="geometry">
@@ -1225,12 +1227,12 @@ QPushButton#rawPlotPause, QPushButton#metricsPlotPause { color: #312b79; backgro
                <bool>true</bool>
               </property>
               <property name="text">
-               <string>Live waveforms · Adjust the time window and display gain. Drag the dividers to resize each signal panel.</string>
+               <string>Live waveforms · EEG alongside PPG and SC on wide screens. Drag dividers or expand a signal.</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QWidget" name="rawToolbarHost">
+             <widget class="QFrame" name="rawToolbarHost">
               <property name="wrapControls" stdset="0">
                <bool>true</bool>
               </property>
@@ -1520,7 +1522,7 @@ QPushButton#rawPlotPause, QPushButton#metricsPlotPause { color: #312b79; backgro
             <item>
              <widget class="QSplitter" name="rawPlotSplitter">
               <property name="orientation">
-               <enum>Qt::Vertical</enum>
+               <enum>Qt::Horizontal</enum>
               </property>
               <widget class="QWidget" name="EEGPlotPanel">
                <layout class="QVBoxLayout" name="EEGPlotLayout">
@@ -1528,146 +1530,202 @@ QPushButton#rawPlotPause, QPushButton#metricsPlotPause { color: #312b79; backgro
                  <number>10</number>
                 </property>
                 <item>
-                 <layout class="QHBoxLayout" name="EEGPlotHeader">
-                  <property name="spacing">
-                   <number>10</number>
+                 <widget class="QWidget" name="EEGPlotHeaderHost">
+                  <property name="wrapControls" stdset="0">
+                   <bool>true</bool>
                   </property>
-                  <item>
-                   <widget class="QLabel" name="EEGPlotTitle">
-                    <property name="text">
-                     <string>EEG  /  Brain activity</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QToolButton" name="EEGExpand">
-                    <property name="text">
-                     <string>Expand</string>
-                    </property>
-                    <property name="checkable">
-                     <bool>true</bool>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/expand.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="EEGAmplitudeLabel">
-                    <property name="text">
-                     <string>Gain</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="EEGAmplitudeMinus">
-                    <property name="toolTip">
-                     <string>Decrease display gain</string>
-                    </property>
-                    <property name="text">
-                     <string />
-                    </property>
-                    <property name="minimumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/minus.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QDoubleSpinBox" name="EEGAmplitude">
-                    <property name="toolTip">
-                     <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
-                    </property>
-                    <property name="suffix">
-                     <string>×</string>
-                    </property>
-                    <property name="minimum">
-                     <double>0.050000000000000</double>
-                    </property>
-                    <property name="maximum">
-                     <double>50.000000000000000</double>
-                    </property>
-                    <property name="value">
-                     <double>1.000000000000000</double>
-                    </property>
-                    <property name="minimumWidth">
-                     <number>82</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>92</number>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QToolButton" name="EEGAutoscale">
-                    <property name="text">
-                     <string>Autoscale</string>
-                    </property>
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/autoscale.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="EEGAmplitudePlus">
-                    <property name="toolTip">
-                     <string>Increase display gain</string>
-                    </property>
-                    <property name="text">
-                     <string />
-                    </property>
-                    <property name="minimumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/plus.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
+                  <layout class="QGridLayout" name="EEGPlotHeaderGrid">
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item row="0" column="0">
+                    <widget class="QWidget" name="EEGPlotHeaderGroup0">
+                     <layout class="QHBoxLayout" name="EEGPlotHeaderGroup0Layout">
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="spacing">
+                       <number>6</number>
+                      </property>
+                      <item>
+                       <widget class="QLabel" name="EEGPlotTitle">
+                        <property name="text">
+                         <string>EEG  /  Brain activity</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QToolButton" name="EEGExpand">
+                        <property name="text">
+                         <string>Expand</string>
+                        </property>
+                        <property name="checkable">
+                         <bool>true</bool>
+                        </property>
+                        <property name="icon">
+                         <iconset>
+                          <normaloff>../assets/icons/expand.svg</normaloff>
+                         </iconset>
+                        </property>
+                        <property name="iconSize">
+                         <size>
+                          <width>16</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                   <item row="0" column="1">
+                    <widget class="QWidget" name="EEGPlotHeaderGroup1">
+                     <layout class="QHBoxLayout" name="EEGPlotHeader">
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="spacing">
+                       <number>6</number>
+                      </property>
+                      <item>
+                       <widget class="QLabel" name="EEGAmplitudeLabel">
+                        <property name="text">
+                         <string>Gain</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="EEGAmplitudeMinus">
+                        <property name="toolTip">
+                         <string>Decrease display gain</string>
+                        </property>
+                        <property name="text">
+                         <string />
+                        </property>
+                        <property name="minimumWidth">
+                         <number>32</number>
+                        </property>
+                        <property name="maximumWidth">
+                         <number>32</number>
+                        </property>
+                        <property name="icon">
+                         <iconset>
+                          <normaloff>../assets/icons/minus.svg</normaloff>
+                         </iconset>
+                        </property>
+                        <property name="iconSize">
+                         <size>
+                          <width>16</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDoubleSpinBox" name="EEGAmplitude">
+                        <property name="toolTip">
+                         <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                        </property>
+                        <property name="suffix">
+                         <string>×</string>
+                        </property>
+                        <property name="minimum">
+                         <double>0.050000000000000</double>
+                        </property>
+                        <property name="maximum">
+                         <double>50.000000000000000</double>
+                        </property>
+                        <property name="value">
+                         <double>1.000000000000000</double>
+                        </property>
+                        <property name="minimumWidth">
+                         <number>82</number>
+                        </property>
+                        <property name="maximumWidth">
+                         <number>92</number>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QToolButton" name="EEGAutoscale">
+                        <property name="text">
+                         <string>Autoscale</string>
+                        </property>
+                        <property name="enabled">
+                         <bool>false</bool>
+                        </property>
+                        <property name="icon">
+                         <iconset>
+                          <normaloff>../assets/icons/autoscale.svg</normaloff>
+                         </iconset>
+                        </property>
+                        <property name="iconSize">
+                         <size>
+                          <width>16</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="EEGAmplitudePlus">
+                        <property name="toolTip">
+                         <string>Increase display gain</string>
+                        </property>
+                        <property name="text">
+                         <string />
+                        </property>
+                        <property name="minimumWidth">
+                         <number>32</number>
+                        </property>
+                        <property name="maximumWidth">
+                         <number>32</number>
+                        </property>
+                        <property name="icon">
+                         <iconset>
+                          <normaloff>../assets/icons/plus.svg</normaloff>
+                         </iconset>
+                        </property>
+                        <property name="iconSize">
+                         <size>
+                          <width>16</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
                 </item>
                 <item>
                  <widget class="QFrame" name="EEGPlotHost">
@@ -1684,329 +1742,446 @@ QPushButton#rawPlotPause, QPushButton#metricsPlotPause { color: #312b79; backgro
                 </item>
                </layout>
               </widget>
-              <widget class="QWidget" name="PPGPlotPanel">
-               <layout class="QVBoxLayout" name="PPGPlotLayout">
-                <property name="spacing">
-                 <number>10</number>
-                </property>
-                <item>
-                 <layout class="QHBoxLayout" name="PPGPlotHeader">
-                  <property name="spacing">
-                   <number>10</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="PPGPlotTitle">
-                    <property name="text">
-                     <string>PPG  /  Pulse waveform</string>
+              <widget class="QSplitter" name="rawPeripheralSplitter">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <widget class="QWidget" name="PPGPlotPanel">
+                <layout class="QVBoxLayout" name="PPGPlotLayout">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QWidget" name="PPGPlotHeaderHost">
+                   <property name="wrapControls" stdset="0">
+                    <bool>true</bool>
+                   </property>
+                   <layout class="QGridLayout" name="PPGPlotHeaderGrid">
+                    <property name="leftMargin">
+                     <number>0</number>
                     </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QToolButton" name="PPGExpand">
-                    <property name="text">
-                     <string>Expand</string>
+                    <property name="topMargin">
+                     <number>0</number>
                     </property>
-                    <property name="checkable">
-                     <bool>true</bool>
+                    <property name="rightMargin">
+                     <number>0</number>
                     </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/expand.svg</normaloff>
-                     </iconset>
+                    <property name="bottomMargin">
+                     <number>0</number>
                     </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
+                    <item row="0" column="0">
+                     <widget class="QWidget" name="PPGPlotHeaderGroup0">
+                      <layout class="QHBoxLayout" name="PPGPlotHeaderGroup0Layout">
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="spacing">
+                        <number>6</number>
+                       </property>
+                       <item>
+                        <widget class="QLabel" name="PPGPlotTitle">
+                         <property name="text">
+                          <string>PPG  /  Pulse waveform</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QToolButton" name="PPGExpand">
+                         <property name="text">
+                          <string>Expand</string>
+                         </property>
+                         <property name="checkable">
+                          <bool>true</bool>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/expand.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item row="0" column="1">
+                     <widget class="QWidget" name="PPGPlotHeaderGroup1">
+                      <layout class="QHBoxLayout" name="PPGPlotHeader">
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="spacing">
+                        <number>6</number>
+                       </property>
+                       <item>
+                        <widget class="QLabel" name="PPGAmplitudeLabel">
+                         <property name="text">
+                          <string>Gain</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QPushButton" name="PPGAmplitudeMinus">
+                         <property name="toolTip">
+                          <string>Decrease display gain</string>
+                         </property>
+                         <property name="text">
+                          <string />
+                         </property>
+                         <property name="minimumWidth">
+                          <number>32</number>
+                         </property>
+                         <property name="maximumWidth">
+                          <number>32</number>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/minus.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QDoubleSpinBox" name="PPGAmplitude">
+                         <property name="toolTip">
+                          <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                         </property>
+                         <property name="suffix">
+                          <string>×</string>
+                         </property>
+                         <property name="minimum">
+                          <double>0.050000000000000</double>
+                         </property>
+                         <property name="maximum">
+                          <double>50.000000000000000</double>
+                         </property>
+                         <property name="value">
+                          <double>1.000000000000000</double>
+                         </property>
+                         <property name="minimumWidth">
+                          <number>82</number>
+                         </property>
+                         <property name="maximumWidth">
+                          <number>92</number>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QToolButton" name="PPGAutoscale">
+                         <property name="text">
+                          <string>Autoscale</string>
+                         </property>
+                         <property name="enabled">
+                          <bool>false</bool>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/autoscale.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QPushButton" name="PPGAmplitudePlus">
+                         <property name="toolTip">
+                          <string>Increase display gain</string>
+                         </property>
+                         <property name="text">
+                          <string />
+                         </property>
+                         <property name="minimumWidth">
+                          <number>32</number>
+                         </property>
+                         <property name="maximumWidth">
+                          <number>32</number>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/plus.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QFrame" name="PPGPlotHost">
+                   <property name="toolTip">
+                    <string>Live signal display. Use the header controls to adjust display gain.</string>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>0</width>
+                     <height>122</height>
+                    </size>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+               <widget class="QWidget" name="EDAPlotPanel">
+                <layout class="QVBoxLayout" name="EDAPlotLayout">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QWidget" name="EDAPlotHeaderHost">
+                   <property name="wrapControls" stdset="0">
+                    <bool>true</bool>
+                   </property>
+                   <layout class="QGridLayout" name="EDAPlotHeaderGrid">
+                    <property name="leftMargin">
+                     <number>0</number>
                     </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="PPGAmplitudeLabel">
-                    <property name="text">
-                     <string>Gain</string>
+                    <property name="topMargin">
+                     <number>0</number>
                     </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="PPGAmplitudeMinus">
-                    <property name="toolTip">
-                     <string>Decrease display gain</string>
+                    <property name="rightMargin">
+                     <number>0</number>
                     </property>
-                    <property name="text">
-                     <string />
+                    <property name="bottomMargin">
+                     <number>0</number>
                     </property>
-                    <property name="minimumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/minus.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QDoubleSpinBox" name="PPGAmplitude">
-                    <property name="toolTip">
-                     <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
-                    </property>
-                    <property name="suffix">
-                     <string>×</string>
-                    </property>
-                    <property name="minimum">
-                     <double>0.050000000000000</double>
-                    </property>
-                    <property name="maximum">
-                     <double>50.000000000000000</double>
-                    </property>
-                    <property name="value">
-                     <double>1.000000000000000</double>
-                    </property>
-                    <property name="minimumWidth">
-                     <number>82</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>92</number>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QToolButton" name="PPGAutoscale">
-                    <property name="text">
-                     <string>Autoscale</string>
-                    </property>
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/autoscale.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="PPGAmplitudePlus">
-                    <property name="toolTip">
-                     <string>Increase display gain</string>
-                    </property>
-                    <property name="text">
-                     <string />
-                    </property>
-                    <property name="minimumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/plus.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </item>
-                <item>
-                 <widget class="QFrame" name="PPGPlotHost">
-                  <property name="toolTip">
-                   <string>Live signal display. Use the header controls to adjust display gain.</string>
-                  </property>
-                  <property name="minimumSize">
-                   <size>
-                    <width>0</width>
-                    <height>122</height>
-                   </size>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-              <widget class="QWidget" name="EDAPlotPanel">
-               <layout class="QVBoxLayout" name="EDAPlotLayout">
-                <property name="spacing">
-                 <number>10</number>
-                </property>
-                <item>
-                 <layout class="QHBoxLayout" name="EDAPlotHeader">
-                  <property name="spacing">
-                   <number>10</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="EDAPlotTitle">
-                    <property name="text">
-                     <string>SC  /  Skin conductance</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QToolButton" name="EDAExpand">
-                    <property name="text">
-                     <string>Expand</string>
-                    </property>
-                    <property name="checkable">
-                     <bool>true</bool>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/expand.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="EDAAmplitudeLabel">
-                    <property name="text">
-                     <string>Gain</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="EDAAmplitudeMinus">
-                    <property name="toolTip">
-                     <string>Decrease display gain</string>
-                    </property>
-                    <property name="text">
-                     <string />
-                    </property>
-                    <property name="minimumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/minus.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QDoubleSpinBox" name="EDAAmplitude">
-                    <property name="toolTip">
-                     <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
-                    </property>
-                    <property name="suffix">
-                     <string>×</string>
-                    </property>
-                    <property name="minimum">
-                     <double>0.050000000000000</double>
-                    </property>
-                    <property name="maximum">
-                     <double>50.000000000000000</double>
-                    </property>
-                    <property name="value">
-                     <double>1.000000000000000</double>
-                    </property>
-                    <property name="minimumWidth">
-                     <number>82</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>92</number>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QToolButton" name="EDAAutoscale">
-                    <property name="text">
-                     <string>Autoscale</string>
-                    </property>
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/autoscale.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="EDAAmplitudePlus">
-                    <property name="toolTip">
-                     <string>Increase display gain</string>
-                    </property>
-                    <property name="text">
-                     <string />
-                    </property>
-                    <property name="minimumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="maximumWidth">
-                     <number>32</number>
-                    </property>
-                    <property name="icon">
-                     <iconset>
-                      <normaloff>../assets/icons/plus.svg</normaloff>
-                     </iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </item>
-                <item>
-                 <widget class="QFrame" name="EDAPlotHost">
-                  <property name="toolTip">
-                   <string>Live signal display. Use the header controls to adjust display gain.</string>
-                  </property>
-                  <property name="minimumSize">
-                   <size>
-                    <width>0</width>
-                    <height>122</height>
-                   </size>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
+                    <item row="0" column="0">
+                     <widget class="QWidget" name="EDAPlotHeaderGroup0">
+                      <layout class="QHBoxLayout" name="EDAPlotHeaderGroup0Layout">
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="spacing">
+                        <number>6</number>
+                       </property>
+                       <item>
+                        <widget class="QLabel" name="EDAPlotTitle">
+                         <property name="text">
+                          <string>SC  /  Skin conductance</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QToolButton" name="EDAExpand">
+                         <property name="text">
+                          <string>Expand</string>
+                         </property>
+                         <property name="checkable">
+                          <bool>true</bool>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/expand.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item row="0" column="1">
+                     <widget class="QWidget" name="EDAPlotHeaderGroup1">
+                      <layout class="QHBoxLayout" name="EDAPlotHeader">
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="spacing">
+                        <number>6</number>
+                       </property>
+                       <item>
+                        <widget class="QLabel" name="EDAAmplitudeLabel">
+                         <property name="text">
+                          <string>Gain</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QPushButton" name="EDAAmplitudeMinus">
+                         <property name="toolTip">
+                          <string>Decrease display gain</string>
+                         </property>
+                         <property name="text">
+                          <string />
+                         </property>
+                         <property name="minimumWidth">
+                          <number>32</number>
+                         </property>
+                         <property name="maximumWidth">
+                          <number>32</number>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/minus.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QDoubleSpinBox" name="EDAAmplitude">
+                         <property name="toolTip">
+                          <string>Display gain only. Higher values enlarge the waveform without changing incoming samples.</string>
+                         </property>
+                         <property name="suffix">
+                          <string>×</string>
+                         </property>
+                         <property name="minimum">
+                          <double>0.050000000000000</double>
+                         </property>
+                         <property name="maximum">
+                          <double>50.000000000000000</double>
+                         </property>
+                         <property name="value">
+                          <double>1.000000000000000</double>
+                         </property>
+                         <property name="minimumWidth">
+                          <number>82</number>
+                         </property>
+                         <property name="maximumWidth">
+                          <number>92</number>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QToolButton" name="EDAAutoscale">
+                         <property name="text">
+                          <string>Autoscale</string>
+                         </property>
+                         <property name="enabled">
+                          <bool>false</bool>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/autoscale.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QPushButton" name="EDAAmplitudePlus">
+                         <property name="toolTip">
+                          <string>Increase display gain</string>
+                         </property>
+                         <property name="text">
+                          <string />
+                         </property>
+                         <property name="minimumWidth">
+                          <number>32</number>
+                         </property>
+                         <property name="maximumWidth">
+                          <number>32</number>
+                         </property>
+                         <property name="icon">
+                          <iconset>
+                           <normaloff>../assets/icons/plus.svg</normaloff>
+                          </iconset>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>16</width>
+                           <height>16</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QFrame" name="EDAPlotHost">
+                   <property name="toolTip">
+                    <string>Live signal display. Use the header controls to adjust display gain.</string>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>0</width>
+                     <height>122</height>
+                    </size>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
               </widget>
              </widget>
             </item>

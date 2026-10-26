@@ -216,3 +216,17 @@ The measures, statistical assumptions and presentation still need discussion.
       metadata-wait cancellation and independent stream Stop controls.
 - Validation: complete GUI/LSL suite 95 tests, 93 passed and two native
       OpenGL checks skipped in offscreen mode; native three-stream checks passed.
+
+
+## Raw Data workspace arrangement — 26 October 2026
+
+- [x] Wide windows show EEG on the left and PPG/SC stacked on the right.
+      Narrow viewports switch to a vertical stack; dividers remain adjustable.
+      The nested splitters and grouped headers are defined in Qt Designer.
+- [x] Keep plot title/Expand and gain/Autoscale controls together, removing the
+      large gap between the gain label and its buttons. Group the shared toolbar
+      in a compact card; preserve Play/Pause and all named controls.
+- Native check with all three synthetic streams: 32 EEG channels processed,
+      eight displayed; Expand/Restore for EEG/PPG/SC passed, all receivers stayed
+      active, no maximized horizontal or vertical scrolling. Captured wide and
+      1024×700 live previews. GUI smoke/flow checks passed.

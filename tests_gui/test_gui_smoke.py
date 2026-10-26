@@ -551,7 +551,11 @@ class GuiSmokeTests(unittest.TestCase):
             ['Sources', 'Raw Data', 'Metrics', 'Affect']
         )
         self.assertIsInstance(self.window.raw_plot_splitter, QSplitter)
-        self.assertEqual(self.window.raw_plot_splitter.count(), 3)
+        self.assertEqual(self.window.raw_plot_splitter.count(), 2)
+        self.assertEqual(self.window.raw_peripheral_splitter.count(), 2)
+        self.assertEqual(self.window.raw_plot_splitter.widget(0).objectName(), 'EEGPlotPanel')
+        self.assertEqual(self.window.raw_peripheral_splitter.widget(0).objectName(), 'PPGPlotPanel')
+        self.assertEqual(self.window.raw_peripheral_splitter.widget(1).objectName(), 'EDAPlotPanel')
         self.assertEqual(
             self.window.raw_scroll.verticalScrollBarPolicy(),
             __import__('PySide6.QtCore', fromlist=['Qt']).Qt.ScrollBarPolicy.ScrollBarAlwaysOff
