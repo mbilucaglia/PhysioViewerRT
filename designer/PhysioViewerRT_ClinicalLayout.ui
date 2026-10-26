@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <ui version="4.0">
  <class>PhysioViewerClinicalLayout</class>
  <widget class="QMainWindow" name="PhysioViewerClinicalLayout">
@@ -1387,6 +1387,13 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                     </property>
                     <property name="minimumWidth">
                      <number>90</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="rawASRStatus">
+                    <property name="text">
+                     <string>● ASR idle</string>
                     </property>
                    </widget>
                   </item>
@@ -3132,7 +3139,7 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      <bool>true</bool>
                     </property>
                     <property name="toolTip">
-                     <string>Expand the range to include new values. Use Fit to tighten the visible range.</string>
+                     <string>Continuously fit vertical limits. Turn off to hold the range; Fit adjusts once; −/+ use manual zoom.</string>
                     </property>
                    </widget>
                   </item>

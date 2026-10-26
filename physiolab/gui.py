@@ -47,6 +47,7 @@ from .panel_arrangement import PanelArrangement
 from .flow_layout import install_designer_flows, install_flow, fit_scroll_page, AdaptiveRawWorkspace
 from .ui_icons import set_action, set_panel_expanded, set_view_paused
 from .asr_session import ASRSession
+from .asr_runtime import asr_runtime_state
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
 from .desktop_widgets import CheckChannelDropdown, CalibrationScreen, ResponsiveSources
@@ -492,6 +493,12 @@ class MainWindow(QMainWindow):
                 or not np.isclose(analysis.get('iaf_hz_used', self.iaf_hz), self.iaf_hz)
                 or (self.asr_session.enabled and 'asr_model_id' not in configurations.get('EEG', {}))):
             references.pop('EEG', None)
+        metadata = analysis.get('tonic_sc') or {}
+        if not (metadata.get('configuration_id') and
+                metadata['configuration_id'] == self._tonic_live_configuration):
+            references.pop('EDA', None)
+        if not (references.get('PPG', {}).get('HR') and references.get('EDA', {}).get('SCL')):
+            references.pop('EI', None)
         return references
 
     def refresh_affect_references(self):
@@ -499,7 +506,10 @@ class MainWindow(QMainWindow):
         metadata = analysis.get('tonic_sc') or {}
         compatible = bool(metadata.get('configuration_id') and
                           metadata['configuration_id'] == self._tonic_live_configuration)
-        self.affect_state.set_references(self.metric_references(), compatible)
+        references = self.metric_references()
+        self.affect_state.set_references(references, compatible)
+        self.metric_state.set_ei_references(
+            references.get('PPG', {}).get('HR'), references.get('EDA', {}).get('SCL'))
 
     def refresh_affect_view(self):
         self.sync_affect_sources()
@@ -517,14 +527,26 @@ class MainWindow(QMainWindow):
                 replace(response, status=tonic_status)
                 if response.key == 'peripheral' and response.status == 'Waiting for valid metric observations'
                 else response for response in snapshot.responses))
-        # EI keeps the original signed formula. Only convert its clock here;
-        # display normalization must never change positive/negative semantics.
-        ei_points = [(at+self._affect_clock_offset, value)
+        # Both views normalize the same retained raw EI exactly once.
+        ei_points = [(at+self._affect_clock_offset,
+                      self.displayed_value('EI', 'EI', value))
                      for at, value in self.metric_state.history.get(('EI', 'EI'), ())
                      if at+self._affect_clock_offset >= self._affect_clear_before]
         ei_status = (self.metric_state.latest.get('EI', {}).get('status')
                      or self.metric_state.ei_unavailable_reason())
+        if not self.metric_references().get('EI', {}).get('EI'):
+            ei_status = 'EI needs compatible BSL EI mean and variability'
+        ei_points = [(at, value if value is not None else float('nan')) for at, value in ei_points]
         self.affect_view.update_snapshot(snapshot, ei_points, now, ei_status=ei_status)
+        if self.affect_view.pause.isChecked():
+            return
+        estimator = self.metric_state.ei
+        if estimator.value() is not None:
+            h = (estimator.latest['HR'][1]-estimator.hr_reference['mu'])/estimator.hr_reference['sigma']
+            g = (estimator.latest['SCL'][1]-estimator.scl_reference['mu'])/estimator.scl_reference['sigma']
+            self.affect_view.ei_diagnostics.setText(f'HRz {h:+.2f} · SCLz {g:+.2f} · raw EI {estimator.value():+.3f}')
+        else:
+            self.affect_view.ei_diagnostics.setText('Awaiting compatible HR and tonic SCL')
 
     def _fill_combo(self, combo, options):
         combo.blockSignals(True)
@@ -619,6 +641,8 @@ class MainWindow(QMainWindow):
             lambda: self.zoom_raw_plots(2.))
         self._required_ui('rawZoomPlus', QPushButton).clicked.connect(
             lambda: self.zoom_raw_plots(.5))
+        self.raw_asr_status = self._required_ui('rawASRStatus', QLabel)
+        self._last_asr_indicator = None
         self.raw_live_button = self._required_ui('rawFollowLive', QPushButton)
         set_action(self.raw_live_button, 'Live', 'live')
         self.raw_live_button.clicked.connect(self.resume_raw_live)
@@ -807,6 +831,8 @@ class MainWindow(QMainWindow):
         self.raw_display.paused = False
         self.metric_plot_paused = False
         self.metric_y_auto = self._required_ui('metricsYAuto', QCheckBox)
+        self.metric_y_auto.setToolTip('Continuously fit the vertical range to visible metric values. '
+            'Turn off to hold the range; Fit adjusts it once; −/+ select a manual zoom.')
         self._metric_manual_y = None
         self.metric_y_auto.toggled.connect(self._metric_vertical_auto_changed)
         self._required_ui('metricsYOut', QToolButton).clicked.connect(lambda:self.zoom_metric_y(1.25))
@@ -1301,7 +1327,12 @@ class MainWindow(QMainWindow):
         for (kind, name), label in self.metric_labels.items():
             raw = self.metric_state.latest.get(kind, {}).get(name)
             value = self.displayed_value(kind, name, raw)
-            label.setText(f'{name}: {value:.3f}' if value is not None else f'{name}: —')
+            unit, detail = metric_amplitude_label(self.metric_definitions, {(kind, name)},
+                self.normalization.currentData(), self.raw_display.units)
+            if name == 'IAF':
+                unit = 'Hz'
+            label.setText(f'{name}: {value:.3f} {unit}' if value is not None else f'{name}: —')
+            label.setToolTip(detail)
             if name != 'IAF' and value is not None:
                 available.add(kind)
         for kind, label in self.metric_status.items():
@@ -1310,9 +1341,10 @@ class MainWindow(QMainWindow):
                 status = 'Updating EEG baseline references…'
             if kind == 'EI':
                 if kind in available:
-                    status = 'Live · original signed EI'
-                elif not status:
-                    status = self.metric_state.ei_unavailable_reason()
+                    status = 'Live · BSL EI z-score'
+                else:
+                    status = (self.metric_state.ei_unavailable_reason() if self.metric_state.ei.reference_problem()
+                              else 'EI needs compatible BSL EI mean and variability')
             if kind in available and (not status or status.startswith('Waiting for cvxEDA')):
                 status = 'Live' if self.normalization.currentData() == 'identity' else 'Live · BSL normalized'
             label.setText(status or 'Waiting for data')
@@ -1713,11 +1745,24 @@ class MainWindow(QMainWindow):
             self.refresh_metric_labels()
         self.performance.measure('ingress_gui', time.perf_counter() - started)
 
+    def refresh_asr_indicator(self, now):
+        worker = self.workers.get('EEG')
+        state, text, detail = asr_runtime_state(worker, now, 'EEG' in self.pending_source_changes)
+        signature = (state, text, detail)
+        if signature != self._last_asr_indicator:
+            color = {'idle': '#77768f', 'off': '#77768f', 'waiting': '#a56900',
+                     'bypassed': '#bd253b', 'on': '#00875a'}[state]
+            self.raw_asr_status.setText('● '+text)
+            self.raw_asr_status.setStyleSheet(f'color: {color}; font-weight: 600; padding: 4px;')
+            self.raw_asr_status.setToolTip(detail)
+            self._last_asr_indicator = signature
+
     def render_frame(self):
         started = time.perf_counter()
         now = time.monotonic()
         self.performance.measure('tick_delay', max(0., now - self._last_gui_tick - self.settings.timer_interval_ms / 1000.))
         self._last_gui_tick = now
+        self.refresh_asr_indicator(now)
         if not self._closing:
             # No GUI sample draining or rendering while a menu is open.
             # Source threads keep collecting into bounded mailboxes instead.
@@ -2125,11 +2170,7 @@ class MainWindow(QMainWindow):
         else:
             self.loaded_bsl = meta
             self.asr_session.set_baseline(meta.get('analysis'), streams, filename)
-            references = (meta.get('analysis') or {}).get('metrics', {})
-            self.metric_state.ei.set_references(
-                references.get('PPG', {}).get('HR'),
-                references.get('EDA', {}).get('SCL'),
-            )
+            # Compatible EI input references are reconciled below.
         self.set_calibration_file(kind, filename)
         self.calibration_state.setText(
             f"EYC: {self.iaf_hz:.2f} Hz"

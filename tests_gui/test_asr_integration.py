@@ -180,6 +180,8 @@ class ASRIntegrationTests(unittest.TestCase):
                 time.sleep(.01)
             self.assertFalse(errors, errors)
             self.assertEqual(receiver.asr_status, 'ASR active')
+            self.assertGreater(receiver.asr_processed_samples, 0)
+            self.assertLess(time.monotonic()-receiver.asr_last_processed_at, 2.)
             self.assertTrue(chunks)
             # Payload order is raw, processed, names, metrics, fs, times, arrival.
             raw = np.concatenate([c[0] for c in chunks])
@@ -302,6 +304,8 @@ class ASRIntegrationTests(unittest.TestCase):
                 missing = np.all(ring.positions[recent_slots] == -10., axis=(1, 2))
                 # One sweep-wrap boundary is intentionally disconnected.
                 self.assertLess(np.mean(missing), .02)
+            window.refresh_asr_indicator(time.monotonic())
+            self.assertEqual(window.raw_asr_status.text(), '● ASR ON')
             window.grab().save(os.path.abspath('.test-tmp/asr-toggle-fixed.png'))
             window.tabs.setCurrentWidget(window.metrics_page)
             publish(.7)

@@ -17,26 +17,34 @@ def metric_amplitude_label(definitions, visible_keys, normalization, source_unit
         'robust_iqr': ('σ (IQR)', 'Robust baseline scale: IQR / 1.349'),
         'minmax': ('norm.', 'Fraction of the fixed baseline min–max span (1 = full span)'),
     }
-    if normalization in normalized:
-        if ('EI', 'EI') in visible_keys:
-            if len(visible_keys) == 1:
-                return ARBITRARY_UNIT, 'Original signed Emotional Index'
-            return 'mixed units', normalized[normalization][1] + '; EI uses its original signed scale'
-        return normalized[normalization]
-    if normalization != 'identity':
+    if normalization != 'identity' and normalization not in normalized:
         raise ValueError('Unknown metric normalization mode')
-    labels = {}
+    labels, explanations = {}, {}
     for definition in definitions:
         if definition.key not in visible_keys:
             continue
-        unit = definition.unit
-        if unit == 'source units':
-            unit = source_units.get(definition.modality, ARBITRARY_UNIT)
-        labels[definition.key] = source_display_unit([unit])
+        if definition.modality == 'EI':
+            unit, detail = normalized['zscore']
+            detail = 'EI z-score against its own fixed BSL distribution'
+        elif definition.key == ('EEG', 'IAF'):
+            unit, detail = 'Hz', 'IAF calibration frequency'
+        elif normalization in normalized:
+            unit, detail = normalized[normalization]
+        else:
+            unit = definition.unit
+            if unit == 'source units':
+                unit = source_units.get(definition.modality, ARBITRARY_UNIT)
+            unit = source_display_unit([unit])
+            detail = 'Original metric value'
+        labels[definition.key] = unit
+        explanations[definition.key] = detail
     unique = set(labels.values())
-    unit = next(iter(unique)) if len(unique) == 1 else 'mixed units' if unique else ARBITRARY_UNIT
-    details = ', '.join(f'{modality_label(kind)}/{name}: {label}' for (kind, name), label in labels.items())
-    return unit, details or 'Original metric values; unavailable units use a.u.'
+    if not unique:
+        return normalized.get(normalization, (ARBITRARY_UNIT, 'Original metric values'))
+    unit = next(iter(unique)) if len(unique) == 1 else 'mixed units'
+    details = '; '.join(f'{modality_label(kind)}/{name}: {label} ({explanations[kind, name]})'
+                        for (kind, name), label in labels.items())
+    return unit, details
 
 
 

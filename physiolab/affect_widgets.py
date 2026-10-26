@@ -286,7 +286,9 @@ class EmotionalIndexPlot(QWidget):
         painter.setFont(font)
         painter.setPen(QColor(MUTED))
         painter.drawText(QRectF(0, 67, width, 24), Qt.AlignmentFlag.AlignCenter,
-                         'ORIGINAL EMOTIONAL INDEX')
+                         'BASELINE EI Z-SCORE')
+        extent = max(2., 1.1*max([abs(v) for _, v in self.points if math.isfinite(v)]
+                              + [abs(self.current) if self.current is not None else 0.]))
         gauge_y = 115.
         gradient = QLinearGradient(left, 0, right, 0)
         gradient.setColorAt(0., _color(NEGATIVE, .65))
@@ -298,14 +300,14 @@ class EmotionalIndexPlot(QWidget):
         painter.setPen(QPen(QColor('#b8b3ce'), 1.))
         painter.drawLine(QPointF(middle, gauge_y-7), QPointF(middle, gauge_y+18))
         if self.current is not None:
-            x = middle + self.current*(right-left)/2.
+            x = middle + self.current/extent*(right-left)/2.
             painter.setPen(QPen(Qt.GlobalColor.white, 3.))
             painter.setBrush(QColor(color))
             painter.drawEllipse(QPointF(x, gauge_y+5.5), 8., 8.)
         painter.setPen(QColor(NEGATIVE))
-        painter.drawText(QRectF(left, gauge_y+24, 95, 22), Qt.AlignmentFlag.AlignLeft, '−1 · Negative')
+        painter.drawText(QRectF(left, gauge_y+24, 95, 22), Qt.AlignmentFlag.AlignLeft, f'−{extent:.1f}')
         painter.setPen(QColor(POSITIVE))
-        painter.drawText(QRectF(right-95, gauge_y+24, 95, 22), Qt.AlignmentFlag.AlignRight, 'Positive · +1')
+        painter.drawText(QRectF(right-95, gauge_y+24, 95, 22), Qt.AlignmentFlag.AlignRight, f'+{extent:.1f}')
         painter.setPen(QColor(MUTED))
         painter.drawText(QRectF(middle-20, gauge_y+24, 40, 22), Qt.AlignmentFlag.AlignCenter, '0')
         top = 190.
@@ -328,7 +330,7 @@ class EmotionalIndexPlot(QWidget):
                 painter.setPen(QPen(QColor(POSITIVE if begin[1]+end[1] >= 0 else NEGATIVE), 2.))
                 def position(point):
                     return QPointF(right-(self.now-point[0])*(right-left)/self.retention,
-                                   center_y-point[1]*(bottom-top)/2.)
+                                   center_y-point[1]/extent*(bottom-top)/2.)
                 painter.drawLine(position(begin), position(end))
         painter.setPen(QColor(MUTED))
         painter.drawText(QRectF(left, bottom+5, 90, 20), f'−{self.retention:g} s')
@@ -447,12 +449,13 @@ class AffectView(QWidget):
             label.setToolTip(f'Valence: {x[1]} · Arousal: {y[1]}')
             self.readouts[key] = label
             plane_layout.addWidget(label)
+        self.ei_diagnostics = self.cards_splitter.findChild(QLabel, 'eiDiagnostics')
         self.ei_plot = EmotionalIndexPlot()
         ei_layout.addWidget(self.ei_plot, 1)
-        self.ei_status = self._label('Awaiting original EI observations', 'affectHint')
+        self.ei_status = self._label('Awaiting baseline EI observations', 'affectHint')
         self.ei_status.setWordWrap(True)
         ei_layout.addWidget(self.ei_status)
-        note = self._label('Zero is the numerical reference. EI is separate from valence and arousal.', 'affectHint')
+        note = self._label('0 = mean baseline EI. Values are baseline standard deviations.', 'affectHint')
         note.setWordWrap(True)
         ei_layout.addWidget(note)
         self.normalization.currentIndexChanged.connect(lambda: self.normalization_changed.emit(self.normalization.currentData()))
@@ -557,7 +560,7 @@ class AffectView(QWidget):
         for key, name, *_ in RESPONSE_DEFINITIONS:
             self.readouts[key].setText(f'●  {name}  ·  awaiting data')
             self.readouts[key].setToolTip('Awaiting fresh observations')
-        self.ei_status.setText('Awaiting fresh original EI observations')
+        self.ei_status.setText('Awaiting fresh baseline EI observations')
         self._update_range_label()
 
     def _clear(self):
@@ -583,8 +586,8 @@ class AffectView(QWidget):
                     f'{binding} · normalized with separate fixed baseline references\n'
                     f'Source timestamps: {point.source_times[0]:.3f}, {point.source_times[1]:.3f}\n'
                     f'Observation age: {max(0., now-point.at):.2f} s\n{response.status}')
-        self.ei_status.setText('Live · original signed EI' if self.ei_plot.current is not None
-                               else self._ei_reason or 'Awaiting fresh original EI observations')
+        self.ei_status.setText('Live · BSL EI z-score' if self.ei_plot.current is not None
+                               else self._ei_reason or 'Awaiting fresh baseline EI observations')
 
     def closeEvent(self, event):
         self.plane.close()

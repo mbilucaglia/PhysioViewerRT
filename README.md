@@ -13,16 +13,24 @@ then `start_windows.cmd`. In Sources, refresh LSL, select the source and channel
 for each modality, and press Play. Raw Data shows the live waveforms; gain,
 channel count, sweep duration, and plot pause change the display only.
 
-The Affect tab shows Central/Peripheral trajectories and the original signed
-Emotional Index. Record or load EYC and BSL first. SC decomposition starts on the
+The Affect tab shows Central/Peripheral trajectories and Emotional Index
+z-scored against its own fixed baseline EI distribution. Record or load EYC and BSL first. SC decomposition starts on the
 first one-second update, using the available history without edge exclusion. See [Affect visualization](docs/AFFECT_VISUALIZATION_DESIGN.md).
 
 Metrics exposes one **SCL**, the tonic cvxEDA result. EI and the Peripheral
 response use that same decomposed SCL and matching baseline references.
+Metric readouts/rulers follow the selected normalization: original values retain
+their source units; z-score uses baseline standard deviations; robust modes use
+their respective baseline scale and min–max uses the baseline span. EI always
+uses its own BSL z-score, independently of the selector. Metrics **Auto range**
+continuously fits the vertical display range; **Fit** fits once and **−/+** hold
+a manual zoom. These controls do not change values or normalization.
 
 **ASR** is under the EEG filter settings in Sources. Press **Train (45 s)** to record an independent clean EEG sample and enable
 correction, preserving every channel. EYC/BSL and live metrics use the cleaned
-signal. Threshold changes reuse the training sample. See [EEG ASR](docs/EEG_ASR.md).
+signal. Threshold changes reuse the training sample. The Raw Data ASR indicator
+reports actual processing (off, waiting, active or bypassed). ASR changes filtered
+traces; the Raw trace preserves original input. See [EEG ASR](docs/EEG_ASR.md).
 
 See [WINDOWS_SETUP.md](WINDOWS_SETUP.md) for calibration and detailed controls.
 

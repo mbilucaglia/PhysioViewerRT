@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <ui version="4.0">
  <class>AffectWorkspace</class>
  <widget class="QSplitter" name="affectWorkspaceSplitter">
@@ -112,7 +112,7 @@
         <item>
          <widget class="QLabel" name="eiEyebrow">
           <property name="text">
-           <string>SIGNED RESPONSE</string>
+           <string>BASELINE RESPONSE</string>
           </property>
           <property name="wordWrap">
            <bool>true</bool>
@@ -187,6 +187,19 @@
     <property name="bottomMargin">
      <number>12</number>
     </property>
+    <item>
+     <widget class="QLabel" name="eiDiagnostics">
+      <property name="text">
+       <string>Awaiting compatible HR and tonic SCL</string>
+      </property>
+      <property name="toolTip">
+       <string>Unsmoothed inputs to the angular EI formula. Positive SCLz much larger than HRz can give raw EI near ±1. Displayed EI = (raw EI − BSL EI mean) / BSL EI standard deviation.</string>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
  </widget>

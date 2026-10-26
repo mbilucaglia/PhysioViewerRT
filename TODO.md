@@ -1,12 +1,27 @@
 # PhysioViewerRT handoff — 23 October 2026
 
+## Live processing and baseline display — 26 October 2026
+
+- Raw Data ASR indicator reports actual worker execution: idle, off, waiting,
+  active, or bypassed. Green confirms successful processing, not cleaning efficacy.
+- Raw EI retains the angular HRz/SCLz formula. Metrics and Affect display
+  (raw EI − baseline EI mean) / baseline EI standard deviation, with no ±1 clip.
+- EI input references follow live peripheral pipeline compatibility; changing
+  baseline clears old EI observations. Affect exposes HRz/SCLz/raw EI diagnostics.
+- Metric readouts and rulers show normalization-specific units. EI always uses σ;
+  original HR/SCL use bpm/source units. Different scales are explicitly identified.
+- Metrics Auto range continuously fits Y; Fit is a one-time fit and −/+ hold a
+  manual zoom. These affect display only, independently of normalization.
+- Real hardware ASR efficacy still needs a controlled artifact comparison with
+  representative clean training EEG. An active indicator alone cannot establish it.
+
 ## Completed in this delivery
 
 - Modern Qt Sources, Raw Data, Metrics and Affect layouts; shared action icons
   and BrainLab assets live in the repository and Designer UI.
 - Shared raw amplitude/time rulers, per-signal expansion/autoscale controls,
   multichannel EEG display and asynchronous source/channel reconfiguration.
-- Central AWI/BAR and Peripheral HR/SCL trajectories, plus original signed EI.
+- Central AWI/BAR and Peripheral HR/SCL trajectories, plus EI z-scored against its own BSL distribution.
   Peripheral response and EI require live PPG and SC; both analysis tabs remain
   visible but disabled until EYC and BSL are available.
 - One canonical SCL from cvxEDA decomposition, shared by Metrics, EI and baseline

@@ -66,24 +66,28 @@ Peripheral selects the last HR at or before the tonic interval end within a
 one-second tolerance. It never substitutes current HR for delayed tonic SC. The
 model retains bounded raw pairs, so display ticks only reproject/fade them.
 
-## Separate signed Emotional Index
+## Separate baseline Emotional Index
 
-The second card shows the **original signed EI**, a diverging negative/positive
-gauge with a zero reference and recent history. It does not assign arousal or
-valence to EI. Its sign is never changed by the circumplex normalization selector.
-EI recomputes on every HR or decomposed SCL observation using the latest available
-value of the other input. It has no timestamp-skew or age gate and remains visible
-between updates. Explicit missing/invalid input or stopping either source clears
-it. BSL replay follows the same latest-value update policy with fixed HR/SCL
-references. An HR value at its baseline mean is evaluated with the angular
-formula, rather than suppressed by the batch all-zero-epoch guard.
+The second card retains the raw angular EI computation from HR and decomposed
+SCL, each standardized against its own fixed BSL statistics. It recomputes on
+each new input using the latest available other input. Metrics and Affect then
+display `(raw EI − BSL EI mean) / BSL EI standard deviation`, exactly once.
+The baseline EI summary is computed from the same HR/SCL baseline observation
+cadence. Missing or degenerate EI variance makes the display unavailable.
 
-Both Metrics and Affect display the original signed EI; no additional EI display
-reference is required and the Metrics normalization selector does not change it.
-The shared Metrics ruler identifies mixed scales when normalized metrics and
-original EI are shown together. Invalid history interrupts the line. Zero is a
-numerical reference, not a separate emotion-neutrality calibration. Missing
-inputs or unusable BSL HR/SCL statistics have explicit status messages.
+Zero now means mean baseline EI; a positive value means above that mean. It
+does not redefine EI as valence or arousal. The card says **Baseline EI z-score**
+and omits a repeated σ suffix. The gauge/history expand beyond ±1 as needed.
+The EI scale remains fixed to z-score when either normalization selector changes.
+Metric rulers/readouts name the actual scale, reporting mixed units when needed.
+Invalid observations break the history line. Source/pipeline compatibility is
+shared with peripheral metrics, and changed HR/SCL references clear old EI inputs.
+
+The card exposes HRz, SCLz and raw EI for diagnostics. The raw formula approaches
+±1 when positive SCLz dominates small HRz and has an angular wrap at HRz = 0;
+for example HRz = ±1, SCLz = 16 produces raw EI near ±0.9801. This explains
+possible near-boundary raw values without implying clipping in the code.
+Display smoothing in Metrics does not alter these calculations or Affect trails.
 
 ## Ownership and verification
 

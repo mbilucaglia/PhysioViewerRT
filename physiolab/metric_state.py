@@ -71,6 +71,15 @@ class MetricState:
             return 'EI needs a cvxEDA tonic SCL measurement'
         return 'EI needs valid HR and tonic SCL measurements'
 
+    def set_ei_references(self, hr, scl):
+        # A new baseline/pipeline must never reuse observations from the old one.
+        if self.ei.hr_reference == hr and self.ei.scl_reference == scl:
+            return
+        self.ei.set_references(hr, scl)
+        self.ei.latest.clear()
+        self.latest.pop('EI', None)
+        self.history.get(('EI', 'EI'), []).clear()
+
     def reset(self, kind):
         self.latest.pop(kind, None)
         for key in self.keys:
@@ -87,7 +96,12 @@ class MetricState:
     def normalized_value(kind, name, value, mode, references):
         if value is None or not isinstance(value, (int, float)) or not np.isfinite(value):
             return None
-        if mode == 'identity' or kind == 'EI' or (kind == 'EEG' and name == 'IAF'):
+        if kind == 'EI':
+            reference = (references or {}).get('EI', {}).get('EI')
+            if not reference or not all(np.isfinite(reference.get(k, np.nan)) for k in ('mu', 'sigma')):
+                return None
+            return normalize(value, reference, 'zscore')
+        if mode == 'identity' or (kind == 'EEG' and name == 'IAF'):
             return float(value)
         reference = (references or {}).get(kind, {}).get(name)
         if reference is None:

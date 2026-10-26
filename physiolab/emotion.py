@@ -2,8 +2,8 @@
 
 Stage 1: z-score live HR and SCL using the fixed HR/SCL statistics computed
 during BSL; BSL EI uses HR/SCL z-scored within that same baseline recording.
-EI remains on its original signed scale in Metrics and Affect; optional
-display normalization applies to the other plotted metrics.
+Raw EI is retained for analysis. Metrics and Affect display its z-score
+against the fixed BSL EI mean and standard deviation.
 """
 import math
 import numpy as np

@@ -39,6 +39,8 @@ class Receiver(QThread):
         self.source_configuration = None
         self.eeg_asr_model = eeg_asr_model if kind == 'EEG' else None
         self.asr_status = 'ASR disabled'
+        self.asr_processed_samples = 0
+        self.asr_last_processed_at = None
         self.mailbox = ChunkMailbox(info.nominal_srate())
 
     def run(self):
@@ -119,6 +121,9 @@ class Receiver(QThread):
                                      preprocessing=self.preprocessing)
                     metric = proc.push(selected)
                     self.stream_ready.emit(self.kind, names, float(fs))
+                if cleaner is not None:
+                    self.asr_processed_samples += len(selected)
+                    self.asr_last_processed_at = time.monotonic()
                 observations = tonic.push(proc.last_filtered_chunk, timestamps, fs) if tonic else []
                 if metric is not None or observations:
                     partial = metric is None

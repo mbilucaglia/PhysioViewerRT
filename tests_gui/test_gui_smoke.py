@@ -40,6 +40,9 @@ class FakeInfo:
 
 class FakeReceiver:
     def __init__(self, fs):
+        self.asr_status = 'ASR disabled'
+        self.eeg_asr_model = None
+        self.asr_last_processed_at = None
         self.mailbox = ChunkMailbox(fs)
         self.active = True
 
@@ -716,12 +719,11 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.sync_affect_sources()
         self.assertTrue(view.ei_card.isHidden())
 
-    def test_ei_readout_remains_visible_without_additional_display_reference(self):
-        self.window.metric_state.latest['EI'] = {'EI':.3, 'status':'Live EI'}
-        self.window.normalization.setCurrentIndex(self.window.normalization.findData('zscore'))
+    def test_ei_readout_requires_its_own_baseline_distribution(self):
+        self.window.metric_state.latest['EI'] = {'EI': .3}
         self.window.refresh_metric_labels()
-        self.assertIn('0.300', self.window.metric_labels['EI','EI'].text())
-        self.assertNotIn('Waiting', self.window.metric_status['EI'].text())
+        self.assertNotIn('0.300', self.window.metric_labels['EI', 'EI'].text())
+        self.assertIsNone(self.window.displayed_value('EI', 'EI', .3))
 
     def test_preprocessing_settings_and_display_count(self):
         self.assertEqual(self.window.filter_choices['EEG'].currentData(), 'default')

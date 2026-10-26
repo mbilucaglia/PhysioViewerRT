@@ -61,6 +61,10 @@ class MetricStateTests(unittest.TestCase):
         self.assertIsNotNone(state.latest['EI']['EI'])
         self.assertIn('z-scores', state.latest['EI']['status'])
 
-    def test_ei_original_signed_value_needs_no_extra_display_reference(self):
+    def test_ei_is_zscored_once_against_its_own_baseline_in_every_display_mode(self):
+        refs = {'EI': {'EI': {'mu': .2, 'sigma': .1}}}
         for mode in ('identity','zscore','zmad','robust_iqr','minmax'):
-            self.assertEqual(MetricState.normalized_value('EI','EI',-.4,mode,{}), -.4)
+            self.assertAlmostEqual(MetricState.normalized_value('EI','EI',.5,mode,refs), 3.)
+            self.assertIsNone(MetricState.normalized_value('EI','EI',.5,mode,{}))
+        refs['EI']['EI']['sigma'] = 0.
+        self.assertIsNone(MetricState.normalized_value('EI','EI',.5,'zscore',refs))
