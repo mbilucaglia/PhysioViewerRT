@@ -67,6 +67,11 @@ QTabBar::tab { padding: 8px 18px; }
 QPushButton#rawPlotPause, QPushButton#metricsPlotPause { color: #312b79; background: #eeecfa; border-color: #d4ceee; font-weight: 600; }
 
 QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 8px; padding: 4px; }
+
+QFrame#metricsValuesCard { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 9px; }
+QLabel#metricsValuesTitle { font-size: 11pt; font-weight: 600; }
+
+QWidget#metricsReadoutHost, QScrollArea#metricsValuesScroll { background: #ffffff; }
 </string>
   </property>
   <property name="geometry">
@@ -2280,7 +2285,7 @@ QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-r
            <enum>QFrame::NoFrame</enum>
           </property>
           <widget class="QWidget" name="metricsTabContent">
-           <layout class="QVBoxLayout" name="metricsLayout" stretch="0,0,1,0">
+           <layout class="QVBoxLayout" name="metricsLayout" stretch="0,0,1">
             <property name="bottomMargin">
              <number>16</number>
             </property>
@@ -2895,226 +2900,385 @@ QFrame#rawToolbarHost { background: #ffffff; border: 1px solid #dfe1ef; border-r
              </widget>
             </item>
             <item>
-             <widget class="QFrame" name="metricsTrendCard">
-              <layout class="QVBoxLayout" name="metricsTrendLayout" stretch="0,1">
-               <property name="leftMargin">
-                <number>14</number>
-               </property>
-               <property name="topMargin">
-                <number>14</number>
-               </property>
-               <property name="rightMargin">
-                <number>14</number>
-               </property>
-               <property name="bottomMargin">
-                <number>14</number>
-               </property>
-               <property name="spacing">
-                <number>10</number>
-               </property>
-               <item>
-                <widget class="QLabel" name="metricsTrendTitle">
-                 <property name="text">
-                  <string>Metric trends</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QFrame" name="metricsPlotHost">
-                 <property name="toolTip">
-                  <string>VisPy incremental metrics canvas inserted by the application</string>
-                 </property>
-                 <property name="minimumHeight">
-                  <number>220</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item>
-             <widget class="QFrame" name="metricsReadoutHost">
-              <layout class="QGridLayout" name="metricsReadoutLayout">
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <property name="spacing">
-                <number>10</number>
-               </property>
-               <item row="0" column="0">
-                <widget class="QFrame" name="EEGMetricCard">
-                 <property name="metricCard" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                 <layout class="QVBoxLayout" name="EEGMetricCardLayout">
-                  <property name="leftMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="spacing">
-                   <number>10</number>
-                  </property>
+             <widget class="QSplitter" name="metricsWorkspaceSplitter">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <widget class="QFrame" name="metricsTrendCard">
+               <layout class="QVBoxLayout" name="metricsTrendLayout" stretch="0,1">
+                <property name="leftMargin">
+                 <number>14</number>
+                </property>
+                <property name="topMargin">
+                 <number>14</number>
+                </property>
+                <property name="rightMargin">
+                 <number>14</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>14</number>
+                </property>
+                <property name="spacing">
+                 <number>10</number>
+                </property>
+                <item>
+                 <layout class="QHBoxLayout" name="metricsTrendHeader">
                   <item>
-                   <widget class="QLabel" name="EEGMetricCardTitle">
+                   <widget class="QLabel" name="metricsTrendTitle">
                     <property name="text">
-                     <string>EEG · Central</string>
-                    </property>
-                    <property name="metricHeading" stdset="0">
-                     <bool>true</bool>
+                     <string>Metric trends</string>
                     </property>
                    </widget>
                   </item>
                   <item>
-                   <widget class="QLabel" name="EEGMetricPlaceholder">
+                   <widget class="QToolButton" name="metricsTrendMove">
                     <property name="text">
-                     <string>—</string>
+                     <string>Move</string>
+                    </property>
+                    <property name="toolButtonStyle">
+                     <enum>Qt::ToolButtonTextBesideIcon</enum>
+                    </property>
+                    <property name="toolTip">
+                     <string>Swap this panel with another position, or restore the default layout.</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/move.svg</normaloff>
+                     </iconset>
                     </property>
                    </widget>
                   </item>
                  </layout>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <widget class="QFrame" name="EDAMetricCard">
-                 <property name="metricCard" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                 <layout class="QVBoxLayout" name="EDAMetricCardLayout">
-                  <property name="leftMargin">
-                   <number>12</number>
+                </item>
+                <item>
+                 <widget class="QFrame" name="metricsPlotHost">
+                  <property name="toolTip">
+                   <string>VisPy incremental metrics canvas inserted by the application</string>
                   </property>
-                  <property name="topMargin">
-                   <number>12</number>
+                  <property name="minimumHeight">
+                   <number>220</number>
                   </property>
-                  <property name="rightMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="spacing">
-                   <number>10</number>
-                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QFrame" name="metricsValuesCard">
+               <layout class="QVBoxLayout" name="metricsValuesLayout">
+                <item>
+                 <layout class="QHBoxLayout" name="metricsValuesHeader">
                   <item>
-                   <widget class="QLabel" name="EDAMetricCardTitle">
+                   <widget class="QLabel" name="metricsValuesTitle">
                     <property name="text">
-                     <string>SC · Conductance</string>
-                    </property>
-                    <property name="metricHeading" stdset="0">
-                     <bool>true</bool>
+                     <string>Metric values</string>
                     </property>
                    </widget>
                   </item>
                   <item>
-                   <widget class="QLabel" name="EDAMetricPlaceholder">
+                   <widget class="QToolButton" name="metricsValuesMove">
                     <property name="text">
-                     <string>—</string>
+                     <string>Move</string>
                     </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-               <item row="0" column="2">
-                <widget class="QFrame" name="PPGMetricCard">
-                 <property name="metricCard" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                 <layout class="QVBoxLayout" name="PPGMetricCardLayout">
-                  <property name="leftMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="spacing">
-                   <number>10</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="PPGMetricCardTitle">
-                    <property name="text">
-                     <string>PPG · Pulse</string>
+                    <property name="toolButtonStyle">
+                     <enum>Qt::ToolButtonTextBesideIcon</enum>
                     </property>
-                    <property name="metricHeading" stdset="0">
-                     <bool>true</bool>
+                    <property name="toolTip">
+                     <string>Swap this panel with another position, or restore the default layout.</string>
                     </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="PPGMetricPlaceholder">
-                    <property name="text">
-                     <string>—</string>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../assets/icons/move.svg</normaloff>
+                     </iconset>
                     </property>
                    </widget>
                   </item>
                  </layout>
-                </widget>
-               </item>
-               <item row="0" column="3">
-                <widget class="QFrame" name="EIMetricCard">
-                 <property name="metricCard" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                 <layout class="QVBoxLayout" name="EIMetricCardLayout">
-                  <property name="leftMargin">
-                   <number>12</number>
+                </item>
+                <item>
+                 <widget class="QScrollArea" name="metricsValuesScroll">
+                  <property name="widgetResizable">
+                   <bool>true</bool>
                   </property>
-                  <property name="topMargin">
-                   <number>12</number>
+                  <property name="frameShape">
+                   <enum>QFrame::NoFrame</enum>
                   </property>
-                  <property name="rightMargin">
-                   <number>12</number>
+                  <property name="minimumHeight">
+                   <number>120</number>
                   </property>
-                  <property name="bottomMargin">
-                   <number>12</number>
-                  </property>
-                  <property name="spacing">
-                   <number>10</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="EIMetricCardTitle">
-                    <property name="text">
-                     <string>Emotional Index</string>
+                  <widget class="QFrame" name="metricsReadoutHost">
+                   <layout class="QGridLayout" name="metricsReadoutLayout">
+                    <property name="leftMargin">
+                     <number>0</number>
                     </property>
-                    <property name="metricHeading" stdset="0">
-                     <bool>true</bool>
+                    <property name="topMargin">
+                     <number>0</number>
                     </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="EIMetricPlaceholder">
-                    <property name="text">
-                     <string>—</string>
+                    <property name="rightMargin">
+                     <number>0</number>
                     </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-              </layout>
+                    <property name="bottomMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="spacing">
+                     <number>10</number>
+                    </property>
+                    <item row="0" column="0">
+                     <widget class="QFrame" name="EEGMetricCard">
+                      <property name="metricCard" stdset="0">
+                       <bool>true</bool>
+                      </property>
+                      <layout class="QVBoxLayout" name="EEGMetricCardLayout">
+                       <property name="leftMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="spacing">
+                        <number>10</number>
+                       </property>
+                       <item>
+                        <layout class="QHBoxLayout" name="EEGMetricHeader">
+                         <item>
+                          <widget class="QLabel" name="EEGMetricCardTitle">
+                           <property name="text">
+                            <string>EEG · Central</string>
+                           </property>
+                           <property name="metricHeading" stdset="0">
+                            <bool>true</bool>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QToolButton" name="EEGMetricMove">
+                           <property name="text">
+                            <string>Move</string>
+                           </property>
+                           <property name="toolButtonStyle">
+                            <enum>Qt::ToolButtonTextBesideIcon</enum>
+                           </property>
+                           <property name="toolTip">
+                            <string>Swap this panel with another position, or restore the default layout.</string>
+                           </property>
+                           <property name="icon">
+                            <iconset>
+                             <normaloff>../assets/icons/move.svg</normaloff>
+                            </iconset>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="EEGMetricPlaceholder">
+                         <property name="text">
+                          <string>—</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item row="0" column="1">
+                     <widget class="QFrame" name="EDAMetricCard">
+                      <property name="metricCard" stdset="0">
+                       <bool>true</bool>
+                      </property>
+                      <layout class="QVBoxLayout" name="EDAMetricCardLayout">
+                       <property name="leftMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="spacing">
+                        <number>10</number>
+                       </property>
+                       <item>
+                        <layout class="QHBoxLayout" name="EDAMetricHeader">
+                         <item>
+                          <widget class="QLabel" name="EDAMetricCardTitle">
+                           <property name="text">
+                            <string>SC · Conductance</string>
+                           </property>
+                           <property name="metricHeading" stdset="0">
+                            <bool>true</bool>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QToolButton" name="EDAMetricMove">
+                           <property name="text">
+                            <string>Move</string>
+                           </property>
+                           <property name="toolButtonStyle">
+                            <enum>Qt::ToolButtonTextBesideIcon</enum>
+                           </property>
+                           <property name="toolTip">
+                            <string>Swap this panel with another position, or restore the default layout.</string>
+                           </property>
+                           <property name="icon">
+                            <iconset>
+                             <normaloff>../assets/icons/move.svg</normaloff>
+                            </iconset>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="EDAMetricPlaceholder">
+                         <property name="text">
+                          <string>—</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item row="0" column="2">
+                     <widget class="QFrame" name="PPGMetricCard">
+                      <property name="metricCard" stdset="0">
+                       <bool>true</bool>
+                      </property>
+                      <layout class="QVBoxLayout" name="PPGMetricCardLayout">
+                       <property name="leftMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="spacing">
+                        <number>10</number>
+                       </property>
+                       <item>
+                        <layout class="QHBoxLayout" name="PPGMetricHeader">
+                         <item>
+                          <widget class="QLabel" name="PPGMetricCardTitle">
+                           <property name="text">
+                            <string>PPG · Pulse</string>
+                           </property>
+                           <property name="metricHeading" stdset="0">
+                            <bool>true</bool>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QToolButton" name="PPGMetricMove">
+                           <property name="text">
+                            <string>Move</string>
+                           </property>
+                           <property name="toolButtonStyle">
+                            <enum>Qt::ToolButtonTextBesideIcon</enum>
+                           </property>
+                           <property name="toolTip">
+                            <string>Swap this panel with another position, or restore the default layout.</string>
+                           </property>
+                           <property name="icon">
+                            <iconset>
+                             <normaloff>../assets/icons/move.svg</normaloff>
+                            </iconset>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="PPGMetricPlaceholder">
+                         <property name="text">
+                          <string>—</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item row="0" column="3">
+                     <widget class="QFrame" name="EIMetricCard">
+                      <property name="metricCard" stdset="0">
+                       <bool>true</bool>
+                      </property>
+                      <layout class="QVBoxLayout" name="EIMetricCardLayout">
+                       <property name="leftMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>12</number>
+                       </property>
+                       <property name="spacing">
+                        <number>10</number>
+                       </property>
+                       <item>
+                        <layout class="QHBoxLayout" name="EIMetricHeader">
+                         <item>
+                          <widget class="QLabel" name="EIMetricCardTitle">
+                           <property name="text">
+                            <string>Emotional Index</string>
+                           </property>
+                           <property name="metricHeading" stdset="0">
+                            <bool>true</bool>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QToolButton" name="EIMetricMove">
+                           <property name="text">
+                            <string>Move</string>
+                           </property>
+                           <property name="toolButtonStyle">
+                            <enum>Qt::ToolButtonTextBesideIcon</enum>
+                           </property>
+                           <property name="toolTip">
+                            <string>Swap this panel with another position, or restore the default layout.</string>
+                           </property>
+                           <property name="icon">
+                            <iconset>
+                             <normaloff>../assets/icons/move.svg</normaloff>
+                            </iconset>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="EIMetricPlaceholder">
+                         <property name="text">
+                          <string>—</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
              </widget>
             </item>
            </layout>

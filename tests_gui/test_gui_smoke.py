@@ -276,6 +276,29 @@ class GuiSmokeTests(unittest.TestCase):
             self.window.set_raw_focus(kind, False)
             self.assertFalse(self.window.raw_peripheral_splitter.isHidden())
 
+    def test_metrics_panes_and_cards_move_without_replacing_history_or_controls(self):
+        from PySide6.QtWidgets import QFrame
+        history = self.window.metric_state.history
+        curves = dict(self.window.metric_curves)
+        normalization = self.window.normalization.currentData()
+        arrangement = self.window.metric_arrangement
+        arrangement.populate('trends')
+        arrangement.menus['trends'].actions()[0].trigger()
+        self.assertIs(arrangement.container.widget(0), arrangement.panels['values'])
+        host = self.window.findChild(QFrame,'metricsReadoutHost')
+        cards = host.arrangement
+        cards.populate('EEG')
+        ppg = next(a for a in cards.menus['EEG'].actions() if 'PPG' in a.text())
+        ppg.trigger()
+        self.assertEqual(cards.order[0], 'PPG')
+        self.assertIs(host.layout().itemAt(0).widget(), cards.panels['PPG'])
+        self.assertIs(self.window.metric_state.history, history)
+        self.assertEqual(self.window.metric_curves, curves)
+        self.assertEqual(self.window.normalization.currentData(), normalization)
+        arrangement.populate('values')
+        arrangement.menus['values'].actions()[-1].trigger()
+        self.assertIs(arrangement.container.widget(0), arrangement.panels['trends'])
+
     def test_conversion_editor_keeps_settings_per_source_and_compact_numbers(self):
         from physiolab.source_conversion_widgets import SourceConversionControls
         controls = SourceConversionControls()

@@ -1,5 +1,8 @@
 """Build scalable Qt metric controls from the presentation catalog."""
-from PySide6.QtWidgets import QWidget, QCheckBox, QGridLayout, QVBoxLayout, QLabel, QFrame
+from PySide6.QtWidgets import QWidget, QCheckBox, QGridLayout, QVBoxLayout, QLabel, QFrame, QHBoxLayout, QToolButton
+from PySide6.QtCore import Qt
+from .panel_arrangement import PanelArrangement
+from .ui_icons import action_icon
 from PySide6.QtGui import QColor, QIcon, QPixmap
 from .metric_catalog import metric_color
 from .modality_labels import modality_label
@@ -45,6 +48,7 @@ def build_metric_readouts(host, definitions, columns=4):
     for definition in definitions:
         groups.setdefault(definition.modality, []).append(definition.name)
     labels, statuses = {}, {}
+    cards, move_buttons, titles = {}, {}, {}
     for row, (kind, names) in enumerate(groups.items()):
         card = host.findChild(QFrame, f'{kind}MetricCard')
         if card is None:
@@ -60,7 +64,21 @@ def build_metric_readouts(host, definitions, columns=4):
             if placeholder is not None:
                 group.removeWidget(placeholder)
                 placeholder.hide()
-        group.itemAt(0).widget().setProperty('metricHeading', True)
+        first = group.itemAt(0)
+        heading = first.widget() if first.widget() is not None else first.layout().itemAt(0).widget()
+        heading.setProperty('metricHeading', True)
+        button = card.findChild(QToolButton, kind+'MetricMove')
+        if button is None:
+            group.removeWidget(heading)
+            header = QHBoxLayout()
+            header.addWidget(heading)
+            button = QToolButton()
+            button.setText('Move')
+            button.setIcon(action_icon('move'))
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            header.addWidget(button)
+            group.insertLayout(0, header)
+        cards[kind], move_buttons[kind], titles[kind] = card, button, heading.text()
         for name in names:
             label = QLabel(f'{name}: —')
             label.setProperty('metricValue' if name != 'IAF' else 'metricStatus', True)
@@ -73,4 +91,6 @@ def build_metric_readouts(host, definitions, columns=4):
         group.addWidget(status)
         layout.addWidget(card, row // columns, row % columns)
         layout.setColumnStretch(row % columns, 1)
+    flow = install_flow(host)
+    host.arrangement = PanelArrangement(host, flow, cards, move_buttons, titles)
     return labels, statuses

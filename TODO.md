@@ -242,3 +242,20 @@ The measures, statistical assumptions and presentation still need discussion.
 - Validation: all six arrangements checked with native OpenGL and three live
       synthetic streams, including EEG upper-right / PPG main. Fifty affected
       GUI checks passed; live receivers and renderer objects were preserved.
+
+
+## Affect and Metrics arrangements — 26 October 2026
+
+- [x] Give Affect a Designer-owned splitter workspace with Move menus on
+      Affect landscape and Emotional Index; swap or restore the default order.
+      Narrow windows stack the panes; Expand/Restore and source availability
+      remain correct, preserving trails, manual range and pause state.
+- [x] Give Metrics movable trend/value panes and Move menus on each metric
+      summary card. Keep the combined trend chart; reorder cards without
+      replacing curves, histories, normalization or acquisition state.
+- [x] Scroll the metric-value pane when its cards cannot fit. All arrangements
+      are session-local and can be reset through Restore default layout.
+- Validation: full GUI suite 100 tests, 98 passed and two offscreen OpenGL
+      skips. Native previews with synthetic demonstration trajectories verified
+      swaps, retained canvas/manual range/pause, zero maximized scroll range and
+      access to metric cards through the inner scrollbar in short panes.

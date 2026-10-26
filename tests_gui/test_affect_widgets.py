@@ -116,6 +116,34 @@ class AffectWidgetTests(unittest.TestCase):
         self.view.auto_range.setChecked(True)
         self.assertTrue(self.view.plane.auto_range)
 
+    def test_move_preserves_trails_pause_manual_range_and_source_availability(self):
+        point = AffectPoint(10., 1., .5, (10.,10.))
+        self.view.update_snapshot(AffectSnapshot((response((point,),point),)), [(10.,.3)], 10.)
+        self.view.zoom_in.click()
+        extent = self.view.plane.extent
+        self.view.pause.setChecked(True)
+        plane, ei = self.view.plane, self.view.ei_plot
+        responses, points = plane.responses, ei.points
+        self.view._expand('circumplex')
+        self.view.arrangement.populate('circumplex')
+        self.view.arrangement.menus['circumplex'].actions()[0].trigger()
+        self.assertIs(self.view.cards_splitter.widget(0), self.view.ei_card)
+        self.assertIsNone(self.view._focus)
+        self.assertIs(self.view.plane, plane)
+        self.assertIs(self.view.ei_plot, ei)
+        self.assertIs(plane.responses, responses)
+        self.assertEqual(ei.points, points)
+        self.assertTrue(self.view.pause.isChecked())
+        self.assertEqual(plane.extent, extent)
+        self.view.set_peripheral_available(False)
+        self.assertTrue(self.view.ei_card.isHidden())
+        self.assertFalse(self.view.circumplex_card.isHidden())
+        self.view.set_peripheral_available(True)
+        self.assertIs(self.view.cards_splitter.widget(0), self.view.ei_card)
+        self.view.arrangement.populate('ei')
+        self.view.arrangement.menus['ei'].actions()[-1].trigger()
+        self.assertIs(self.view.cards_splitter.widget(0), self.view.circumplex_card)
+
     def test_native_scene_keeps_visuals_on_updates_and_expand(self):
         if QApplication.platformName() in ('offscreen', 'minimal'):
             self.skipTest('Native OpenGL smoke check requires QT_QPA_PLATFORM=windows')

@@ -43,7 +43,8 @@ from .affect_state import AffectState
 from .affect_widgets import AffectView
 from .asr_widgets import ASRControls
 from .asr_quality import training_report
-from .flow_layout import install_designer_flows, install_flow, AdaptiveCardRow, fit_scroll_page, AdaptiveRawWorkspace
+from .panel_arrangement import PanelArrangement
+from .flow_layout import install_designer_flows, install_flow, fit_scroll_page, AdaptiveRawWorkspace
 from .ui_icons import set_action
 from .asr_session import ASRSession
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
@@ -122,6 +123,7 @@ class MainWindow(QMainWindow):
         self._connect_designer_controls()
         self._connect_affect_view()
         self._connect_asr_view()
+        self._connect_metric_workspace()
         install_designer_flows(self)
         for scroll in self.findChildren(QScrollArea):
             if scroll.property("fitViewport"):
@@ -418,13 +420,29 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.affect_view)
-        self._affect_card_row = AdaptiveCardRow(
-            self._required_ui("affectTabScroll", QScrollArea).viewport(), self.affect_view.cards_layout)
+        self._affect_workspace = AdaptiveRawWorkspace(
+            self._required_ui("affectTabScroll", QScrollArea).viewport(), self.affect_view.cards_splitter)
         self.affect_view.clear_requested.connect(self.clear_affect_trails)
         self.affect_view.normalization_changed.connect(lambda _: self.refresh_affect_view())
         self.affect_view.retention_changed.connect(lambda _: self.refresh_affect_view())
         self.affect_view.set_active(self.tabs.currentWidget() is self.affect_page)
         self.sync_affect_sources()
+
+    def _connect_metric_workspace(self):
+        splitter = self._required_ui('metricsWorkspaceSplitter', QSplitter)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(9)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([900, 360])
+        self.metric_arrangement = PanelArrangement(self, splitter,
+            {'trends':self._required_ui('metricsTrendCard', QFrame),
+             'values':self._required_ui('metricsValuesCard', QFrame)},
+            {'trends':self._required_ui('metricsTrendMove', QToolButton),
+             'values':self._required_ui('metricsValuesMove', QToolButton)},
+            {'trends':'Metric trends', 'values':'Metric values'})
+        self._metric_workspace = AdaptiveRawWorkspace(
+            self._required_ui('metricsTabScroll', QScrollArea).viewport(), splitter)
 
     def sync_affect_sources(self):
         """Peripheral Affect and EI require both live peripheral receivers."""

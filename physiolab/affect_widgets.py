@@ -7,13 +7,14 @@ import math
 from pathlib import Path
 from PySide6.QtUiTools import QUiLoader
 from .flow_layout import install_flow
+from .panel_arrangement import PanelArrangement
 
 import numpy as np
-from PySide6.QtCore import QCoreApplication, QEvent, QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QCoreApplication, QEvent, QDir, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel,
-    QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QPushButton, QSizePolicy, QVBoxLayout, QWidget, QSplitter, QToolButton,
 )
 
 from .affect_state import AffectSnapshot, RESPONSE_DEFINITIONS
@@ -347,9 +348,9 @@ class AffectView(QWidget):
         self._ei_reason = None
         self.setObjectName('affectView')
         self.setStyleSheet('''
-            QFrame#affectCard { background: white; border: 1px solid #dfe1ef; border-radius: 12px; }
-            QLabel#affectHeading { color: #25234a; font-size: 15pt; font-weight: 600; border: none; }
-            QLabel#affectEyebrow { color: #77768f; font-size: 8pt; font-weight: 600; border: none; }
+            QFrame[affectCard="true"] { background: white; border: 1px solid #dfe1ef; border-radius: 12px; }
+            QLabel[affectHeading="true"] { color: #25234a; font-size: 15pt; font-weight: 600; border: none; }
+            QLabel[affectEyebrow="true"] { color: #77768f; font-size: 8pt; font-weight: 600; border: none; }
             QLabel#affectHint { color: #77768f; font-size: 9pt; border: none; }
             QLabel#affectReadout { border: none; font-size: 9pt; }
         ''')
@@ -377,13 +378,28 @@ class AffectView(QWidget):
         self.pause.setToolTip('Freeze this view while acquisition and metric processing continue.')
         install_flow(self.controls)
         outer.addWidget(self.controls)
-        self.cards_layout = QHBoxLayout()
-        self.cards_layout.setSpacing(14)
-        self.circumplex_card, plane_layout = self._card('CENTRAL + PERIPHERAL', 'Affect landscape', 'circumplex')
-        self.ei_card, ei_layout = self._card('SIGNED RESPONSE', 'Emotional Index', 'ei')
-        self.cards_layout.addWidget(self.circumplex_card, 3)
-        self.cards_layout.addWidget(self.ei_card, 2)
-        outer.addLayout(self.cards_layout, 1)
+        loader = QUiLoader()
+        loader.setWorkingDirectory(QDir(str(folder)))
+        self.cards_splitter = loader.load(str(folder / 'AffectWorkspace.ui'), self)
+        if self.cards_splitter is None:
+            raise RuntimeError('Cannot load Designer Affect workspace')
+        self.cards_splitter.setChildrenCollapsible(False)
+        self.cards_splitter.setHandleWidth(9)
+        self.cards_splitter.setStretchFactor(0, 3)
+        self.cards_splitter.setStretchFactor(1, 2)
+        self.cards_splitter.setSizes([700, 400])
+        self.circumplex_card = self.cards_splitter.findChild(QFrame, 'circumplexCard')
+        self.ei_card = self.cards_splitter.findChild(QFrame, 'eiCard')
+        plane_layout, ei_layout = self.circumplex_card.layout(), self.ei_card.layout()
+        outer.addWidget(self.cards_splitter, 1)
+        self.arrangement = PanelArrangement(self, self.cards_splitter,
+            {'circumplex':self.circumplex_card, 'ei':self.ei_card},
+            {key:self.cards_splitter.findChild(QToolButton, key+'Move') for key in ('circumplex','ei')},
+            {'circumplex':'Affect landscape', 'ei':'Emotional Index'})
+        self.arrangement.changed.connect(self._arrangement_changed)
+        for key in ('circumplex','ei'):
+            self.cards_splitter.findChild(QPushButton,key+'Expand').clicked.connect(
+                lambda checked=False,k=key:self._expand(k))
         self.top_axis = self._label('Higher arousal', 'affectHint', Qt.AlignmentFlag.AlignCenter)
         plane_layout.addWidget(self.top_axis)
         self.plane = AffectPlane()
@@ -451,25 +467,9 @@ class AffectView(QWidget):
             label.setAlignment(alignment)
         return label
 
-    def _card(self, eyebrow, title, key):
-        card = QFrame()
-        card.setObjectName('affectCard')
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(20, 17, 20, 16)
-        layout.setSpacing(8)
-        header = QHBoxLayout()
-        names = QVBoxLayout()
-        names.setSpacing(4)
-        names.addWidget(self._label(eyebrow, 'affectEyebrow'))
-        names.addWidget(self._label(title, 'affectHeading'))
-        header.addLayout(names)
-        header.addStretch()
-        button = QPushButton('Expand')
-        button.setProperty('affectCardKey', key)
-        button.clicked.connect(lambda: self._expand(key))
-        header.addWidget(button, alignment=Qt.AlignmentFlag.AlignTop)
-        layout.addLayout(header)
-        return card, layout
+    def _arrangement_changed(self, order):
+        self._focus = None
+        self._sync_card_visibility()
 
     def _expand(self, key):
         if key == 'ei' and not self._peripheral_available:
@@ -480,6 +480,8 @@ class AffectView(QWidget):
     def _sync_card_visibility(self):
         self.circumplex_card.setVisible(self._focus in (None, 'circumplex'))
         self.ei_card.setVisible(self._peripheral_available and self._focus in (None, 'ei'))
+        for key in ('circumplex','ei'):
+            self.cards_splitter.findChild(QToolButton,key+'Move').setEnabled(self._peripheral_available)
         for button in self.findChildren(QPushButton):
             card_key = button.property('affectCardKey')
             if card_key:

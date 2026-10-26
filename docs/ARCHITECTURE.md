@@ -171,3 +171,11 @@ wrap using Qt size hints. Sources uses its existing one/two-column controller;
 Affect cards adapt to viewport width. Scroll areas keep controls reachable when
 window height is limited. New controls should join an appropriate Designer group
 rather than adding a new permanent row or hard-coded screen coordinates.
+
+
+AffectWorkspace.ui defines Affect cards and splitter placement. Metrics panes
+and default metric-card Move controls live in PhysioViewerRT_ClinicalLayout.ui.
+The shared panel_arrangement.PanelArrangement attaches swap/reset menus to existing
+splitter widgets or wrapping cards; it reorders presentation objects without
+replacing plots, histories or processing state. Arrangement choices are local to
+the current session. Source availability continues to control Affect visibility.

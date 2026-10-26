@@ -1,0 +1,185 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>AffectWorkspace</class>
+ <widget class="QSplitter" name="affectWorkspaceSplitter">
+  <property name="orientation">
+   <enum>Qt::Horizontal</enum>
+  </property>
+  <widget class="QFrame" name="circumplexCard">
+   <property name="affectCard" stdset="0">
+    <bool>true</bool>
+   </property>
+   <layout class="QVBoxLayout" name="circumplexCardLayout">
+    <property name="leftMargin">
+     <number>16</number>
+    </property>
+    <property name="rightMargin">
+     <number>16</number>
+    </property>
+    <property name="topMargin">
+     <number>12</number>
+    </property>
+    <property name="bottomMargin">
+     <number>12</number>
+    </property>
+    <property name="spacing">
+     <number>8</number>
+    </property>
+    <item>
+     <layout class="QHBoxLayout" name="circumplexHeader" stretch="1,0,0">
+      <item>
+       <layout class="QVBoxLayout" name="circumplexTitles">
+        <item>
+         <widget class="QLabel" name="circumplexEyebrow">
+          <property name="text">
+           <string>CENTRAL + PERIPHERAL</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="affectEyebrow" stdset="0">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="circumplexHeading">
+          <property name="text">
+           <string>Affect landscape</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="affectHeading" stdset="0">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QToolButton" name="circumplexMove">
+        <property name="text">
+         <string>Move</string>
+        </property>
+        <property name="toolButtonStyle">
+         <enum>Qt::ToolButtonTextBesideIcon</enum>
+        </property>
+        <property name="toolTip">
+         <string>Swap this panel with another position, or restore the default layout.</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>../assets/icons/move.svg</normaloff>
+         </iconset>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="circumplexExpand">
+        <property name="text">
+         <string>Expand</string>
+        </property>
+        <property name="affectCardKey" stdset="0">
+         <string>circumplex</string>
+        </property>
+        <property name="maximumWidth">
+         <number>90</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QFrame" name="eiCard">
+   <property name="affectCard" stdset="0">
+    <bool>true</bool>
+   </property>
+   <layout class="QVBoxLayout" name="eiCardLayout">
+    <property name="leftMargin">
+     <number>16</number>
+    </property>
+    <property name="rightMargin">
+     <number>16</number>
+    </property>
+    <property name="topMargin">
+     <number>12</number>
+    </property>
+    <property name="bottomMargin">
+     <number>12</number>
+    </property>
+    <property name="spacing">
+     <number>8</number>
+    </property>
+    <item>
+     <layout class="QHBoxLayout" name="eiHeader" stretch="1,0,0">
+      <item>
+       <layout class="QVBoxLayout" name="eiTitles">
+        <item>
+         <widget class="QLabel" name="eiEyebrow">
+          <property name="text">
+           <string>SIGNED RESPONSE</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="affectEyebrow" stdset="0">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="eiHeading">
+          <property name="text">
+           <string>Emotional Index</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="affectHeading" stdset="0">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QToolButton" name="eiMove">
+        <property name="text">
+         <string>Move</string>
+        </property>
+        <property name="toolButtonStyle">
+         <enum>Qt::ToolButtonTextBesideIcon</enum>
+        </property>
+        <property name="toolTip">
+         <string>Swap this panel with another position, or restore the default layout.</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>../assets/icons/move.svg</normaloff>
+         </iconset>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="eiExpand">
+        <property name="text">
+         <string>Expand</string>
+        </property>
+        <property name="affectCardKey" stdset="0">
+         <string>ei</string>
+        </property>
+        <property name="maximumWidth">
+         <number>90</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources />
+ <connections />
+</ui>
