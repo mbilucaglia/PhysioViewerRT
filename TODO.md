@@ -1,5 +1,33 @@
 # PhysioViewerRT handoff — 23 October 2026
 
+## Next development priority — PPG and SC preprocessing
+
+User priority, 26 October 2026: implement further peripheral preprocessing before
+ASR model persistence or additional display work. This is still pending; current
+PPG has filtering/basic peak detection, while SC has filtering and cvxEDA
+decomposition but no dedicated artifact-cleaning stage.
+
+- [ ] Shared timestamp-aware acquisition-quality checks: gaps, missing values,
+      suspected clipping and flatlines. Preserve original samples; distinguish
+      unavailable, questionable and acceptable analysis windows.
+- [ ] PPG: detect unreliable pulses/intervals and isolated artifacts; calculate HR
+      from trustworthy evidence without bridging rejected beats. Add morphology
+      quality beyond the current peak-prominence and interval checks.
+- [ ] SC: detect isolated spikes and contact steps while preserving slow tonic
+      levels and physiological responses. Assess quality before cvxEDA; do not
+      treat decomposition alone as artifact removal or automatically remove steps.
+- [ ] Add separately selectable, bounded repair of isolated artifacts after
+      validating detection. Expose quality assessment/rejection and waveform
+      repair as distinct choices in Designer-owned Processing panels, with
+      understandable status/reasons and original/processed waveform comparison.
+- [ ] Apply identical processing/quality settings to baseline analysis and live
+      metrics, including HR/SCL, EI and Peripheral Affect; reject incompatible
+      baseline references. Validate on controlled artifacts and real Shimmer data.
+
+Design starting point: docs/PERIPHERAL_CLEANING_DESIGN.md. Exact algorithms,
+sensor-specific limits and repair parameters remain to be selected and tested;
+no peripheral-cleaning behavior has changed in this priority update.
+
 ## Threshold updates and EEG display — 26 October 2026
 
 - [x] Cutoff changes reuse the learned mixing matrix, retained calibration and
@@ -154,7 +182,7 @@ $env:QT_QPA_PLATFORM = 'windows'
 The viewer and synthetic publishers were stopped at the end of the session.
 Restart the app and train a fresh ASR model next time; models remain in memory only.
 
-## Prioritized next tasks
+## Remaining backlog (after PPG/SC preprocessing)
 
 - [ ] Validate with real EEG, SC and PPG hardware: units/gain/offset, clean ASR
       training, motion artifacts, stream gaps/reconnection and long sessions.
