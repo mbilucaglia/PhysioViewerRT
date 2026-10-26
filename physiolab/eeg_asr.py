@@ -198,8 +198,10 @@ class StreamingASR:
         self._processor.ab_ = (model.A.copy(), model.B.copy())
         self._processor.state_ = {'M': model.M.copy(), 'T': model.T.copy(), 'R': None}
         self._processor._fitted = True
+        self.last_chunk_corrected = False
 
     def process(self, samples):
+        self.last_chunk_corrected = False
         data = _validated_data(samples, len(self.model.channels))
         if not len(data):
             return data.copy()
@@ -207,11 +209,20 @@ class StreamingASR:
         output = np.empty_like(data)
         for start in range(0, len(data), step):
             block = data[start:start + step]
+            previous = self._processor.state_['R']
             try:
                 cleaned = self._processor.transform(block.T.copy() * self.model.input_scale).T / self.model.input_scale
             except Exception as exc:
                 raise ASRError('ASR processing failed: ' + str(exc)) from exc
             if cleaned.shape != block.shape or not np.isfinite(cleaned).all():
                 raise ASRError('ASR backend returned invalid data; reset before continuing')
+            # The backend uses identity when all components pass its thresholds.
+            # Include the previous matrix during its raised-cosine release blend.
+            identity = np.eye(len(self.model.channels))
+            current = self._processor.state_['R']
+            nontrivial = lambda matrix: matrix is not None and not np.allclose(
+                matrix, identity, rtol=1e-7, atol=1e-9)
+            self.last_chunk_corrected |= bool(nontrivial(current) or
+                (len(block) > 1 and nontrivial(previous)))
             output[start:start + len(block)] = cleaned
         return output

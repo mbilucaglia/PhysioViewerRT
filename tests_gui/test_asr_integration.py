@@ -305,7 +305,7 @@ class ASRIntegrationTests(unittest.TestCase):
                 # One sweep-wrap boundary is intentionally disconnected.
                 self.assertLess(np.mean(missing), .02)
             window.refresh_asr_indicator(time.monotonic())
-            self.assertEqual(window.raw_asr_status.text(), '● ASR ON')
+            self.assertIn(window.raw_asr_status.text(), ('● ASR monitoring', '● ASR correcting'))
             window.grab().save(os.path.abspath('.test-tmp/asr-toggle-fixed.png'))
             window.tabs.setCurrentWidget(window.metrics_page)
             publish(.7)

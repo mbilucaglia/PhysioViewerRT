@@ -29,7 +29,8 @@ a manual zoom. These controls do not change values or normalization.
 **ASR** is under the EEG filter settings in Sources. Press **Train (45 s)** to record an independent clean EEG sample and enable
 correction, preserving every channel. EYC/BSL and live metrics use the cleaned
 signal. Threshold changes reuse the training sample. The Raw Data ASR indicator
-reports actual processing (off, waiting, active or bypassed). ASR changes filtered
+reports off, waiting, monitoring, correcting or bypassed. Its green LED pulses
+for 0.5 seconds after backend reconstruction; monitoring stays gray. ASR changes filtered
 traces; the Raw trace preserves original input. See [EEG ASR](docs/EEG_ASR.md).
 
 See [WINDOWS_SETUP.md](WINDOWS_SETUP.md) for calibration and detailed controls.

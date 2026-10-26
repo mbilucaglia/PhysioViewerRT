@@ -56,7 +56,12 @@ class EEGASRTests(unittest.TestCase):
         start, stop = int(2*self.fs), int(4*self.fs)
         artifact = 1000*np.sin(2*np.pi*4*np.arange(stop-start)/self.fs)
         data[start:stop, 0] += artifact
-        output = np.concatenate([processor.process(data[i:i+32]) for i in range(0,len(data),32)])
+        blocks, corrections = [], []
+        for i in range(0, len(data), 32):
+            blocks.append(processor.process(data[i:i+32]))
+            corrections.append(processor.last_chunk_corrected)
+        output = np.concatenate(blocks)
+        self.assertTrue(any(corrections), 'Injected artifacts must trigger reconstruction telemetry')
         region = slice(int(3*self.fs), stop)
         self.assertLess(np.std(output[region,0]), np.std(data[region,0])*.7)
         self.assertEqual(output.shape, data.shape)
@@ -70,6 +75,27 @@ class EEGASRTests(unittest.TestCase):
         with patch.object(processor._processor, 'transform', side_effect=RuntimeError('test failure')):
             with self.assertRaisesRegex(ASRError, 'test failure'):
                 processor.process(data)
+
+    def test_correction_telemetry_tracks_backend_reconstruction_and_release(self):
+        processor = StreamingASR(self.model)
+        data = np.zeros((4, 4))
+        def transform(block):
+            processor._processor.state_['R'] = matrix[0]
+            return block
+        matrix = [np.eye(4)]
+        with patch.object(processor._processor, 'transform', side_effect=transform):
+            processor.process(data)
+            self.assertFalse(processor.last_chunk_corrected)
+            matrix[0] = np.diag([0., 1., 1., 1.])
+            processor.process(data)
+            self.assertTrue(processor.last_chunk_corrected)
+            matrix[0] = np.eye(4)
+            processor.process(data)
+            self.assertTrue(processor.last_chunk_corrected, 'release blend still reconstructs')
+            processor.process(data)
+            self.assertFalse(processor.last_chunk_corrected)
+        processor.reset()
+        self.assertFalse(processor.last_chunk_corrected)
 
     def test_invalid_baseline_and_configuration_are_rejected(self):
         for data, fs, names in ((self.filtered[:100], self.fs, self.names),

@@ -13,7 +13,10 @@ class ASRRuntimeTests(unittest.TestCase):
         w.eeg_asr_model = SimpleNamespace(model_id='test')
         self.assertEqual(asr_runtime_state(w, 10.)[0], 'waiting')
         w.asr_last_processed_at = 9.9
-        self.assertEqual(asr_runtime_state(w, 10.)[0], 'on')
+        self.assertEqual(asr_runtime_state(w, 10.)[0], 'monitoring')
+        w.asr_last_correction_at = 9.9
+        self.assertEqual(asr_runtime_state(w, 10.)[0], 'correcting')
+        self.assertEqual(asr_runtime_state(w, 10.5)[0], 'monitoring')
         self.assertEqual(asr_runtime_state(w, 13.)[0], 'waiting')
         w.asr_status = 'ASR bypassed after processing error: test'
         self.assertEqual(asr_runtime_state(w, 10.)[0], 'bypassed')

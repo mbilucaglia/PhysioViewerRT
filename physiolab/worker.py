@@ -41,6 +41,7 @@ class Receiver(QThread):
         self.asr_status = 'ASR disabled'
         self.asr_processed_samples = 0
         self.asr_last_processed_at = None
+        self.asr_last_correction_at = None
         self.mailbox = ChunkMailbox(info.nominal_srate())
 
     def run(self):
@@ -124,6 +125,8 @@ class Receiver(QThread):
                 if cleaner is not None:
                     self.asr_processed_samples += len(selected)
                     self.asr_last_processed_at = time.monotonic()
+                    if cleaner.last_chunk_corrected:
+                        self.asr_last_correction_at = self.asr_last_processed_at
                 observations = tonic.push(proc.last_filtered_chunk, timestamps, fs) if tonic else []
                 if metric is not None or observations:
                     partial = metric is None

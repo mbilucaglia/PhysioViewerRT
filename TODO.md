@@ -13,20 +13,17 @@
       excessive artifacts and insufficient usable data. Include an unknown/
       warming-up state. Validate quality criteria on real recordings before
       claiming that green predicts successful training or future cleaning.
-- [ ] Distinguish **ASR enabled/monitoring** from **artifact correction active**
-      in Raw Data. The existing green ASR ON indicator only confirms that the
-      backend is processing fresh chunks. ASR continuously evaluates the data;
-      its calibrated component-variance thresholds determine reconstruction.
-      Expose backend rejection/reconstruction telemetry with a defined window
-      and update cadence, rather than guessing from raw-vs-filtered differences.
-      Include waiting/bypassed/error states and account for transition blending.
-      Verify clean EEG is preserved and injected artifacts trigger correction
-      with the same input recording and settings, then validate on real EEG.
+- [x] Distinguish ASR monitoring from correction in Raw Data. Green lights only
+      for backend non-identity reconstruction (including release blending), with
+      a 0.5-second visible pulse. Monitoring remains gray; waiting, off and bypass
+      states stay distinct. Tested against backend matrices and injected artifacts.
+      Real-hardware effectiveness validation remains open.
 
 ## Live processing and baseline display — 26 October 2026
 
 - Raw Data ASR indicator reports actual worker execution: idle, off, waiting,
-  active, or bypassed. Green confirms successful processing, not cleaning efficacy.
+  monitoring, correcting, or bypassed. Green indicates recent reconstruction,
+  not guaranteed artifact-removal effectiveness.
 - Raw EI retains the angular HRz/SCLz formula. Metrics and Affect display
   (raw EI − baseline EI mean) / baseline EI standard deviation, with no ±1 clip.
 - EI input references follow live peripheral pipeline compatibility; changing

@@ -57,7 +57,10 @@ class LiveFeedbackTests(unittest.TestCase):
             w.workers['EEG'] = worker
             w.raw_display.paused = True
             w.refresh_asr_indicator(10.)
-            self.assertIn('ASR ON', w.raw_asr_status.text())
+            self.assertIn('ASR monitoring', w.raw_asr_status.text())
+            worker.asr_last_correction_at = 10.
+            w.refresh_asr_indicator(10.)
+            self.assertIn('ASR correcting', w.raw_asr_status.text())
             worker.asr_status = 'ASR bypassed after processing error: failure'
             w.refresh_asr_indicator(10.)
             self.assertIn('BYPASSED', w.raw_asr_status.text())

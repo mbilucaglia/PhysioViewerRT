@@ -13,7 +13,11 @@ def asr_runtime_state(worker, now, pending=False):
     last = worker.asr_last_processed_at
     if last is None or now-last > 2.:
         return 'waiting', 'ASR ON · waiting', 'ASR enabled; waiting for fresh successfully processed EEG samples.'
-    return 'on', 'ASR ON', ('ASR has successfully processed fresh EEG chunks after filtering. '
-        'ASR affects filtered/processed traces; Raw remains original input. '
-        'This confirms execution, not artifact removal effectiveness. Model: '
-        + worker.eeg_asr_model.model_id)
+    correction = getattr(worker, 'asr_last_correction_at', None)
+    detail = ('ASR continuously monitors filtered EEG. The LED lights only when '
+        'the backend applies non-identity reconstruction, including release blending. '
+        'A correction pulse stays visible for 0.5 s. Raw remains original input. '
+        'Model: ' + worker.eeg_asr_model.model_id)
+    if correction is not None and 0. <= now-correction <= .5:
+        return 'correcting', 'ASR correcting', detail
+    return 'monitoring', 'ASR monitoring', detail

@@ -1751,7 +1751,7 @@ class MainWindow(QMainWindow):
         signature = (state, text, detail)
         if signature != self._last_asr_indicator:
             color = {'idle': '#77768f', 'off': '#77768f', 'waiting': '#a56900',
-                     'bypassed': '#bd253b', 'on': '#00875a'}[state]
+                     'bypassed': '#bd253b', 'correcting': '#00875a', 'monitoring': '#77768f'}[state]
             self.raw_asr_status.setText('● '+text)
             self.raw_asr_status.setStyleSheet(f'color: {color}; font-weight: 600; padding: 4px;')
             self.raw_asr_status.setToolTip(detail)
