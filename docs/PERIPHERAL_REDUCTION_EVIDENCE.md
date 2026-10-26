@@ -139,3 +139,28 @@ Remaining: compare against reference implementations/data where available;
 validate on matched real clean/artifact recordings and target hardware, assess
 SCR morphology and HR/SCL/EI bias, and review boundary/window sensitivity.
 No automatic claim of signal quality or successful artifact removal is made.
+
+## Compact per-signal processing feedback — 26 October 2026
+
+Raw Data has one small dot beside each signal title: EEG ASR, PPG reduction and
+SC reduction. They move with their panels when swapped or expanded. There is
+no additional status row or global ASR indicator. Hover for the exact state;
+the same text is exposed as the accessible name.
+
+Gray means idle, Off, or monitoring without a recent modification; amber means
+updating, buffering or waiting. Green pulses for 0.5 seconds after actual sample
+modification. ASR retains its red bypass/error state. Display pause does not stop
+these acquisition/processing indicators.
+
+PPG/SC feedback compares emitted reduced samples against matching original
+samples **before ordinary filters**, using rtol=1e-9 and atol=1e-12 to disregard
+numerical roundoff. A green dot indicates that at least one emitted sample
+changed, not that a physiological artifact was identified or successfully
+removed. The pulse follows processing delivery; buffered data retain their
+earlier acquisition timestamps. A source gap restarts buffering. No fresh
+processed output for two seconds changes the state to waiting.
+
+Hampel checks its three-local-scale outlier threshold; wavelet processes every
+window using coefficient thresholds and can modify clean physiology on every
+update. Therefore a frequently green wavelet indicator is possible without a
+large artifact. This is not the same trigger mechanism as trained EEG ASR.

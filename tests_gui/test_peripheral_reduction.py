@@ -6,7 +6,7 @@ import unittest
 import uuid
 from unittest.mock import patch
 import numpy as np
-from PySide6.QtWidgets import QApplication,QComboBox
+from PySide6.QtWidgets import QApplication,QComboBox,QWidget
 from pylsl import StreamInfo,StreamOutlet,resolve_byprop,local_clock
 from physiolab.gui import MainWindow
 from physiolab.worker import Receiver
@@ -29,6 +29,35 @@ class PeripheralReductionGuiTests(unittest.TestCase):
                     changed.assert_called_once_with(kind)
                 self.assertIn('8-second',choice.toolTip())
         finally:
+            window.close();self.app.processEvents()
+
+    def test_indicators_belong_to_signal_panels_and_follow_swap_and_focus(self):
+        from types import SimpleNamespace
+        with patch.object(MainWindow,'refresh',lambda self:None):
+            window=MainWindow()
+        try:
+            labels={'EEG':window.raw_asr_status,**window.raw_reduction_status}
+            for kind,label in labels.items():
+                panel=window.findChild(QWidget,kind+'PlotPanel')
+                self.assertTrue(panel.isAncestorOf(label))
+                self.assertEqual(label.parentWidget().objectName(),kind+'PlotHeaderGroup0')
+                self.assertEqual(label.text(),'●')
+                self.assertLessEqual(label.maximumWidth(),20)
+            window.workers['PPG']=SimpleNamespace(active=True,
+                preprocessing={'artifact_reduction':'hampel'},reduction_feedback=(10.,10.,8.,False))
+            window.workers['EDA']=SimpleNamespace(active=True,
+                preprocessing={'artifact_reduction':'wavelet'},reduction_feedback=(None,None,4.,True))
+            window.raw_display.paused=True
+            window.refresh_peripheral_indicators(10.)
+            self.assertIn('Hampel modifying',labels['PPG'].accessibleName())
+            self.assertIn('4.0/8 s',labels['EDA'].accessibleName())
+            window.swap_raw_panels('EEG','PPG')
+            window.set_raw_focus('PPG',True)
+            self.assertTrue(window.findChild(QWidget,'PPGPlotPanel').isAncestorOf(labels['PPG']))
+            window.refresh_peripheral_indicators(10.6)
+            self.assertIn('Hampel monitoring',labels['PPG'].accessibleName())
+        finally:
+            window.workers.clear()
             window.close();self.app.processEvents()
 
     def test_metric_plot_time_matches_raw_source_time_despite_late_delivery(self):
@@ -80,6 +109,12 @@ class PeripheralReductionGuiTests(unittest.TestCase):
                     captured[kind].extend(receivers[kind].mailbox.drain())
                 self.app.processEvents();time.sleep(.01)
             self.assertFalse(errors,errors)
+            for receiver in receivers.values():
+                processed,changed,seconds,warming=receiver.reduction_feedback
+                self.assertIsNotNone(processed)
+                self.assertIsNotNone(changed)
+                self.assertFalse(warming)
+                self.assertGreaterEqual(seconds,8.)
             for kind,fs in fs_by_kind.items():
                 chunks=captured[kind]
                 self.assertTrue(chunks,kind)

@@ -41,7 +41,10 @@ PPG and SC Processing panels offer **Off**, **Spike reduction (Hampel)** and
 it requires a matching baseline. Hampel waits three samples. Wavelet buffers
 eight seconds initially, then updates every second. Raw and processed traces
 share original timestamps; metric histories use their source window end.
-Wavelet can alter real pulse/SCR morphology. These are research-based streaming
+A small dot beside each Raw Data signal title shows recent waveform modification
+(green), buffering/waiting (amber), or no current modification (gray). Hover for
+the exact state. Wavelet can modify clean signals continuously; green does not
+guarantee artifact removal. Wavelet can alter real pulse/SCR morphology. These are research-based streaming
 adaptations with synthetic/LSL tests; real-hardware efficacy remains unverified.
 See [method sources, parameters and limits](docs/PERIPHERAL_REDUCTION_EVIDENCE.md).
 After pulling, rerun `setup_windows.cmd` to install pinned PyWavelets.

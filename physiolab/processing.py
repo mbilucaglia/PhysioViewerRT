@@ -30,6 +30,7 @@ class Processor:
         self._last_input_timestamp = None
         self.last_raw_chunk = np.empty((0,channels))
         self.last_timestamps = np.empty(0)
+        self.last_reduction_changed = False
         self.sos, self.notch_frequencies = build_filter(kind, self.fs, config)
         self.zi = np.zeros((self.sos.shape[0], 2, channels)) if self.sos is not None else None
         calculator = METRIC_CALCULATORS.get(kind)
@@ -50,6 +51,7 @@ class Processor:
             return None
         if not np.isfinite(x).all():
             raise ValueError('Signal contains NaN or infinite samples; check the source')
+        self.last_reduction_changed = False
         self._raw_history.append(x)
         stamps = np.asarray(timestamps,dtype=float) if timestamps is not None else None
         if self.artifact_reducer is not None:
@@ -73,6 +75,9 @@ class Processor:
             y = x.copy()
             self.last_raw_chunk = x.copy()
             self.last_timestamps = stamps if stamps is not None else np.empty(0)
+        # Compare before ordinary filters: the LED reports only reducer changes.
+        if self.artifact_reducer is not None:
+            self.last_reduction_changed = bool(np.any(~np.isclose(y,x,rtol=1e-9,atol=1e-12)))
         if self.sos is not None:
             y, self.zi = sosfilt(self.sos, y, axis=0, zi=self.zi)
         self.last_preprocessed_chunk = y

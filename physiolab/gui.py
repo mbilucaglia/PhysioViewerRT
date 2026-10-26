@@ -48,6 +48,7 @@ from .flow_layout import install_designer_flows, install_flow, fit_scroll_page, 
 from .ui_icons import set_action, set_panel_expanded, set_view_paused
 from .asr_session import ASRSession
 from .asr_runtime import asr_runtime_state
+from .peripheral_runtime import peripheral_runtime_state
 from .asr_training import ASRTrainingAccumulator
 from .asr_training_dialog import ASRTrainingDialog
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
@@ -710,6 +711,9 @@ class MainWindow(QMainWindow):
             lambda: self.zoom_raw_plots(.5))
         self.raw_asr_status = self._required_ui('rawASRStatus', QLabel)
         self._last_asr_indicator = None
+        self.raw_reduction_status = {kind:self._required_ui(kind+'ReductionStatus',QLabel)
+                                     for kind in ('PPG','EDA')}
+        self._last_reduction_indicators = {}
         self.raw_live_button = self._required_ui('rawFollowLive', QPushButton)
         set_action(self.raw_live_button, 'Live', 'live')
         self.raw_live_button.clicked.connect(self.resume_raw_live)
@@ -1832,10 +1836,26 @@ class MainWindow(QMainWindow):
         if signature != self._last_asr_indicator:
             color = {'idle': '#77768f', 'off': '#77768f', 'waiting': '#a56900',
                      'bypassed': '#bd253b', 'correcting': '#00875a', 'monitoring': '#77768f'}[state]
-            self.raw_asr_status.setText('● '+text)
+            self.raw_asr_status.setText('●')
+            self.raw_asr_status.setAccessibleName(text)
             self.raw_asr_status.setStyleSheet(f'color: {color}; font-weight: 600; padding: 4px;')
-            self.raw_asr_status.setToolTip(detail)
+            self.raw_asr_status.setToolTip(text+'\n'+detail)
             self._last_asr_indicator = signature
+
+    def refresh_peripheral_indicators(self, now):
+        for kind,label in self.raw_reduction_status.items():
+            signature = peripheral_runtime_state(self.workers.get(kind),now,
+                                                kind in self.pending_source_changes)
+            if signature == self._last_reduction_indicators.get(kind):
+                continue
+            state,text,detail = signature
+            color = {'idle':'#77768f','off':'#77768f','waiting':'#a56900',
+                     'correcting':'#00875a','monitoring':'#77768f'}[state]
+            label.setText('●')
+            label.setAccessibleName(text)
+            label.setStyleSheet(f'color: {color}; font-weight: 600; padding: 4px;')
+            label.setToolTip(text+'\n'+detail)
+            self._last_reduction_indicators[kind] = signature
 
     def render_frame(self):
         started = time.perf_counter()
@@ -1843,6 +1863,7 @@ class MainWindow(QMainWindow):
         self.performance.measure('tick_delay', max(0., now - self._last_gui_tick - self.settings.timer_interval_ms / 1000.))
         self._last_gui_tick = now
         self.refresh_asr_indicator(now)
+        self.refresh_peripheral_indicators(now)
         if not self._closing:
             # No GUI sample draining or rendering while a menu is open.
             # Source threads keep collecting into bounded mailboxes instead.

@@ -1459,13 +1459,6 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                     </property>
                    </widget>
                   </item>
-                  <item>
-                   <widget class="QLabel" name="rawASRStatus">
-                    <property name="text">
-                     <string>● ASR idle</string>
-                    </property>
-                   </widget>
-                  </item>
                  </layout>
                 </widget>
                </item>
@@ -1713,6 +1706,16 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                         <property name="text">
                          <string>EEG  /  Brain activity</string>
                         </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="rawASRStatus">
+                        <property name="text"><string>●</string></property>
+                        <property name="toolTip"><string>ASR idle</string></property>
+                        <property name="accessibleName"><string>ASR idle</string></property>
+                        <property name="minimumSize"><size><width>20</width><height>20</height></size></property>
+                        <property name="maximumSize"><size><width>20</width><height>28</height></size></property>
+                        <property name="alignment"><set>Qt::AlignCenter</set></property>
                        </widget>
                       </item>
                       <item>
@@ -1982,6 +1985,16 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          </property>
                         </widget>
                        </item>
+                      <item>
+                       <widget class="QLabel" name="PPGReductionStatus">
+                        <property name="text"><string>●</string></property>
+                        <property name="toolTip"><string>Reduction idle</string></property>
+                        <property name="accessibleName"><string>Reduction idle</string></property>
+                        <property name="minimumSize"><size><width>20</width><height>20</height></size></property>
+                        <property name="maximumSize"><size><width>20</width><height>28</height></size></property>
+                        <property name="alignment"><set>Qt::AlignCenter</set></property>
+                       </widget>
+                      </item>
                        <item>
                         <widget class="QToolButton" name="PPGMove">
                          <property name="text">
@@ -2245,6 +2258,16 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          </property>
                         </widget>
                        </item>
+                      <item>
+                       <widget class="QLabel" name="EDAReductionStatus">
+                        <property name="text"><string>●</string></property>
+                        <property name="toolTip"><string>Reduction idle</string></property>
+                        <property name="accessibleName"><string>Reduction idle</string></property>
+                        <property name="minimumSize"><size><width>20</width><height>20</height></size></property>
+                        <property name="maximumSize"><size><width>20</width><height>28</height></size></property>
+                        <property name="alignment"><set>Qt::AlignCenter</set></property>
+                       </widget>
+                      </item>
                        <item>
                         <widget class="QToolButton" name="EDAMove">
                          <property name="text">

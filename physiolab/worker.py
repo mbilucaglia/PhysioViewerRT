@@ -43,6 +43,9 @@ class Receiver(QThread):
         self.asr_processed_samples = 0
         self.asr_last_processed_at = None
         self.asr_last_correction_at = None
+        self.reduction_feedback = (None,None,0.,False)
+        # Immutable snapshot: processed time, last modification, startup progress,
+        # waiting for the first output (also reset after a source gap).
         self.mailbox = ChunkMailbox(info.nominal_srate())
 
     def run(self):
@@ -123,6 +126,14 @@ class Receiver(QThread):
                                      preprocessing=self.preprocessing)
                     metric = proc.push(selected,timestamps=timestamps)
                     self.stream_ready.emit(self.kind, names, float(fs))
+                reducer = proc.artifact_reducer
+                if reducer is not None:
+                    previous = self.reduction_feedback
+                    warming = reducer.emitted == 0
+                    processed_at = time.monotonic() if len(proc.last_filtered_chunk) else previous[0]
+                    changed_at = (processed_at if proc.last_reduction_changed else
+                                  None if warming else previous[1])
+                    self.reduction_feedback = (processed_at,changed_at,reducer.total/fs,warming)
                 if not len(proc.last_filtered_chunk):
                     continue  # Explicit reducer buffer; no fabricated processed samples.
                 selected,timestamps = proc.last_raw_chunk,proc.last_timestamps

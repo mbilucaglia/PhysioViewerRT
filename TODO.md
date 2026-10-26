@@ -1,5 +1,21 @@
 # PhysioViewerRT handoff — 23 October 2026
 
+
+## Compact per-signal processing feedback — 26 October 2026
+
+- [x] Move ASR feedback into the EEG Raw Data header; add one compact dot each
+      for PPG/SC reduction. Keep state details in tooltips/accessibility text,
+      without additional rows. Indicators follow panel swaps and expansion.
+- [x] Green reports actual reducer waveform changes before ordinary filters,
+      not enable-checkbox state or claimed signal quality. Show buffering,
+      pending reconfiguration and stale output; preserve ASR bypass feedback.
+- [x] Test untouched/repaired signals, independence from ordinary filters,
+      pulse expiry, buffering/gap restart, paused viewing, header placement and
+      actual live LSL worker telemetry. Core suite: 226 passed. Native GUI/LSL:
+      four passed. Full GUI suite: 121 tests, two OpenGL checks skipped. Wide
+      and compact Designer-based previews inspected.
+
+
 ## EI normalization correction — 26 October 2026
 
 - [x] Keep required HR/SCL baseline z-scores inside the raw EI formula.
