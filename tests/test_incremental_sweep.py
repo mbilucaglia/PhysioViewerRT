@@ -86,5 +86,37 @@ class SweepRingTests(unittest.TestCase):
             self.assertEqual(batch_ring.last_time, sample_ring.last_time)
 
 
+class SparseMarkerTests(unittest.TestCase):
+    def test_jittered_sparse_markers_expire_after_cursor_passes_old_cycle(self):
+        from unittest.mock import patch
+        from physiolab.incremental_sweep import IncrementalSweepLayer
+        from physiolab.vispy_metrics import metric_sweep_points
+
+        class Visual:
+            def __init__(self, capacity, color, mode, parent):
+                self.positions = np.full((capacity, 2), -10., dtype=np.float32)
+
+            def patch(self, updates):
+                for index, vertices in updates:
+                    self.positions[index] = vertices[0]
+
+        with patch('physiolab.incremental_sweep._incremental_visual_class', return_value=Visual):
+            layer = IncrementalSweepLayer(None, 1., 20., '#000000', mode='points')
+        times, values = [], []
+        for cycle in range(5):
+            jitter = .01 if cycle % 2 == 0 else .06
+            for stamp in np.arange(cycle+jitter, cycle+.95, .1):
+                times.append(stamp)
+                values.append(stamp * .3)
+                layer.append(times, values)
+                actual = layer.visual.positions
+                actual = actual[actual[:, 0] >= 0]
+                expected = metric_sweep_points(times, values, 1., stamp)
+                actual = actual[np.argsort(actual[:, 1])]
+                expected = expected[np.argsort(expected[:, 1])]
+                np.testing.assert_allclose(actual, expected, atol=1e-6)
+
+
+
 if __name__ == '__main__':
     unittest.main()

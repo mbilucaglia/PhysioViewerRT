@@ -271,3 +271,14 @@ The measures, statistical assumptions and presentation still need discussion.
       the recording screens' readable white-on-black instructions/fixation.
 - Native dark-palette previews checked: EYC PSD, BSL statistics, instruction
       message box and both EYC/BSL recording screens.
+
+
+## Persistent metric marker cleanup — 26 October 2026
+
+- [x] Fix ghost measured-point squares in the incremental GPU Metrics sweep.
+      Sparse, jittered measurements can land in different 20 Hz slots each cycle;
+      expire old marker slots by timestamp rather than relying on overwrites.
+      The shared latest-measurement cursor also expires stopped-series markers.
+- [x] Regression reproduces jittered sparse measurements over five sweeps and
+      compares visible GPU updates with the timestamp-based reference. Preserve
+      prior-cycle points ahead of the cursor and existing incremental Raw lines.

@@ -233,6 +233,8 @@ class VisPyMetricPlot:
 
     def refresh_axes(self):
         if np.isfinite(self._latest):
+            for _, dots in self._layers.values():
+                dots.expire_points(self._latest)
             self.engine.set_sweep_cursor(
                 (self._latest % self._duration)/self._duration)
         self.canvas.update()

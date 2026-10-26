@@ -119,6 +119,16 @@ class SweepRing:
         return list(zip(changed.tolist(), geometry))
 
 
+    def discard_before(self, timestamp):
+        """Clear occupied slots older than a sparse marker's visible sweep."""
+        stale = np.flatnonzero(np.isfinite(self.stamps) & (self.stamps < timestamp))
+        self.stamps[stale] = -np.inf
+        self.values[stale] = np.nan
+        self.identities[stale] = np.iinfo(np.int64).min
+        self.positions[stale] = -10.
+        return stale
+
+
 @__import__('functools').lru_cache(maxsize=1)
 def _incremental_visual_class():
     """Import VisPy only when the actual OpenGL backend is selected."""
@@ -226,6 +236,7 @@ class IncrementalSweepLayer:
     def append(self, times, values):
         updates = self.ring.append(times, values)
         if self.mode == 'points':
+            self.expire_points(self.ring.last_time)
             updates = [
                 (slot, np.asarray([[
                     float(self.ring.stamps[slot] % self.ring.duration
@@ -238,6 +249,20 @@ class IncrementalSweepLayer:
             ]
         self.visual.patch(updates)
         return len(updates)
+
+    def expire_points(self, head):
+        """Erase prior-cycle dots once the sweep has passed their timestamps.
+
+        Measurements are sparse and jittered, so a new cycle may never write
+        exactly the same 20 Hz slot as an old dot. Lines keep their existing
+        partial-upload policy; only point slots are expired here.
+        """
+        if self.mode != 'points' or not np.isfinite(head):
+            return 0
+        stale = self.ring.discard_before(float(head) - self.ring.duration)
+        self.visual.patch([(int(slot), np.array([[-10., -10.]], dtype=np.float32))
+                           for slot in stale])
+        return len(stale)
 
     def close(self):
         self.visual.parent = None

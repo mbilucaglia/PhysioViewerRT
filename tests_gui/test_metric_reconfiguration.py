@@ -49,6 +49,23 @@ class MetricReconfigurationTests(unittest.TestCase):
         self.plot.set_series(self.key, times, times + 1,
                              times, times + 1, **kwargs)
 
+    def test_shared_cursor_expires_points_from_a_series_that_stopped_updating(self):
+        other = ('PPG','HR')
+        plot = VisPyMetricPlot((self.key,other))
+        try:
+            plot.set_xrange(0.,1.)
+            plot.set_series(self.key,[.01,.51],[1.,2.],[.01,.51],[1.,2.])
+            dots = plot._layers[self.key][1]
+            visual = dots.visual
+            self.assertEqual(np.isfinite(dots.ring.stamps).sum(), 2)
+            plot.set_series(other,[2.,2.5],[3.,4.],[2.,2.5],[3.,4.])
+            plot.refresh_axes()
+            self.assertFalse(np.isfinite(dots.ring.stamps).any())
+            self.assertIs(dots.visual, visual)
+            self.assertEqual(dots.expire_points(2.5), 0)
+        finally:
+            plot.close()
+
     def test_initial_signature_does_not_replace_empty_layers(self):
         pair = self.plot._layers[self.key]
         rings = tuple(layer.ring for layer in pair)
