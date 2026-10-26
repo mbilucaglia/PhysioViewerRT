@@ -18,33 +18,25 @@
   Native preview inspected. Selector combinations, missing/zero baseline spread,
   retained raw EI and unbounded min–max values are covered.
 
-## Next development priority — PPG and SC preprocessing
+## Next development priority — published PPG and SC artifact reduction
 
-User priority, 26 October 2026: implement further peripheral preprocessing before
-ASR model persistence or additional display work. This is still pending; current
-PPG has filtering/basic peak detection, while SC has filtering and cvxEDA
-decomposition but no dedicated artifact-cleaning stage.
+User clarification, 26 October 2026: reduce artifacts in original waveforms,
+not quality assessment or rejection of metric windows. Offer Off / spike
+reduction / broader motion reduction as selectable alternatives per modality.
 
-- [ ] Shared timestamp-aware acquisition-quality checks: gaps, missing values,
-      suspected clipping and flatlines. Preserve original samples; distinguish
-      unavailable, questionable and acceptable analysis windows.
-- [ ] PPG: detect unreliable pulses/intervals and isolated artifacts; calculate HR
-      from trustworthy evidence without bridging rejected beats. Add morphology
-      quality beyond the current peak-prominence and interval checks.
-- [ ] SC: detect isolated spikes and contact steps while preserving slow tonic
-      levels and physiological responses. Assess quality before cvxEDA; do not
-      treat decomposition alone as artifact removal or automatically remove steps.
-- [ ] Add separately selectable, bounded repair of isolated artifacts after
-      validating detection. Expose quality assessment/rejection and waveform
-      repair as distinct choices in Designer-owned Processing panels, with
-      understandable status/reasons and original/processed waveform comparison.
-- [ ] Apply identical processing/quality settings to baseline analysis and live
-      metrics, including HR/SCL, EI and Peripheral Affect; reject incompatible
-      baseline references. Validate on controlled artifacts and real Shimmer data.
+- [ ] Select reproducible, published waveform-reconstruction methods for PPG and
+      SC, with exact source citations, algorithm steps and documented parameters.
+      Research candidates and provenance checks: docs/PERIPHERAL_REDUCTION_EVIDENCE.md.
+- [ ] Verify complete papers/reference implementations and numerical reproduction
+      before integration. The unpublished causal Haar draft was removed, not shipped.
+- [ ] Implement selected methods with explicit streaming latency, boundaries and
+      settings. Clearly distinguish a faithful reproduction from an adaptation.
+- [ ] Add Designer Processing selectors, preserve original/processed comparison,
+      and apply identical transformations to BSL and live HR/SCL/EI/Affect.
+- [ ] Validate both attenuation and preservation of physiological morphology on
+      matched synthetic and real recordings. No peripheral-reduction code is
+      currently enabled; existing filters and cvxEDA remain unchanged.
 
-Design starting point: docs/PERIPHERAL_CLEANING_DESIGN.md. Exact algorithms,
-sensor-specific limits and repair parameters remain to be selected and tested;
-no peripheral-cleaning behavior has changed in this priority update.
 
 ## Threshold updates and EEG display — 26 October 2026
 

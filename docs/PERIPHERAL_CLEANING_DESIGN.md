@@ -2,7 +2,16 @@
 
 Status: design proposal, 23 October 2026. No signal-processing behavior is changed by this document. SC is the interface name; the existing internal modality key remains `EDA`.
 
-## Recommended direction
+## Scope update — 26 October 2026
+
+The user has selected waveform artifact reduction, not quality assessment or
+metric-window rejection, as the next implementation scope. The quality-first
+recommendation below is historical and superseded for this work. Both spike and
+broader-motion reduction should be selectable, using published, reproducible
+methods. See [current research and provenance requirements](PERIPHERAL_REDUCTION_EVIDENCE.md).
+No new peripheral artifact reducer has been implemented or enabled.
+
+## Earlier recommendation (superseded scope)
 
 Start with explicit signal-quality assessment and rejection of unreliable metric windows, then offer conservative repair of isolated spikes. Keep waveform reconstruction as a separately selectable experimental stage. A plausible-looking repaired trace is not evidence that its HR, pulse morphology, SCL, or SCR measurements are reliable.
 
