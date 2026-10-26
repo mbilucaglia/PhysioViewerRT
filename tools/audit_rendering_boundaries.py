@@ -6,6 +6,7 @@ from unittest.mock import patch
 root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root))
 import numpy as np
 from physiolab.raw_render import prepare_raw_window
+from physiolab.vispy_raw import VisPyRawPlot
 from physiolab.raw_snapshot import build_raw_source
 from physiolab.raw_display_state import RawDisplayState
 from physiolab.incremental_sweep import SweepRing
