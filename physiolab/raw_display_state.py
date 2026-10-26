@@ -25,6 +25,7 @@ class RawDisplayState:
         self.paused = False
         self.origin = self.latest_time = self.last_received_at = None
         self.last_sample = {}
+        self.delivery_spans = {}
         self.clock = SmoothViewportClock(settings.presentation_delay_seconds)
         self.committed_head = None
         self.references = {}
@@ -57,6 +58,8 @@ class RawDisplayState:
         self.autoscale_requests.discard(kind)
         self.history[kind].clear()
         self.last_sample.pop(kind, None)
+        self.delivery_spans.pop(kind,None)
+        self._update_presentation_delay()
         self.references.pop(kind, None)
         if not self.last_sample:
             self.clock.reset()
@@ -64,11 +67,23 @@ class RawDisplayState:
             self.origin = self.latest_time = self.last_received_at = None
         self.invalidate()
 
+    def _update_presentation_delay(self):
+        self.clock.presentation_delay = max(self.settings.presentation_delay_seconds,
+            max(self.delivery_spans.values(),default=0.)+self.settings.presentation_delay_seconds)
+
     def append(self, kind, raw, filtered, names, fs, timestamps, received_at=None):
         t, raw, filtered = clean_lsl_chunk(timestamps, raw, filtered,
                                          self.last_sample.get(kind))
         if not len(t):
             return
+        # Keep enough real data behind the playhead for the observed block size.
+        # Eight-second startup backfill is not the steady-state wavelet cadence.
+        span = len(t)/float(fs)
+        if span >= 8.:
+            span = 1.
+        span = min(2.,span)
+        self.delivery_spans[kind] = max(span,self.delivery_spans.get(kind,0.)*.98)
+        self._update_presentation_delay()
         self.last_sample[kind] = float(t[-1])
         if self.origin is None:
             self.origin = float(t[0])

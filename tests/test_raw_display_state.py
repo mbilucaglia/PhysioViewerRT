@@ -14,6 +14,16 @@ class RawDisplayStateTests(unittest.TestCase):
         state.append(kind, values, values, ['channel'], 10., times, received_at=1.)
         return values
 
+    def test_block_delivery_reserves_enough_real_samples_for_smooth_motion(self):
+        state=RawDisplayState()
+        for batch in range(3):
+            times=100.+batch*.5+np.arange(16)/32.
+            values=np.zeros((16,1))
+            state.append('EDA',values,values,['SCL'],32.,times,received_at=batch*.5)
+        self.assertGreaterEqual(state.clock.presentation_delay,.6)
+        state.reset('EDA')
+        self.assertEqual(state.clock.presentation_delay,state.settings.presentation_delay_seconds)
+
     def test_ingress_owns_samples_and_discards_duplicate_timestamps(self):
         state = RawDisplayState()
         source = self.append(state, 'EEG', [100., 100.1])

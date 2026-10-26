@@ -1,6 +1,26 @@
 # PhysioViewerRT handoff — 23 October 2026
 
 
+## Raw playback gaps and alignment — 26 October 2026
+
+- [x] Anchor sweep bins to the source's initial sample phase so half-bin
+      timestamp jitter cannot create false missing segments. Real gaps and the
+      sweep wrap remain disconnected; no samples/timestamps are reconstructed.
+- [x] Consume the real presentation buffer continuously between incoming blocks.
+      Small late-block clock corrections slew speed instead of freezing. Reserve
+      observed block duration plus the configured scheduling margin for display.
+- [x] Center single-channel panels vertically. In VisPy, peripheral raw/processed
+      DC drift is panned to the channel label using shader offsets, preserving
+      retained geometry, waveform amplitudes and processing/metric inputs.
+- [x] Core: 230 passed. GUI suite: 122 tests, three platform skips. Final native
+      renderer checks: 11 passed; rendered-pixel alignment at three gains passed.
+      Synthetic PPG+SC LSL with Hampel and half-second source blocks: 240 measured
+      frames, zero stopped playhead frames; median/p95 GUI intervals 31/47 ms.
+      Display buffer was 0.75 s in this fixture, in addition to Hampel lookahead.
+- [x] Save tools/benchmark_hampel_playback.py for reproduction on other PCs.
+      Captured and inspected full and expanded-SC screenshots. Real device/PC
+      performance still needs confirmation; these measurements are local.
+
 ## Application icon — 26 October 2026
 
 - [x] Replace the reduced detailed lab logo in the title bar/taskbar with a

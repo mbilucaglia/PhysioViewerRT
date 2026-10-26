@@ -19,9 +19,10 @@ class RawDisplayPolicyTests(unittest.TestCase):
                 policy = RAW_DISPLAY_POLICY
                 lower, upper = policy.bounds(count)
                 np.testing.assert_array_equal(policy.offsets(count), 6.*np.arange(count))
-                self.assertEqual((lower, upper), (-3., 6.*count))
-                self.assertEqual(policy.span(count), 6.*count+3.)
-                expected = (6.*np.arange(count)+3.)/(6.*count+3.)
+                expected_upper = 3. if count==1 else 6.*count
+                self.assertEqual((lower, upper), (-3., expected_upper))
+                self.assertEqual(policy.span(count), expected_upper+3.)
+                expected = (6.*np.arange(count)+3.)/(expected_upper+3.)
                 np.testing.assert_allclose(policy.normalized_centers(count), expected)
                 np.testing.assert_allclose(
                     [policy.label_fraction(i, count) for i in range(count)], expected)

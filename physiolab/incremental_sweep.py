@@ -22,6 +22,7 @@ class SweepRing:
         self.stamps = np.full(self.capacity, -np.inf)
         self.values = np.full(self.capacity, np.nan)
         self.identities = np.full(self.capacity, np.iinfo(np.int64).min, dtype=np.int64)
+        self.bin_phase = None
         self.last_time = -np.inf
         self.last_id = np.iinfo(np.int64).min
 
@@ -71,7 +72,12 @@ class SweepRing:
         # timed samples on bin edges: tiny +/- timestamp jitter can then
         # produce IDs 0, 0, 2, 2, ... and no consecutive drawable segments.
         # Geometry still uses the measured timestamps, without resampling.
-        identities = np.rint(t*self.rate).astype(np.int64)
+        if self.bin_phase is None:
+            first_tick = float(t[0]*self.rate)
+            self.bin_phase = first_tick-np.rint(first_tick)
+        # A source may start halfway between nominal bins. Anchor its phase
+        # once; micro-jitter must not alternate duplicate and skipped bins.
+        identities = np.rint(t*self.rate-self.bin_phase).astype(np.int64)
         first = np.r_[identities[0] > self.last_id,
                       np.diff(identities) > 0]
         first &= identities > self.last_id
@@ -145,9 +151,10 @@ def _incremental_visual_class():
         uniform float u_point_size;
         uniform float u_gain;
         uniform float u_center;
+        uniform float u_offset;
         varying vec4 v_color;
         void main() {
-            vec2 position = vec2(a_position.x, u_center + u_gain * (a_position.y - u_center));
+            vec2 position = vec2(a_position.x, u_center + u_gain * (a_position.y - u_center) + u_offset);
             gl_Position = $transform(vec4(position, 0., 1.));
             gl_PointSize = u_point_size;
             v_color = u_color;
@@ -171,6 +178,7 @@ def _incremental_visual_class():
             self.shared_program['u_point_size'] = float(point_size)
             self.shared_program['u_gain'] = 1.0
             self.shared_program['u_center'] = 0.0
+            self.shared_program['u_offset'] = 0.0
             self._draw_mode = mode
             self.set_gl_state('translucent', depth_test=False)
 
@@ -186,6 +194,10 @@ def _incremental_visual_class():
         def set_gain(self, gain, center):
             self.shared_program['u_gain'] = float(gain)
             self.shared_program['u_center'] = float(center)
+            self.update()
+
+        def set_offset(self, offset):
+            self.shared_program['u_offset'] = float(offset)
             self.update()
 
         def reset_capacity(self, capacity):
@@ -227,6 +239,9 @@ class IncrementalSweepLayer:
 
     def set_gain(self, gain, center):
         self.visual.set_gain(gain, center)
+
+    def set_offset(self, offset):
+        self.visual.set_offset(offset)
 
     def reconfigure(self, duration, rate, max_gap=None):
         """Reset display history without replacing the GPU visual/program."""

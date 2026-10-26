@@ -69,6 +69,30 @@ class RawTimingTests(unittest.TestCase):
         self.assertTrue(np.all(np.diff(heads) >= 0.))
         self.assertLessEqual(heads[-1], 50.08 + 1e-10)
 
+    def test_buffer_is_consumed_continuously_between_half_second_blocks(self):
+        clock=SmoothViewportClock(presentation_delay=.6)
+        clock.observe(100.,0.)
+        heads=[]
+        for i in range(1,601):
+            now=i/60.
+            if i%30==0:
+                clock.observe(100.+now,now)
+            heads.append(clock.advance(now))
+        steps=np.diff(heads[120:])
+        self.assertTrue(np.all(steps>0.))
+        self.assertLess(np.max(steps),.025)
+
+    def test_late_block_phase_correction_slows_instead_of_freezing(self):
+        clock=SmoothViewportClock(presentation_delay=.6)
+        clock.observe(100.,0.)
+        clock.head=99.94
+        clock.frame_at=.5
+        clock.observe(100.5,.5)
+        before=clock.head
+        after=clock.advance(.533)
+        self.assertGreater(after,before)
+        self.assertLess(after-before,.033)
+
     def test_misaligned_sample_count_is_rejected(self):
         with self.assertRaises(ValueError):
             clean_lsl_chunk([1., 2.], np.zeros((3, 1)), np.zeros((3, 1)))
@@ -79,7 +103,8 @@ class RawTimingTests(unittest.TestCase):
         self.assertAlmostEqual(clock.head, 99.75)
         heads = [clock.advance(1.+i/30.) for i in range(120)]
         self.assertTrue(np.all(np.diff(heads) >= 0))
-        self.assertLessEqual(heads[-1], 99.83+1e-9)
+        self.assertLessEqual(heads[-1], 100.08+1e-9)
+        self.assertGreater(heads[-1],100.)
 
 
 if __name__ == '__main__':

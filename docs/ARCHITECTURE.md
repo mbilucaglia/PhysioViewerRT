@@ -203,3 +203,34 @@ visible finite observations. CPU and GPU rendering share the same UI controls.
 Sources distributes surplus height to occupied source rows. Never add an empty
 stretch row below its footer: it creates a large unused area when maximized.
 Intro/footer rows keep natural height, and card rows may grow within the viewport.
+
+
+## Raw display clock and peripheral baseline placement
+
+Acquisition timestamps remain authoritative. The presentation buffer reserves
+the largest recently observed emitted-block duration plus the configured
+presentation-delay margin (normally 0.25 s). Block duration decays gradually
+after smaller deliveries; its estimate is capped at two seconds. Eight-second
+wavelet startup backfill is treated as one-second steady-state delivery. A
+half-second delivery fixture therefore uses 0.75 s of display buffering in
+addition to the reducer's own lookahead. Metric observation times are unchanged.
+
+Between arrivals the clock consumes buffered real samples; late-block phase
+corrections slew speed rather than stopping at an estimated target. The clock
+can still stop when actual data runs out. Its internal 80 ms maximum lead is
+clamped to actual fresh source data by RawDisplayState, and never fabricates
+signal samples. Source resets remove their cadence estimate.
+
+Sweep rings fix bin phase at their first real sample, preserving measured
+timestamp geometry. Half-bin jitter must not create alternating skipped bins.
+Missing observations and sweep-cycle boundaries remain disconnected. The
+old/current sweep join is not a continuous time interval and must not be joined
+by an invented line segment.
+
+Single-channel Y bounds are symmetric around the channel baseline. VisPy PPG/SC
+also pan each raw/processed trace's visible median to that baseline with a
+shader offset. This translation does not rewrite retained vertices, units,
+amplitudes, history or signal-processing inputs. Gain applies to the offset too,
+so zoom stays anchored to the label. Multi-channel EEG retains its centering
+policy. Use tools/benchmark_hampel_playback.py for native LSL/playback checks;
+results depend on the driver, machine and concurrent workload.

@@ -21,6 +21,8 @@ class RawDisplayPolicy:
         return self.channel_spacing * np.arange(count, dtype=float)
 
     def bounds(self, count):
+        if count <= 1:
+            return (-self.channel_margin,self.channel_margin)
         return (-self.channel_margin,
                 max(self.channel_spacing * count, self.channel_margin))
 

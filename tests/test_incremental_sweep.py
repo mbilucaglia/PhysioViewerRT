@@ -15,6 +15,17 @@ class SweepRingTests(unittest.TestCase):
             self.assertEqual(np.count_nonzero(drawn), len(times)-1)
             np.testing.assert_allclose(ring.positions[1, :, 0], times[:2]/5.)
 
+    def test_half_bin_phase_jitter_does_not_create_false_gaps(self):
+        for fs in (32.,128.,256.):
+            ring=SweepRing(5.,fs)
+            index=np.arange(int(fs))
+            times=(index+.5)/fs+np.where(index%2==0,1e-6,-1e-6)
+            ring.append(times,np.sin(times))
+            self.assertEqual(np.count_nonzero(np.any(ring.positions!=-10.,axis=(1,2))),len(times)-1)
+            before=ring.positions.copy()
+            self.assertEqual(ring.append(times,np.sin(times)),[])
+            np.testing.assert_array_equal(before,ring.positions)
+
     def test_only_one_segment_changes_when_one_sample_arrives(self):
         ring = SweepRing(duration=5., rate=10.)
         initial = ring.append([.1, .2, .3], [1., 2., 3.])

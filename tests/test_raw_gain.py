@@ -6,7 +6,11 @@ from physiolab.vispy_raw import VisPyRawPlot
 class FakeLayer:
     def __init__(self):
         self.gains = []
+        self.offsets = []
         self.ring = object()
+
+    def set_offset(self, offset):
+        self.offsets.append(offset)
 
     def set_gain(self, gain, center):
         self.gains.append((gain, center))
@@ -24,6 +28,7 @@ class GainTests(unittest.TestCase):
     def test_amplitude_change_retains_existing_layers(self):
         plot = VisPyRawPlot.__new__(VisPyRawPlot)
         plot.vertical_gain = 1.
+        plot._trace_offsets = {}
         plot._target_channels = 8
         plot.layers = {'raw': [FakeLayer() for _ in range(8)],
                        'filtered': [FakeLayer() for _ in range(8)]}
