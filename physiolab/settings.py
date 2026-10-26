@@ -7,7 +7,7 @@ from numbers import Integral, Real
 @dataclass(frozen=True)
 class ViewerSettings:
     display_fps: int = 30
-    presentation_delay_seconds: float = .25
+    presentation_delay_seconds: float = .05
     stale_source_seconds: float = 1.
     history_seconds: float = 300.
     default_view_seconds: float = 5.

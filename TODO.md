@@ -1,14 +1,35 @@
 # PhysioViewerRT handoff — 23 October 2026
 
 
+## Low-latency display correction — 26 October 2026
+
+- [x] Replace the excessive adaptive buffer with a fixed 50 ms default; source
+      block size no longer expands display delay. PPG/SC target 25 ms LSL pulls.
+      Preserve EEG/ASR transport partitioning, denoisers and metric cadence.
+- [x] Stop the slowest modality holding back the other raw panels. Preserve
+      actual source timestamps; slower traces can lag behind the shared cursor.
+- [x] Native PPG/SC Hampel reproduction: 240 measured frames, no stopped playhead
+      frames; actual newest-drawn sample age median/p95 PPG 103/121 ms, SC 159/182
+      ms, with 25 ms source blocks on this PC. Benchmark reports actual age and
+      accepts --block-seconds to inspect upstream bursting separately.
+- [x] Core suite: 230 passed. Native LSL pairing/timing checks: four passed. Full GUI suite: 122 tests, three platform skips.
+- [ ] Confirm total delay on the user's real hardware. The 50 ms display buffer
+      is additional to Hampel lookahead, acquisition/transport and rendering.
+- [ ] Evaluate published causal waveform denoisers after obtaining complete
+      models/parameters: SC extended Kalman filtering (Tronstad et al. 2015,
+      https://doi.org/10.1109/EMBC.2015.7318961); PPG adaptive RLS (Wu et al.,
+      https://doi.org/10.1109/BIOCAS.2017.8325141). Verify required references and
+      waveform preservation; do not equate HR-estimation accuracy with waveform
+      reconstruction quality or silently replace the current reducers.
+
 ## Raw playback gaps and alignment — 26 October 2026
 
 - [x] Anchor sweep bins to the source's initial sample phase so half-bin
       timestamp jitter cannot create false missing segments. Real gaps and the
       sweep wrap remain disconnected; no samples/timestamps are reconstructed.
 - [x] Consume the real presentation buffer continuously between incoming blocks.
-      Small late-block clock corrections slew speed instead of freezing. Reserve
-      observed block duration plus the configured scheduling margin for display.
+      Small late-block clock corrections slew speed instead of freezing. The initial
+      adaptive buffering strategy is superseded by the low-latency correction above.
 - [x] Center single-channel panels vertically. In VisPy, peripheral raw/processed
       DC drift is panned to the channel label using shader offsets, preserving
       retained geometry, waveform amplitudes and processing/metric inputs.
@@ -16,7 +37,7 @@
       renderer checks: 11 passed; rendered-pixel alignment at three gains passed.
       Synthetic PPG+SC LSL with Hampel and half-second source blocks: 240 measured
       frames, zero stopped playhead frames; median/p95 GUI intervals 31/47 ms.
-      Display buffer was 0.75 s in this fixture, in addition to Hampel lookahead.
+      Initial buffer was 0.75 s; superseded by the 50 ms correction above.
 - [x] Save tools/benchmark_hampel_playback.py for reproduction on other PCs.
       Captured and inspected full and expanded-SC screenshots. Real device/PC
       performance still needs confirmation; these measurements are local.

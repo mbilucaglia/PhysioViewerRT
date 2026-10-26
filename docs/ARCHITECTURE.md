@@ -207,18 +207,25 @@ Intro/footer rows keep natural height, and card rows may grow within the viewpor
 
 ## Raw display clock and peripheral baseline placement
 
-Acquisition timestamps remain authoritative. The presentation buffer reserves
-the largest recently observed emitted-block duration plus the configured
-presentation-delay margin (normally 0.25 s). Block duration decays gradually
-after smaller deliveries; its estimate is capped at two seconds. Eight-second
-wavelet startup backfill is treated as one-second steady-state delivery. A
-half-second delivery fixture therefore uses 0.75 s of display buffering in
-addition to the reducer's own lookahead. Metric observation times are unchanged.
+Acquisition timestamps remain authoritative. The presentation buffer is fixed
+at 50 ms by default and does not increase with incoming block size. PPG/SC LSL
+pulls target 25 ms blocks/timeouts so the application does not accumulate large
+waveform blocks before display. EEG/ASR keeps its existing transport partition
+because the backend is chunk-dependent. Metric cadence and denoising algorithms
+are unchanged. Hampel still needs three future samples; wavelet still buffers
+eight seconds initially and emits one-second updates.
+
+The shared source-time axis follows the newest available source; a slower
+modality no longer holds back the other panels. Slower traces retain their own
+actual timestamps and can lag behind the cursor. Bursty hardware or upstream
+outlets cannot be made immediate by this change: no unavailable samples are
+invented. Removing the former block-size-plus-250-ms adaptive delay prioritizes
+low latency over smoothing arbitrarily large delivery bursts.
 
 Between arrivals the clock consumes buffered real samples; late-block phase
 corrections slew speed rather than stopping at an estimated target. The clock
 can still stop when actual data runs out. Its internal 80 ms maximum lead is
-clamped to actual fresh source data by RawDisplayState, and never fabricates
+clamped to the newest actual source data by RawDisplayState, and never fabricates
 signal samples. Source resets remove their cadence estimate.
 
 Sweep rings fix bin phase at their first real sample, preserving measured
@@ -234,3 +241,12 @@ amplitudes, history or signal-processing inputs. Gain applies to the offset too,
 so zoom stays anchored to the label. Multi-channel EEG retains its centering
 policy. Use tools/benchmark_hampel_playback.py for native LSL/playback checks;
 results depend on the driver, machine and concurrent workload.
+
+Native synthetic-LSL reproduction with both modalities using Hampel, 25 ms source
+blocks, PPG 128 Hz and SC 32 Hz: 240 measured frames, zero stopped playhead frames;
+median/p95 GUI intervals 31/47 ms. Measured age of the newest GPU-drawn original
+sample timestamp was PPG 103/121 ms median/p95 and SC 159/182 ms. This includes
+reducer lookahead, delivery, processing and frame preparation on the test PC;
+it is not a guarantee for another device or machine. The display buffer itself
+was 50 ms. tools/benchmark_hampel_playback.py now reports actual drawn-sample age;
+--block-seconds 0.5 can separately demonstrate unavoidable upstream burstiness.

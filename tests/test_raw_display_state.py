@@ -14,15 +14,15 @@ class RawDisplayStateTests(unittest.TestCase):
         state.append(kind, values, values, ['channel'], 10., times, received_at=1.)
         return values
 
-    def test_block_delivery_reserves_enough_real_samples_for_smooth_motion(self):
+    def test_display_buffer_does_not_grow_with_delivered_block_size(self):
         state=RawDisplayState()
-        for batch in range(3):
-            times=100.+batch*.5+np.arange(16)/32.
-            values=np.zeros((16,1))
-            state.append('EDA',values,values,['SCL'],32.,times,received_at=batch*.5)
-        self.assertGreaterEqual(state.clock.presentation_delay,.6)
-        state.reset('EDA')
-        self.assertEqual(state.clock.presentation_delay,state.settings.presentation_delay_seconds)
+        for count in (16,32,256):
+            times=100.+np.arange(count)/32.
+            values=np.zeros((count,1))
+            state.reset('EDA')
+            state.append('EDA',values,values,['SCL'],32.,times,received_at=1.)
+            self.assertEqual(state.clock.presentation_delay,.05)
+
 
     def test_ingress_owns_samples_and_discards_duplicate_timestamps(self):
         state = RawDisplayState()
@@ -44,16 +44,16 @@ class RawDisplayStateTests(unittest.TestCase):
         self.assertEqual(state.inflight_ticket, current.ticket)
         self.assertTrue(state.accepts(current.ticket, current.version))
 
-    def test_shared_clock_uses_fresh_slowest_source_and_never_rewinds(self):
+    def test_slow_source_does_not_delay_other_panels_and_clock_never_rewinds(self):
         state = RawDisplayState()
         state.origin = 100.
         state.clock = SimpleNamespace(advance=lambda now: 110.)
         state.last_sample = {'EEG': 110., 'EDA': 109.5, 'PPG': 100.}
         state.advance(1.)
-        self.assertEqual(state.bounds, (4.5, 9.5))
+        self.assertEqual(state.bounds, (5., 10.))
         state.committed_head = 9.8
         state.advance(2.)
-        np.testing.assert_allclose(state.bounds, (4.8, 9.8))
+        np.testing.assert_allclose(state.bounds, (5., 10.))
 
     def test_reset_retains_other_sources_and_last_reset_clears_clock(self):
         state = RawDisplayState()

@@ -13,6 +13,11 @@ then `start_windows.cmd`. In Sources, refresh LSL, select the source and channel
 for each modality, and press Play. Raw Data shows the live waveforms; gain,
 channel count, sweep duration, and plot pause change the display only.
 
+Raw Data uses a fixed 50 ms presentation buffer. PPG/SC use small delivery
+blocks; Hampel adds three samples of lookahead. A slower stream retains its
+own timestamps without delaying the other panels. Hardware/network batching
+and wavelet buffering can still add delay.
+
 The Affect tab shows Central/Peripheral trajectories and Emotional Index.
 Every displayed metric follows that tab's selected normalization using its own
 fixed baseline distribution. Record or load EYC and BSL first. SC decomposition starts on the

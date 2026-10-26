@@ -93,9 +93,13 @@ class Receiver(QThread):
             first_source_timestamp = None
             self.stream_ready.emit(self.kind, names, float(fs))
             while self.active:
-                # Bound delivery to one metric hop, including after a backlog.
+                # Peripheral waveforms should reach the viewer in small
+                # blocks. Preserve EEG/ASR transport partitioning because its
+                # backend reconstruction is chunk-dependent.
+                peripheral = self.kind in ('PPG','EDA')
                 samples, timestamps = inlet.pull_chunk(
-                    timeout=.2, max_samples=max(1, round(fs * METRIC_HOP_SECONDS)))
+                    timeout=.025 if peripheral else .2,
+                    max_samples=max(1, round(fs * (.025 if peripheral else METRIC_HOP_SECONDS))))
                 if not samples:
                     continue
                 proc.iaf_hz = self.iaf_hz
