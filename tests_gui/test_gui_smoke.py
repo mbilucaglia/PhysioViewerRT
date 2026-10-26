@@ -518,15 +518,17 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertFalse(self.window.findChild(QWidget, 'EDAPlotPanel').isHidden())
         self.assertIs(self.window.workers['EDA'], worker)
 
-    def test_autoscale_sits_by_number_and_keeps_plus_minus_controls(self):
+    def test_vertical_controls_hide_editable_value_and_keep_minus_fit_plus(self):
         from PySide6.QtWidgets import QHBoxLayout, QDoubleSpinBox, QPushButton
         for kind in ('EEG', 'PPG', 'EDA'):
             gain = self.window.raw_vertical_gains[kind]
             header = self.window.findChild(QHBoxLayout, f'{kind}PlotHeader')
             self.assertEqual(header.indexOf(self.window.raw_autoscale_buttons[kind]),
                              header.indexOf(gain)+1)
-            self.assertIn('width: 0px', gain.styleSheet())
-            self.assertGreater(gain.lineEdit().width(), 20)
+            self.assertTrue(gain.isHidden())
+            visible = [header.itemAt(i).widget().objectName() for i in range(header.count())
+                       if header.itemAt(i).widget() is not None and not header.itemAt(i).widget().isHidden()]
+            self.assertEqual(visible[-3:], [kind+'AmplitudeMinus',kind+'Autoscale',kind+'AmplitudePlus'])
             for suffix in ('Minus', 'Plus'):
                 self.assertFalse(self.window.findChild(QPushButton, f'{kind}Amplitude{suffix}').isHidden())
 

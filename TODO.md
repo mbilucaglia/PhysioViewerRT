@@ -313,3 +313,10 @@ The measures, statistical assumptions and presentation still need discussion.
 - [x] Encode the wide default row stretch in Qt Designer and use the same policy
       in the responsive controller. Regression checks footer position and absence
       of trailing expanding rows. Native maximized and small 150% previews passed.
+
+
+## Compact vertical controls — 26 October 2026
+
+- [x] Remove editable vertical-gain values from Raw Data plot headers. Keep
+      minus/Fit/plus buttons and bounded internal gain state; source-conversion
+      gain/offset controls remain acquisition settings, independent of this view.

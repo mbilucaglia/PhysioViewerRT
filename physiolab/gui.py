@@ -672,6 +672,7 @@ class MainWindow(QMainWindow):
             self.plots[kind] = plot
             self.curves[kind] = []
             gain = self._required_ui(f'{kind}Amplitude', QDoubleSpinBox)
+            gain.hide()  # Keep bounded gain state; adjustment uses − / Fit / + only.
             gain.setDecimals(2)
             # Qt's Windows stylesheet gives NoButtons a zero-width editor.
             # Hide the subcontrols instead, preserving the editable number.

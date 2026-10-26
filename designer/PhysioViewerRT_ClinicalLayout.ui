@@ -1765,6 +1765,9 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                         <property name="maximumWidth">
                          <number>92</number>
                         </property>
+                        <property name="visible">
+                         <bool>false</bool>
+                        </property>
                        </widget>
                       </item>
                       <item>
@@ -2029,6 +2032,9 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          <property name="maximumWidth">
                           <number>92</number>
                          </property>
+                         <property name="visible">
+                          <bool>false</bool>
+                         </property>
                         </widget>
                        </item>
                        <item>
@@ -2288,6 +2294,9 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                          </property>
                          <property name="maximumWidth">
                           <number>92</number>
+                         </property>
+                         <property name="visible">
+                          <bool>false</bool>
                          </property>
                         </widget>
                        </item>
