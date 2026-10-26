@@ -1,6 +1,6 @@
 # EEG artifact subspace reconstruction
 
-ASR lives under the EEG filter settings in Sources. **Train (45 s)** records a
+ASR lives under the EEG filter settings in Sources. **Train (auto · ≥60 s)** records a
 fresh, independent EEG sample after the button is pressed, then fits the existing
 meegkit model in a background task and enables correction. Neither BSL nor EYC
 is needed to train ASR. Stay relaxed and still while recording; cancellation
@@ -9,7 +9,8 @@ keeps the previous model. Duration is shared in `ViewerSettings.asr_training_sec
 The library requires at least 30 seconds of retained clean EEG. The adapter
 requires two or more distinct, linearly independent EEG channels, sampling above
 82 Hz and a high-pass filter preset. If too little clean data remains, training
-fails explicitly; it never removes channels to make training succeed.
+collects more accepted windows and retries within the session limits; it never
+removes channels to make training succeed.
 
 1. Select the EEG stream, channels, conversion and filter settings; start EEG.
 2. Press **Train** and wait for recording and model fitting to finish.
@@ -63,3 +64,22 @@ is not claimed. Synthetic tests check artifact attenuation, clean-signal
 preservation, sample counts, reset behavior, configuration gating, Qt timer
 responsiveness, and real local LSL acquisition. Validate cutoff choices and
 signal preservation with recordings from the intended EEG hardware.
+
+
+Adaptive ASR training counts **accepted EEG seconds**, rather than stopping at a
+fixed wall-clock duration. The quality popup gives the subject live instructions:
+green = no obvious problems detected; amber = possible movement, relax and keep
+still; red = check signal/electrodes or connection. Two startup windows and
+windows with detected problems do not increase accepted time. Screening uses
+one-second windows, channel flatness/plateaus, channel dependence and transient
+amplitude relative to the median of earlier accepted windows (last 30 windows).
+It is a heuristic, not a guarantee of artifact-free EEG.
+
+Training automatically completes after at least 60 accepted seconds **and** a
+successful backend fit. On fitting failure, it collects 10 more accepted seconds
+before retrying (up to 180 stored accepted seconds and a five-minute session).
+Cancel/timeout preserves the previous model. Original timestamps and window
+boundaries are retained; continuous conversion/filtering happens before window
+selection, and ASR is not applied to the training input. The library must still
+retain at least 30 clean seconds for fitting. Validate screening and calibration
+success on representative real EEG before relying on the quality flag.

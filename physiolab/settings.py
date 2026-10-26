@@ -12,7 +12,7 @@ class ViewerSettings:
     history_seconds: float = 300.
     default_view_seconds: float = 5.
     default_eeg_display_channels: int = 8
-    asr_training_seconds: float = 45.
+    asr_training_seconds: float = 60.
     metric_history_capacity: int = 900
     ingress_chunks_per_tick: int = 32
     source_change_debounce_ms: int = 150
@@ -30,8 +30,8 @@ class ViewerSettings:
         for name in count_fields:
             if not isinstance(getattr(self, name), Integral):
                 raise ValueError(f'{name} must be an integer')
-        if self.asr_training_seconds < 30:
-            raise ValueError('ASR training must record at least 30 seconds')
+        if self.asr_training_seconds < 60:
+            raise ValueError('ASR training must accumulate at least 60 seconds')
         if self.default_view_seconds > self.history_seconds:
             raise ValueError('Default view cannot exceed retained history')
         if self.gain_minimum >= self.gain_maximum:

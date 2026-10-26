@@ -39,6 +39,7 @@ class Receiver(QThread):
         self.source_configuration = None
         self.eeg_asr_model = eeg_asr_model if kind == 'EEG' else None
         self.asr_status = 'ASR disabled'
+        self.asr_training_monitor = None
         self.asr_processed_samples = 0
         self.asr_last_processed_at = None
         self.asr_last_correction_at = None
@@ -122,6 +123,9 @@ class Receiver(QThread):
                                      preprocessing=self.preprocessing)
                     metric = proc.push(selected)
                     self.stream_ready.emit(self.kind, names, float(fs))
+                monitor = self.asr_training_monitor
+                if monitor is not None:
+                    monitor.push(selected, proc.last_preprocessed_chunk, timestamps)
                 if cleaner is not None:
                     self.asr_processed_samples += len(selected)
                     self.asr_last_processed_at = time.monotonic()

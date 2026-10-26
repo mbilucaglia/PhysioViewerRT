@@ -113,7 +113,7 @@ class ASRIntegrationTests(unittest.TestCase):
             nonlocal ticks
             target = int((local_clock()-origin)*self.fs)
             if target > ticks:
-                outlet.push_chunk(self.eeg['data'][ticks:target].tolist(), origin+(target-1)/self.fs)
+                outlet.push_chunk(np.tile(self.eeg['data'], (5,1))[ticks:target].tolist(), origin+(target-1)/self.fs)
                 ticks = target
 
         try:
@@ -129,7 +129,7 @@ class ASRIntegrationTests(unittest.TestCase):
             timer.start()
             self.assertTrue(self.pump(lambda: getattr(window.workers.get('EEG'), 'active', False)))
             self.assertTrue(window.asr_view.train.isEnabled())
-            # Actual 45-second recording, driven by the same button as the app.
+            # At least 60 accepted seconds; startup/rejected windows do not count.
             window.asr_view.train.click()
             self.assertTrue(self.pump(lambda: not window.asr_session.busy))
             self.assertIsNone(window.capture)
@@ -137,7 +137,9 @@ class ASRIntegrationTests(unittest.TestCase):
             self.assertIsNone(window.loaded_eyc)
             self.assertTrue(window.asr_session.enabled, window.asr_view.status.text())
             training = window.asr_session.training
-            self.assertGreaterEqual(len(training['data'])/training['fs'], 45.)
+            self.assertGreaterEqual(len(training['data'])/training['fs'], 60.)
+            self.assertIn('preprocessed_data', training)
+            self.assertIn('accepted_window_samples', training)
             self.assertEqual(training['data'].shape[1], 4)
             self.assertEqual(training['channels'], self.names)
             self.assertEqual(window.asr_session.model.channels, tuple(self.names))

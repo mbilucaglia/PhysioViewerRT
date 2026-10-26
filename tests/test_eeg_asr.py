@@ -97,6 +97,21 @@ class EEGASRTests(unittest.TestCase):
         processor.reset()
         self.assertFalse(processor.last_chunk_corrected)
 
+    def test_selected_training_uses_continuously_prefiltered_windows(self):
+        from physiolab.asr_tasks import fit_training_asr
+        eeg = {'data': self.raw, 'fs': self.fs, 'channels': self.names,
+               'timestamps': np.arange(len(self.raw))/self.fs,
+               'preprocessed_data': self.filtered,
+               'accepted_window_samples': [128]*60, 'units': ['uV']*4}
+        # Selection gaps between windows are allowed; gaps inside windows are not.
+        eeg['timestamps'][30*128:] += 5.
+        model = fit_training_asr(eeg)
+        self.assertEqual(model.channels, tuple(self.names))
+        self.assertEqual(model.baseline_seconds, 60.)
+        eeg['timestamps'][10] += .3
+        with self.assertRaises(ValueError):
+            fit_training_asr(eeg)
+
     def test_invalid_baseline_and_configuration_are_rejected(self):
         for data, fs, names in ((self.filtered[:100], self.fs, self.names),
                                 (np.ones_like(self.filtered), self.fs, self.names),

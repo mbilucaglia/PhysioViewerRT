@@ -23,6 +23,12 @@ class ViewerSettingsTests(unittest.TestCase):
             ViewerSettings(history_seconds=4, default_view_seconds=5)
         self.assertEqual(ViewerSettings(history_seconds=5).default_view_seconds, 5)
 
+    def test_asr_training_requires_at_least_sixty_accepted_seconds(self):
+        self.assertEqual(DEFAULT_VIEWER_SETTINGS.asr_training_seconds, 60.)
+        for seconds in (30., 45., 59.):
+            with self.assertRaises(ValueError):
+                ViewerSettings(asr_training_seconds=seconds)
+
     def test_gain_range_is_ordered(self):
         for minimum, maximum in ((1, 1), (2, 1)):
             with self.assertRaises(ValueError):

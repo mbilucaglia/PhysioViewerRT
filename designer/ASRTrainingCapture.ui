@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ui version="4.0">
+ <class>ASRTrainingCapture</class>
+ <widget class="QWidget" name="ASRTrainingCapture">
+  <layout class="QVBoxLayout" name="trainingLayout">
+   <item>
+    <widget class="QLabel" name="trainingTitle">
+     <property name="text">
+      <string>ASR calibration · relax and keep still</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="trainingQuality">
+     <property name="text">
+      <string>● Checking signal…</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="trainingCount">
+     <property name="text">
+      <string>Accepted EEG: 0 / 60 s minimum</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QProgressBar" name="trainingProgress">
+     <property name="value">
+      <number>0</number>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="trainingFitStatus">
+     <property name="text">
+      <string>Recording usable EEG windows…</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="trainingHint">
+     <property name="text">
+      <string>Green means no obvious problems detected. Amber asks you to reduce movement; red asks the operator to check the signal. Screening does not guarantee artifact-free EEG. Stops safely after 5 minutes if calibration cannot complete.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="trainingCancel">
+     <property name="text">
+      <string>Cancel</string>
+     </property>
+    </widget>
+   </item>
+   <property name="spacing">
+    <number>14</number>
+   </property>
+  </layout>
+  <property name="styleSheet">
+   <string>QWidget#ASRTrainingCapture { background: #ffffff; color: #25234a; }
+QLabel { color: #25234a; font-family: "Segoe UI"; font-size: 10pt; }
+QLabel#trainingTitle { font-size: 13pt; font-weight: 600; }
+QLabel#trainingHint { color: #686887; font-size: 9pt; }
+QPushButton { background: #f1f2f9; color: #312b79; border: 1px solid #d8d5ef; border-radius: 5px; padding: 8px; }
+QProgressBar { color: #25234a; background: #f1f2f9; border: 1px solid #d8d5ef; border-radius: 4px; text-align: center; }
+QProgressBar::chunk { background: #a5d8c6; }</string>
+  </property>
+ </widget>
+ <resources />
+ <connections />
+</ui>

@@ -48,6 +48,8 @@ from .flow_layout import install_designer_flows, install_flow, fit_scroll_page, 
 from .ui_icons import set_action, set_panel_expanded, set_view_paused
 from .asr_session import ASRSession
 from .asr_runtime import asr_runtime_state
+from .asr_training import ASRTrainingAccumulator
+from .asr_training_dialog import ASRTrainingDialog
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
 from .desktop_widgets import CheckChannelDropdown, CalibrationScreen, ResponsiveSources
@@ -193,7 +195,7 @@ class MainWindow(QMainWindow):
         self.asr_view = ASRControls(self._required_ui('EEGASRPanel', QFrame))
         self.asr_view.train_requested.connect(self.train_eeg_asr)
         self.asr_view.report_requested.connect(self.show_asr_training_report)
-        self.asr_view.train.setText(f'Train ({self.settings.asr_training_seconds:g} s)')
+        self.asr_view.train.setText(f'Train (auto · ≥{self.settings.asr_training_seconds:g} s)')
         self.asr_view.fit_requested.connect(self.fit_eeg_asr)
         self.asr_view.enabled_changed.connect(self.set_eeg_asr_enabled)
         self.update_asr_availability()
@@ -223,57 +225,82 @@ class MainWindow(QMainWindow):
         if not available or self.capture is not None or self.asr_session.busy:
             self.statusBar().showMessage(status or 'Finish the current recording or training first.')
             return
-        duration = max(30., self.settings.asr_training_seconds)
+        minimum = self.settings.asr_training_seconds
         metadata = {'fs': float(worker.info.nominal_srate()),
                     'channels': list(worker.selected_names),
                     'preprocessing': dict(worker.preprocessing),
                     'conversion': worker.conversion.metadata(),
                     'source_units': list(worker.source_units), 'units': list(worker.output_units),
                     'start_lsl_timestamp': worker.latest_source_timestamp}
-        session = CalibrationSession('ASR', {'EEG': metadata}, time.monotonic()+duration+10.)
-        progress = QProgressDialog('Recording clean EEG… stay relaxed and still.', 'Cancel', 0, 100, self)
-        progress.setWindowTitle('Train ASR · keep and correct all channels')
-        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
-        progress.setAutoClose(False)
-        progress.setAutoReset(False)
-        timer = QTimer(progress)
-        timer.setInterval(100)
+        started = time.monotonic()
+        session = CalibrationSession('ASR', {'EEG': metadata}, started+300.)
+        monitor = ASRTrainingAccumulator(metadata['fs'], metadata['channels'], max(180., minimum+60.))
+        progress = ASRTrainingDialog(minimum, self)
+        fit = {'running': False, 'next': minimum, 'error': '', 'model': None, 'eeg': None}
+        settings = self.asr_view.settings()
+        cancelled = False
 
-        def advance():
-            seconds = session.recorded_seconds('EEG')
-            progress.setValue(min(100, int(100*seconds/duration)))
-            progress.setLabelText(f'Recording clean EEG: {seconds:.1f} / {duration:g} s. Stay relaxed and still.')
-            if self._closing or session.errors or time.monotonic() > session.deadline:
-                progress.reject()
-            elif seconds >= duration:
+        def checked(generation, model, error):
+            fit['running'] = False
+            if cancelled or self._closing:
+                return
+            if error is not None:
+                fit['error'] = error
+                fit['next'] = monitor.status()['accepted_seconds']+10.
+            else:
+                fit['model'] = model
                 progress.accept()
 
+        def advance():
+            status = monitor.status()
+            now = time.monotonic()
+            progress.show_status(status, now-started, fit['running'], fit['error'])
+            if (self._closing or session.errors or not worker.active
+                    or self.workers.get('EEG') is not worker
+                    or now > session.deadline):
+                progress.reject()
+                return
+            if (not fit['running'] and fit['next'] > status['accepted_seconds']
+                    and monitor.accepted_samples >= monitor.maximum_samples):
+                progress.reject()
+                return
+            if (not fit['running'] and status['accepted_seconds'] >= fit['next']):
+                eeg = monitor.snapshot(metadata)
+                task = ASRFitTask(0, eeg, settings, self)
+                fit.update(running=True, eeg=eeg)
+                self.asr_tasks.append(task)
+                task.completed.connect(checked)
+                task.finished.connect(lambda t=task: self._asr_task_finished(t))
+                task.start()
+
         self.capture = session
+        worker.asr_training_monitor = monitor
         self.update_asr_availability()
+        timer = QTimer(progress)
+        timer.setInterval(100)
         timer.timeout.connect(advance)
         timer.start()
         try:
             result = progress.exec()
         finally:
+            cancelled = True
             timer.stop()
+            worker.asr_training_monitor = None
             self.capture = None
             self.update_asr_availability()
             for kind in tuple(self.pending_source_changes):
                 self.schedule_source_change(kind)
-        if result != QDialog.DialogCode.Accepted or self._closing:
-            self.statusBar().showMessage('ASR recording cancelled or incomplete; previous model kept.')
-            return
-        try:
-            eeg = session.finish(minimum_seconds=duration)['EEG']
-        except ValueError as exc:
-            self.statusBar().showMessage(str(exc))
+        if result != QDialog.DialogCode.Accepted or self._closing or fit['model'] is None:
+            reason = fit['error'] or ('; '.join(session.errors)) or monitor.status()['reason']
+            self.statusBar().showMessage('ASR training not completed; previous model kept. '+reason)
             return
         if self.asr_session.enabled:
             self.set_eeg_asr_enabled(False)
         if self._asr_report_dialog is not None:
             self._asr_report_dialog.close()
-        self.asr_session.set_training(eeg)
-        self.fit_eeg_asr(self.asr_view.settings(), enable_on_success=True)
+        self.asr_session.set_training(fit['eeg'])
+        self._asr_resume_after_fit = True
+        self.eeg_asr_fitted(self.asr_session.generation, fit['model'], None)
 
     def fit_eeg_asr(self, settings, enable_on_success=False):
         live = getattr(self.workers.get('EEG'), 'source_configuration', None)

@@ -454,14 +454,14 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                            <item>
                             <widget class="QPushButton" name="EEGASRTrain">
                              <property name="text">
-                              <string>Train</string>
+                              <string>Train (auto · ≥60 s)</string>
                              </property>
                              <property name="icon">
                               <iconset>
                                <normaloff>../assets/icons/record.svg</normaloff>../assets/icons/play.svg</iconset>
                              </property>
                              <property name="toolTip">
-                              <string>Record clean EEG to train ASR independently of EYC and BSL.</string>
+                              <string>Accumulate at least 60 seconds of accepted EEG. Quality feedback helps the subject stay still; training stops automatically after a successful fit.</string>
                              </property>
                              <property name="iconSize">
                               <size>

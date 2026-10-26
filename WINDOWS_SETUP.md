@@ -34,7 +34,7 @@ Internet access is needed for the dependency installation, but not for ordinary 
 ## EEG correction and baseline order
 
 Start the EEG stream with its intended channels, source conversion and filter.
-Under the EEG filter settings, press **Train (45 s)** and stay relaxed and still.
+Under the EEG filter settings, press **Train (auto · ≥60 s)** and stay relaxed and still.
 ASR training is independent of EYC and BSL and preserves every selected channel.
 After training enables correction, record EYC (60 s), then BSL (60 s). Both
 baseline analysis and live metrics use the cleaned data. Changing the threshold
@@ -394,3 +394,22 @@ new independent ASR training; calibration replay does not retrain ASR.
 
 Filter controls retain their existing Stop/Play behavior. Saved calibration files
 are not overwritten by session replay, and retained recordings are lost on exit.
+
+
+Adaptive ASR training counts **accepted EEG seconds**, rather than stopping at a
+fixed wall-clock duration. The quality popup gives the subject live instructions:
+green = no obvious problems detected; amber = possible movement, relax and keep
+still; red = check signal/electrodes or connection. Two startup windows and
+windows with detected problems do not increase accepted time. Screening uses
+one-second windows, channel flatness/plateaus, channel dependence and transient
+amplitude relative to the median of earlier accepted windows (last 30 windows).
+It is a heuristic, not a guarantee of artifact-free EEG.
+
+Training automatically completes after at least 60 accepted seconds **and** a
+successful backend fit. On fitting failure, it collects 10 more accepted seconds
+before retrying (up to 180 stored accepted seconds and a five-minute session).
+Cancel/timeout preserves the previous model. Original timestamps and window
+boundaries are retained; continuous conversion/filtering happens before window
+selection, and ASR is not applied to the training input. The library must still
+retain at least 30 clean seconds for fitting. Validate screening and calibration
+success on representative real EEG before relying on the quality flag.

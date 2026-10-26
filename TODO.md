@@ -2,17 +2,24 @@
 
 ## High priority — real-data ASR reliability and feedback
 
-- [ ] Increase independent ASR training capture from 45 seconds to **at least
-      60 seconds**. Update the capture duration, button/countdown, Designer UI,
-      documentation and live integration tests together. Investigate real-data
-      failures and report their actual reason; longer capture alone does not
-      guarantee enough usable clean EEG for fitting.
-- [ ] Add a **live signal-quality LED in the ASR training popup**, with text
-      and a reason alongside the color. Evaluate the filtered, pre-ASR EEG
-      used for training; identify missing samples, flat/clipped channels,
-      excessive artifacts and insufficient usable data. Include an unknown/
-      warming-up state. Validate quality criteria on real recordings before
-      claiming that green predicts successful training or future cleaning.
+- [x] Adaptive ASR training accumulates at least 60 seconds of accepted
+      one-second windows, excluding startup and detected flat/clipped/dependent
+      signals, interruptions and large amplitude transients. Continuous live
+      filtering precedes selection and ASR. Rejected intervals do not advance
+      accepted time; source timestamps/window boundaries are retained.
+- [x] Designer training popup shows a large quality LED and subject-facing
+      instructions, accepted/elapsed/excluded seconds and fit status. Automatic
+      completion requires a successful backend fit; failed fitting collects more
+      accepted EEG and retries after 10 additional accepted seconds. Five-minute
+      timeout/cancel preserves the previous model. Quality screening is heuristic;
+      green does not guarantee artifact-free EEG or future cleaning effectiveness.
+- Validation: 210 core tests passed; full GUI suite passed 112 tests with two
+  offscreen OpenGL skips, plus cancellation/retry lifecycle checks. Native live
+  LSL training completed automatically in 65.6 seconds with at least 60 accepted
+  EEG seconds. Captured and inspected subject-feedback previews.
+- [ ] Validate the screening criteria and training success on real EEG hardware.
+      The adaptive amplitude reference updates only from accepted windows after
+      startup. Review failures, false acceptance and false rejection on recordings.
 - [x] Distinguish ASR monitoring from correction in Raw Data. Green lights only
       for backend non-identity reconstruction (including release blending), with
       a 0.5-second visible pulse. Monitoring remains gray; waiting, off and bypass
@@ -47,7 +54,7 @@
 - One canonical SCL from cvxEDA decomposition, shared by Metrics, EI and baseline
   statistics; no extra 20-second startup or edge exclusion.
 - ASR is in Sources under EEG filters: enable, Train, threshold and status.
-  Train records fresh EEG for 45 seconds independently of EYC/BSL. All selected
+  Train accumulates at least 60 accepted EEG seconds independently of EYC/BSL. All selected
   channels, order, labels and sample count are kept. No channel deletion mode.
 - Processing order: raw input → source conversion/device-specific filtering →
   optional EEG ASR → cleaned signals → baseline analysis and live metrics.

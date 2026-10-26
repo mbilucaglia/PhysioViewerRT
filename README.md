@@ -26,7 +26,7 @@ uses its own BSL z-score, independently of the selector. Metrics **Auto range**
 continuously fits the vertical display range; **Fit** fits once and **−/+** hold
 a manual zoom. These controls do not change values or normalization.
 
-**ASR** is under the EEG filter settings in Sources. Press **Train (45 s)** to record an independent clean EEG sample and enable
+**ASR** is under the EEG filter settings in Sources. Press **Train (auto · ≥60 s)** to record an independent clean EEG sample and enable
 correction, preserving every channel. EYC/BSL and live metrics use the cleaned
 signal. Threshold changes reuse the training sample. The Raw Data ASR indicator
 reports off, waiting, monitoring, correcting or bypassed. Its green LED pulses
@@ -62,3 +62,22 @@ $env:QT_QPA_PLATFORM = 'windows'
 
 These checks validate the software path using synthetic signals. Physical
 devices and long sessions still need validation on the target setup.
+
+
+Adaptive ASR training counts **accepted EEG seconds**, rather than stopping at a
+fixed wall-clock duration. The quality popup gives the subject live instructions:
+green = no obvious problems detected; amber = possible movement, relax and keep
+still; red = check signal/electrodes or connection. Two startup windows and
+windows with detected problems do not increase accepted time. Screening uses
+one-second windows, channel flatness/plateaus, channel dependence and transient
+amplitude relative to the median of earlier accepted windows (last 30 windows).
+It is a heuristic, not a guarantee of artifact-free EEG.
+
+Training automatically completes after at least 60 accepted seconds **and** a
+successful backend fit. On fitting failure, it collects 10 more accepted seconds
+before retrying (up to 180 stored accepted seconds and a five-minute session).
+Cancel/timeout preserves the previous model. Original timestamps and window
+boundaries are retained; continuous conversion/filtering happens before window
+selection, and ASR is not applied to the training input. The library must still
+retain at least 30 clean seconds for fitting. Validate screening and calibration
+success on representative real EEG before relying on the quality flag.

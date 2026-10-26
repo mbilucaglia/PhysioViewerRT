@@ -25,6 +25,21 @@ def fit_training_asr(eeg, settings=None):
     stamps = np.asarray(eeg.get('timestamps', []), dtype=float)
     if len(stamps) != len(data) or not np.isfinite(stamps).all() or np.any(np.diff(stamps) <= 0):
         raise ValueError('ASR training needs finite, increasing source timestamps')
+    if 'accepted_window_samples' in eeg:
+        # Live selection preserves continuous filtering before rejecting windows.
+        sizes = eeg['accepted_window_samples']
+        if (not sizes or any(not isinstance(n, int) or n < 1 for n in sizes)
+                or sum(sizes) != len(data)):
+            raise ValueError('Invalid accepted ASR window boundaries')
+        offset = 0
+        for size in sizes:
+            if size/fs < .99 or np.any(np.diff(stamps[offset:offset+size]) > max(.25, 3./fs)):
+                raise ValueError('Accepted ASR windows must contain continuous EEG')
+            offset += size
+        filtered = np.asarray(eeg.get('preprocessed_data'), dtype=float)
+        if filtered.shape != data.shape or not np.isfinite(filtered).all():
+            raise ValueError('Invalid pre-ASR training samples')
+        return fit_asr(filtered, fs, names, config, settings or ASRSettings())
     if len(stamps) > 1 and np.max(np.diff(stamps)) > max(.25, 3./fs):
         raise ValueError('EEG dropped out during ASR training; train again on continuous data')
     processor = Processor('EEG', fs, len(names), names, preprocessing=eeg.get('preprocessing'))
