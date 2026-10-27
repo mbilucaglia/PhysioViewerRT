@@ -18,7 +18,7 @@ try:
     deadline=time.monotonic()+3.
     while time.monotonic()<deadline:
         app.processEvents();time.sleep(.005)
-        if 'PPG' in w.raw_display.frames and not w._raw_trace_selection_refresh:break
+        if 'PPG' in w.raw_display.frames and not w.raw_display.inflight:break
     report['initial_backend']=w.raw_renderer_mode
     report['has_prepared_frame']='PPG' in w.raw_display.frames
     w.set_plot_paused('raw',True)

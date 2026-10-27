@@ -61,6 +61,12 @@ class SmoothViewportClock:
         if not np.isfinite(sample_time) or not np.isfinite(received_at):
             return
         if self.latest_sample is None or sample_time > self.latest_sample:
+            # Discontinuity recovery: do not play through missing source time.
+            # The normal 250 ms buffer is unchanged; lag over one second is
+            # outside the live jitter-slew budget and reanchors to real data.
+            if self.head is not None and sample_time-self.head > 1.+self.presentation_delay:
+                self.head = sample_time-self.presentation_delay
+                self.frame_at = received_at
             self.latest_sample = sample_time
             self.received_at = received_at
             if self.head is None:

@@ -71,16 +71,16 @@ class LiveFeedbackTests(unittest.TestCase):
         with patch.object(MainWindow,'refresh',lambda self:None):
             w = MainWindow()
         try:
-            w.raw_display.paused = True
-            w.raw_display.references['EEG'] = ([100.], [1.])
+            w.set_plot_paused('raw',True)
+            w.raw_display.signals.set_reference('EEG',[100.],[1.])
             before = w.raw_display.epoch
             w.show_processed.setChecked(False)
-            self.assertIn('EEG', w.raw_display.references)
+            self.assertIn('EEG', w.raw_display.initial_references)
             self.assertGreater(w.raw_display.epoch, before)
-            self.assertTrue(w._raw_trace_selection_refresh)
+            self.assertTrue(w.raw_display.dirty)
             w.show_raw.setChecked(False)
             w.show_processed.setChecked(True)
-            self.assertTrue(w._raw_trace_selection_refresh)
+            self.assertTrue(w.raw_display.dirty)
         finally:
             w.close()
             self.app.processEvents()
@@ -108,13 +108,13 @@ class LiveFeedbackTests(unittest.TestCase):
             modes = (0,1) if os.environ.get('QT_QPA_PLATFORM') == 'windows' else (0,)
             for renderer in modes:
                 w.raw_renderer_choice.setCurrentIndex(renderer)
-                w.raw_display.paused = True
+                w.set_plot_paused('raw',True)
                 for raw_visible, clean_visible, expected in ((True,False,3.),(False,True,3.),(True,True,3.)):
                     w.show_raw.setChecked(raw_visible)
                     w.show_processed.setChecked(clean_visible)
                     w.raw_trace_selection_changed()
                     self.assertTrue(pump(lambda: 'EEG' in w.raw_display.frames
-                        and not w._raw_trace_selection_refresh), f'Paused selection did not redraw: renderer={renderer}, raw={raw_visible}, clean={clean_visible}, bounds={w.raw_display.bounds}, x={w.plots["EEG"].viewRange()[0]}')
+                        and not w.raw_display.dirty and not w.raw_display.inflight), f'Paused selection did not redraw: renderer={renderer}, raw={raw_visible}, clean={clean_visible}, bounds={w.raw_display.bounds}, x={w.plots["EEG"].viewRange()[0]}')
                     centers = w.raw_display.frames['EEG'][3]
                     np.testing.assert_allclose(centers,expected,atol=1.)
                     frame = w.raw_display.frames['EEG']
@@ -128,30 +128,37 @@ class LiveFeedbackTests(unittest.TestCase):
         from physiolab.raw_render import prepare_raw_window
         with patch.object(MainWindow,'refresh',lambda self:None):
             w=MainWindow()
-        w.timer.stop()
+        w.show(); w.tabs.setCurrentWidget(w.raw_page)
+        w.eeg_display_count.setRange(1,2); w.eeg_display_count.setValue(2)
         try:
             for kind in ('EEG','PPG','EDA'):
-                raw=np.ones((4,2))*10.;clean=np.ones((4,2))*2.
-                w.append_raw_chunk(kind,raw,clean,['A','B'],32.,100.+np.arange(4)/32.)
+                raw=np.ones((8,2))*10.;clean=np.ones((8,2))*2.
+                w.append_raw_chunk(kind,raw,clean,['A','B'],32.,100.+np.arange(8)/32.)
                 first=w.raw_display.recording_reference(kind,2)
-                w.append_raw_chunk(kind,raw+5.,clean+5.,['A','B'],32.,101.+np.arange(4)/32.)
+                w.append_raw_chunk(kind,raw+5.,clean+5.,['A','B'],32.,101.+np.arange(8)/32.)
                 np.testing.assert_array_equal(w.raw_display.recording_reference(kind,2)[0],first[0])
                 frame=prepare_raw_window(w.raw_display.history[kind],1.,1.2,100.,
                     reference=first,fit_traces=kind!='EEG')
                 w.raw_display.remember_frame(kind,frame)
-                w.plots[kind].setXRange(1.,1.2,padding=0)
+                w.set_plot_paused('raw',False)
+                w.raw_controller.manual_view(1.,1.2)
+                w.raw_controller.manual_view(1.,1.2)
+                w.set_plot_paused('raw',True)
                 before_gain=w.raw_vertical_gains[kind].value()
                 w.raw_center_buttons[kind].setEnabled(True)
                 self.assertEqual(w.raw_center_buttons[kind].text(),'Center')
                 self.assertFalse(w.raw_center_buttons[kind].icon().isNull())
                 w.raw_center_buttons[kind].click()
+                deadline=time.monotonic()+3.
+                while time.monotonic()<deadline and kind in w.raw_display.center_requests:
+                    self.app.processEvents(); time.sleep(.005)
                 centered=w.raw_display.recording_reference(kind,2)[0].copy()
                 expected=np.array([[15.,15.],[7.,7.]]) if kind!='EEG' else np.array([7.,7.])
                 np.testing.assert_allclose(centered,expected)
                 self.assertEqual(w.raw_vertical_gains[kind].value(),before_gain)
                 w.autoscale_raw(kind)
                 np.testing.assert_array_equal(w.raw_display.recording_reference(kind,2)[0],centered)
-                w.append_raw_chunk(kind,raw+10.,clean+10.,['A','B'],32.,102.+np.arange(4)/32.)
+                w.append_raw_chunk(kind,raw+10.,clean+10.,['A','B'],32.,102.+np.arange(8)/32.)
                 np.testing.assert_array_equal(w.raw_display.recording_reference(kind,2)[0],centered)
                 np.testing.assert_array_equal(raw,10.)
         finally:
@@ -164,7 +171,7 @@ class LiveFeedbackTests(unittest.TestCase):
             worker = SimpleNamespace(active=True, asr_status='ASR active',
                 eeg_asr_model=SimpleNamespace(model_id='test'), asr_last_processed_at=10.)
             w.workers['EEG'] = worker
-            w.raw_display.paused = True
+            w.set_plot_paused('raw',True)
             w.refresh_asr_indicator(10.)
             self.assertIn('ASR monitoring', w.raw_asr_status.accessibleName())
             worker.asr_last_correction_at = 10.

@@ -81,8 +81,11 @@ class UiConsistencyTests(unittest.TestCase):
         history=window.metric_state.history
         key=('EEG','AWI')
         window.metric_renderer_choice.setCurrentIndex(0)
-        window.metric_curves[key].setData([0.,1.,2.],[0.,5.,10.])
-        window.metric_plot.setXRange(0.,2.,padding=0)
+        origin=window.metric_plot_origin
+        window.metric_state.history[key].extend([(origin,0.),(origin+1.,5.),(origin+2.,10.)])
+        window.metric_controller.follow_live=False
+        window.metric_controller.manual_view(0.,2.)
+        window.refresh_metric_plot()
         window.findChild(QToolButton,'metricsYFit').click()
         bounds=window.metric_plot.viewRange()[1]
         self.assertLess(bounds[0],0.)

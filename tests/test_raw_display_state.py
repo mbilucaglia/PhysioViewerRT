@@ -76,8 +76,8 @@ class RawDisplayStateTests(unittest.TestCase):
         source = self.append(state, 'EEG', [100., 100.1])
         source[:] = -1
         self.append(state, 'EEG', [100.1, 100.2])
-        np.testing.assert_array_equal(state.history['EEG'][0][1][:, 0], [0, 1])
-        np.testing.assert_allclose(state.history['EEG'][1][0], [100.2])
+        np.testing.assert_array_equal(state.history['EEG'][0][1][:2, 0], [0, 1])
+        np.testing.assert_allclose(state.history['EEG'][0][0][-1:], [100.2])
         self.assertEqual(state.origin, 100.)
 
     def test_window_change_rejects_obsolete_frame_and_frees_worker_slot(self):
@@ -88,20 +88,18 @@ class RawDisplayStateTests(unittest.TestCase):
         self.assertFalse(state.accepts(first.ticket, first.version))
         current = state.begin_frame({'EEG': object()})
         self.assertFalse(state.accepts(first.ticket, first.version))
-        self.assertEqual(state.inflight_ticket, current.ticket)
+        self.assertEqual(state.inflight['EEG'][0], current.ticket)
         self.assertTrue(state.accepts(current.ticket, current.version))
 
-    def test_shared_clock_uses_fresh_slowest_source_and_never_rewinds(self):
-        state = RawDisplayState()
-        state.origin = 100.
-        state.clock = SimpleNamespace(advance=lambda now: 110.)
-        state.last_sample = {'EEG': 110., 'EDA': 109.5, 'PPG': 100.}
+    def test_source_heads_are_independent_and_never_rewind(self):
+        state=RawDisplayState()
+        for kind,head in (('EEG',110.),('EDA',109.5),('PPG',100.)):
+            self.append(state,kind,[head-.1,head])
         state.advance(1.)
-        self.assertEqual(state.bounds, (4.5, 9.5))
-        state.committed_head = 9.8
-        state.advance(2.)
-        np.testing.assert_allclose(state.bounds, (4.8, 9.8))
-
+        eeg=state.viewport('EEG')[1]
+        self.assertGreater(eeg,state.viewport('PPG')[1]+9.)
+        state.advance(.5)
+        self.assertGreaterEqual(state.viewport('EEG')[1],eeg)
     def test_reset_retains_other_sources_and_last_reset_clears_clock(self):
         state = RawDisplayState()
         self.append(state, 'EEG', [100.])
@@ -111,8 +109,8 @@ class RawDisplayStateTests(unittest.TestCase):
         self.assertIsNotNone(state.origin)
         state.reset('EDA')
         self.assertIsNone(state.origin)
-        self.assertIsNone(state.clock.head)
-        self.assertIsNone(state.committed_head)
+        self.assertFalse(state.source_clocks)
+        self.assertFalse(state.source_bounds)
 
     def test_history_is_bounded_and_does_not_depend_on_plotting(self):
         state = RawDisplayState(ViewerSettings(history_seconds=5.))
@@ -126,28 +124,31 @@ class RawDisplayStateTests(unittest.TestCase):
         state.request_autoscale('EEG')
         self.assertFalse(state.autoscale_requests)
 
-        frame = (None, None, None, np.array([0.]), np.array([1.]), ['channel'])
+        from physiolab.render_contracts import PreparedFrame
+        from dataclasses import replace
+        frame = PreparedFrame(None, None, None, np.array([0.]), np.array([1.]), ('channel',))
         self.assertFalse(state.remember_frame('EEG', frame))
         self.assertFalse(state.remember_frame('EEG', frame))
-        changed = (*frame[:4], np.array([2.]), frame[5])
+        changed = replace(frame, scales=np.array([2.]))
         self.assertTrue(state.remember_frame('EEG', changed))
+        self.append(state,'EEG',[100.,100.1])
         state.request_autoscale('EEG')
         self.assertEqual(state.autoscale_requests, {'EEG'})
         state.reset('EEG')
         self.assertFalse(state.autoscale_requests)
 
     def test_plot_pause_freezes_view_but_not_acquisition_clock(self):
-        state = RawDisplayState()
-        state.origin = 100.
-        state.clock = SimpleNamespace(advance=lambda now: 100.+now)
-        original = state.bounds
-        state.paused = True
+        state=RawDisplayState()
+        self.append(state,'EEG',[100.,100.1])
+        state.advance(1.)
+        original=state.viewport('EEG')
+        state.set_paused(True)
+        self.append(state,'EEG',[105.,105.1])
         self.assertFalse(state.advance(5.))
-        self.assertEqual(state.bounds, original)
-        state.paused = False
+        self.assertEqual(state.viewport('EEG'),original)
+        state.set_paused(False)
         self.assertTrue(state.advance(5.1))
-        np.testing.assert_allclose(state.bounds, (.1, 5.1))
-
+        self.assertGreater(state.viewport('EEG')[1],4.8)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,188 +1,144 @@
-"""Raw display session state, independent of widgets and GPU resources.
-
-This is the single owner of retained samples, presentation time, scale
-references and the latest-only frame lifecycle. GUI code supplies view choices
-and presents accepted frames; acquisition and processing never depend on it.
-"""
-from collections import deque
+"""View state and source identities; history and numerical references live in SignalHistory."""
 import time
-
 import numpy as np
-
-from .display_units import DEFAULT_EEG_DISPLAY_STEP, ARBITRARY_UNIT
-from .raw_timing import clean_lsl_chunk, SmoothViewportClock
+from .signal_history import SignalHistory
+from .raw_timing import SmoothViewportClock
 from .render_contracts import RawFrameRequest
+from .display_units import DEFAULT_EEG_DISPLAY_STEP, ARBITRARY_UNIT
 from .settings import DEFAULT_VIEWER_SETTINGS
-from .render_policy import RAW_DISPLAY_POLICY
 
 
 class RawDisplayState:
-    def __init__(self, settings=DEFAULT_VIEWER_SETTINGS, modalities=('EEG', 'EDA', 'PPG')):
-        self.settings = settings
-        self.history = {kind: deque() for kind in modalities}
-        self.bounds = (-settings.default_view_seconds, 0.)
-        self.view_seconds = settings.default_view_seconds
-        self.follow_live = True
-        self.paused = False
-        self.origin = self.latest_time = self.last_received_at = None
-        self.last_sample = {}
-        self.clock = SmoothViewportClock(settings.presentation_delay_seconds)
-        self.source_clocks = {}
-        self.source_bounds = {}
-        self.committed_head = None
-        self.references = {}
-        self.initial_references = {}
-        self.initial_center_trace = {}
-        self.display_scales = {'EEG': DEFAULT_EEG_DISPLAY_STEP}
-        self.units = dict.fromkeys(modalities, ARBITRARY_UNIT)
-        self.frames = {}
-        self.autoscale_requests = set()
-        self.dirty = True
-        self.epoch = self.ticket = 0
-        self.inflight_ticket = None
-        self.last_render_at = self.interacting_until = 0.
-        self.tab_entered_at = None
+    def __init__(self, settings=DEFAULT_VIEWER_SETTINGS, modalities=('EEG','EDA','PPG')):
+        self.settings=settings
+        self.signals=SignalHistory(settings.history_seconds,modalities)
+        self.view_seconds=settings.default_view_seconds
+        self.follow_live=True
+        self.paused=False
+        self.origin=None
+        self.source_clocks={}
+        self.source_bounds={}
+        self.frozen_history=None
+        self.display_scales={'EEG':DEFAULT_EEG_DISPLAY_STEP}
+        self.units=dict.fromkeys(modalities,ARBITRARY_UNIT)
+        self.frames={}
+        self.autoscale_requests=set()
+        self.center_requests=set()
+        self.dirty=True
+        self.epoch=self.ticket=0
+        self.inflight={}
+        self.interacting_until=0.
+        self.last_received={}
+
+    @property
+    def history(self): return self.signals.chunks
+    @property
+    def initial_references(self): return self.signals.references
+    @property
+    def last_sample(self): return self.signals.last_sample
+    @property
+    def bounds(self):
+        end=max((b[1] for b in self.source_bounds.values()),default=0.)
+        return (end-self.view_seconds,end)
 
     def invalidate(self):
-        self.epoch += 1
-        self.dirty = True
+        self.epoch+=1
+        self.inflight.clear()
+        self.dirty=True
 
-    def set_window(self, seconds):
-        self.view_seconds = float(seconds)
-        self.bounds = (self.bounds[1]-self.view_seconds,self.bounds[1])
-        self.source_bounds = {kind:(bounds[1]-self.view_seconds,bounds[1])
-                              for kind,bounds in self.source_bounds.items()}
+    def set_window(self,seconds):
+        self.view_seconds=self.settings.bounded_view_seconds(seconds)
+        self.source_bounds={k:(b[1]-self.view_seconds,b[1]) for k,b in self.source_bounds.items()}
         self.invalidate()
 
-    def set_units(self, kind, scales, unit):
-        self.display_scales[kind] = scales
-        self.units[kind] = unit
-        self.references.pop(kind, None)
+    def set_paused(self,paused):
+        if bool(paused)==self.paused: return
+        self.paused=bool(paused)
+        self.frozen_history=({k:tuple(v) for k,v in self.history.items()} if paused else None)
         self.invalidate()
 
-    def reset(self, kind):
-        self.frames.pop(kind, None)
+    def visible_history(self,kind):
+        return self.frozen_history.get(kind,()) if self.frozen_history is not None else self.history[kind]
+
+    def set_units(self,kind,scales,unit):
+        self.display_scales[kind]=scales
+        self.units[kind]=unit
+        self.invalidate()
+
+    def reset(self,kind):
+        self.signals.reset(kind)
+        self.frames.pop(kind,None)
+        self.inflight.pop(kind,None)
         self.autoscale_requests.discard(kind)
-        self.history[kind].clear()
-        self.last_sample.pop(kind, None)
+        self.center_requests.discard(kind)
         self.source_clocks.pop(kind,None)
         self.source_bounds.pop(kind,None)
-        self.references.pop(kind, None)
-        self.initial_references.pop(kind,None)
-        self.initial_center_trace.pop(kind,None)
-        if not self.last_sample:
-            self.clock.reset()
-            self.committed_head = None
-            self.origin = self.latest_time = self.last_received_at = None
-        self.invalidate()
+        self.last_received.pop(kind,None)
+        if self.frozen_history is not None: self.frozen_history[kind]=()
+        if not self.last_sample: self.origin=None
+        self.dirty=True
 
-    def append(self, kind, raw, filtered, names, fs, timestamps, received_at=None, center_trace='raw'):
-        t, raw, filtered = clean_lsl_chunk(timestamps, raw, filtered,
-                                         self.last_sample.get(kind))
-        if not len(t):
-            return
-        self.last_sample[kind] = float(t[-1])
-        if self.origin is None:
-            self.origin = float(t[0])
-        self.history[kind].append((t, raw.copy(), filtered.copy(), list(names), float(fs)))
-        if kind not in self.initial_references:
-            self.initial_center_trace.setdefault(kind,center_trace)
-            first_raw=np.concatenate([chunk[1] for chunk in self.history[kind]])
-            first_filtered=np.concatenate([chunk[2] for chunk in self.history[kind]])
-            if len(first_raw)>=2:
-                if kind in ('PPG','EDA'):
-                    centers=np.stack((np.median(first_raw,axis=0),np.median(first_filtered,axis=0)))
-                    extent=np.maximum(np.max(np.abs(first_raw-centers[0]),axis=0),
-                                      np.max(np.abs(first_filtered-centers[1]),axis=0))
-                    scales=np.maximum(extent/RAW_DISPLAY_POLICY.fit_target,1e-9)
-                else:
-                    anchor=first_filtered if self.initial_center_trace[kind]=='filtered' else first_raw
-                    centers=np.median(anchor,axis=0)
-                    floor=np.maximum(np.max(np.abs(first_raw),axis=0)*1e-6,1e-9)
-                    scales=np.maximum(np.std(first_raw,axis=0),floor)
-                self.initial_references[kind]=(centers,scales)
-        received = time.monotonic() if received_at is None else float(received_at)
-        source_clock = self.source_clocks.setdefault(kind,
-            SmoothViewportClock(self.settings.presentation_delay_seconds))
-        source_clock.observe(float(t[-1]),received)
-        if self.latest_time is None or float(t[-1]) > self.latest_time:
-            self.latest_time = float(t[-1])
-            self.last_received_at = received
-            self.clock.observe(self.latest_time, self.last_received_at)
-        cutoff = self.latest_time-self.settings.history_seconds
-        chunks = self.history[kind]
-        while chunks and chunks[0][0][-1] < cutoff:
-            chunks.popleft()
-        self.dirty = True
+    def append(self,kind,raw,filtered,names,fs,timestamps,received_at=None,center_trace='raw'):
+        t=self.signals.append(kind,raw,filtered,names,fs,timestamps,center_trace)
+        if t is None: return
+        if self.origin is None: self.origin=float(t[0])
+        received=time.monotonic() if received_at is None else float(received_at)
+        self.last_received[kind]=received
+        clock=self.source_clocks.setdefault(kind,SmoothViewportClock(self.settings.presentation_delay_seconds))
+        clock.observe(float(t[-1]),received)
+        if not self.paused: self.dirty=True
 
-    def recording_reference(self,kind,count):
-        reference=self.initial_references.get(kind)
-        if reference is None:
-            return None
-        centers,scales=reference
-        return (centers[:,:count] if centers.ndim==2 else centers[:count],scales[:count])
+    def recording_reference(self,kind,count): return self.signals.reference(kind,count)
+    def viewport(self,kind): return self.source_bounds.get(kind,(-self.view_seconds,0.))
 
-    def viewport(self,kind):
-        return self.source_bounds.get(kind,self.bounds)
-
-    def advance(self, now):
-        head = self.clock.advance(now)
-        own_heads = {kind:clock.advance(now) for kind,clock in self.source_clocks.items()}
-        # Acquisition time continues while a tab is hidden or plotting paused.
-        # Only the viewport freezes; resuming must not slew through old time.
-        if head is None or self.origin is None or not self.follow_live or self.paused:
-            return False
-        if self.last_sample:
-            newest = max(self.last_sample.values())
-            fresh = [stamp for stamp in self.last_sample.values()
-                     if newest-stamp <= self.settings.stale_source_seconds]
-            head = min(head, min(fresh))
-        end = head-self.origin
-        if self.committed_head is not None:
-            end = max(end, self.committed_head)
-        bounds = (end-self.view_seconds, end)
-        changed = bounds != self.bounds
-        self.bounds = bounds
-        for kind,own_head in own_heads.items():
-            if own_head is None:
-                continue
-            end = min(own_head,self.last_sample[kind])-self.origin
-            previous = self.source_bounds.get(kind)
-            if previous is not None:
-                end = max(end,previous[1])
-            own_bounds = (end-self.view_seconds,end)
-            changed |= own_bounds != previous
-            self.source_bounds[kind] = own_bounds
+    def advance(self,now):
+        heads={kind:clock.advance(now) for kind,clock in self.source_clocks.items()}
+        if self.origin is None or self.paused or not self.follow_live: return False
+        changed=False
+        for kind,head in heads.items():
+            if head is None: continue
+            end=min(head,self.last_sample[kind])-self.origin
+            previous=self.source_bounds.get(kind)
+            if previous is not None: end=max(end,previous[1])
+            bounds=(end-self.view_seconds,end)
+            changed |= previous!=bounds
+            self.source_bounds[kind]=bounds
         return changed
 
-    def request_autoscale(self, kind):
-        if kind in self.frames:
+    def request_autoscale(self,kind):
+        if self.visible_history(kind):
             self.autoscale_requests.add(kind)
             self.invalidate()
 
-    def begin_frame(self, sources, queued_at=None):
-        if not sources or self.inflight_ticket is not None:
-            return None
-        self.ticket += 1
-        self.inflight_ticket = self.ticket
-        return RawFrameRequest(self.ticket, self.epoch, sources,
-                               time.perf_counter() if queued_at is None else queued_at,
-                               self.bounds[1],{kind:source.right for kind,source in sources.items()
-                                               if hasattr(source,'right')})
+    def request_center(self,kind):
+        if self.visible_history(kind):
+            self.center_requests.add(kind)
+            self.invalidate()
 
-    def accepts(self, ticket, version):
-        if ticket != self.inflight_ticket:
-            return False
-        self.inflight_ticket = None
-        return version == self.epoch
+    def begin_frame(self,sources,queued_at=None):
+        sources={k:s for k,s in sources.items() if k not in self.inflight}
+        if not sources: return None
+        self.ticket+=1
+        for kind in sources:
+            self.inflight[kind]=(self.ticket,self.epoch,self.signals.generations[kind])
+        return RawFrameRequest(self.ticket,self.epoch,sources,
+            time.perf_counter() if queued_at is None else queued_at,
+            presentation_heads={k:s.right for k,s in sources.items() if hasattr(s,'right')})
 
-    def remember_frame(self, kind, frame):
-        """Return whether retained GPU geometry needs a scale replay."""
-        previous = self.references.get(kind)
-        centers, scales = frame[3:5]
-        changed = (previous is not None
-                   and (not np.array_equal(previous[0], centers)
-                        or not np.array_equal(previous[1], scales)))
-        self.frames[kind] = frame
-        self.references[kind] = (centers, scales)
+    def accepts(self,ticket,version,kind=None,source_generation=None):
+        kinds=[kind] if kind else [k for k,v in self.inflight.items() if v[0]==ticket]
+        accepted=False
+        for k in kinds:
+            expected=self.inflight.get(k)
+            if expected is None or expected[:2]!=(ticket,version): continue
+            self.inflight.pop(k)
+            accepted |= (version==self.epoch and expected[2]==self.signals.generations[k]
+                         and (source_generation is None or source_generation==expected[2]))
+        return accepted
+
+    def remember_frame(self,kind,frame):
+        previous=self.frames.get(kind)
+        changed=(previous is not None and (not np.array_equal(previous.centers,frame.centers)
+                                          or not np.array_equal(previous.scales,frame.scales)))
+        self.frames[kind]=frame
         return changed

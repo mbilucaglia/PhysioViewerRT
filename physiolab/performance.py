@@ -3,7 +3,8 @@
 Set PHYSIOLAB_PROFILE=1 before launching the app. Each JSON line is a
 five-second summary; no raw signal data or participant information is logged.
 """
-from collections import defaultdict
+from collections import defaultdict, deque
+import numpy as np
 import json
 import os
 from pathlib import Path
@@ -17,12 +18,16 @@ class PerformanceMonitor:
         self.path = Path(path) if path else Path.home() / 'PhysioViewerRT-performance.jsonl'
         self.interval = float(interval)
         self.last_flush = time.monotonic()
-        self._samples = defaultdict(list)
+        self._samples = defaultdict(lambda:deque(maxlen=20000))
+        self._counts = defaultdict(int)
         self._errors = 0
 
     def measure(self, name, seconds):
         if self.enabled:
             self._samples[name].append(round(float(seconds)*1000., 3))
+
+    def count(self,name):
+        if self.enabled: self._counts[name]+=1
 
     def maybe_flush(self, extras=None):
         if not self.enabled:
@@ -38,6 +43,8 @@ class PerformanceMonitor:
                     'mean_ms': round(sum(samples) / len(samples), 3),
                     'worst_ms': max(samples)
                 }
+                report[key].update({f'p{p}_ms':float(np.percentile(samples,p)) for p in (50,95,99)})
+        report['outcomes']=dict(self._counts)
         report['queues'] = extras or {}
         try:
             with self.path.open('a', encoding='utf-8') as f:
@@ -48,4 +55,5 @@ class PerformanceMonitor:
             if self._errors >= 3:
                 self.enabled = False
         self._samples.clear()
+        self._counts.clear()
         self.last_flush = now

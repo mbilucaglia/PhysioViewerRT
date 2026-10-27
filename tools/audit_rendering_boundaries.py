@@ -1,4 +1,7 @@
-"""Read-only architectural probes; no production code changes."""
+"""Repeatable numerical/lifecycle probes; native command tests cover routing.
+
+The pre-refactor evidence is preserved in RENDERING_ARCHITECTURE_REVIEW.json.
+"""
 from pathlib import Path
 import sys,ast,json,time
 from types import SimpleNamespace
@@ -10,7 +13,6 @@ from physiolab.vispy_raw import VisPyRawPlot
 from physiolab.raw_snapshot import build_raw_source
 from physiolab.raw_display_state import RawDisplayState
 from physiolab.incremental_sweep import SweepRing
-from physiolab.gui import MainWindow
 from physiolab.raw_render_worker import RawRenderWorker
 from physiolab.render_contracts import RawFrameRequest,RawSourceRequest
 from PySide6.QtCore import QCoreApplication
@@ -24,7 +26,7 @@ def main():
     report['decimation_peak']={'input_samples':len(t),'output_samples':len(frame[0]),
         'input_peak':float(x.max()),'display_peak':float(frame[1].max()),'timebase_seconds':30}
 
-    # Center uses the cached incremental tail, not the full requested visible span.
+    # Compare the incremental cache with an authoritative full-window command.
     fs=128.;t=np.arange(5*128)/fs;x=(10.+np.cos(2*np.pi*t))[:,None]
     state=RawDisplayState();state.append('PPG',x,x,['PPG'],fs,t,received_at=1.)
     source=build_raw_source(state.history['PPG'],left=0.,right=5.,origin=0.,
@@ -32,20 +34,19 @@ def main():
     tail=prepare_raw_window(source.chunks,source.left,source.right,0.,reference=source.reference,
         fit_traces=True,decimation_span=source.decimation_span)
     state.remember_frame('PPG',tail)
-    fake=SimpleNamespace(raw_display=state,raw_renderer_mode='vispy',raw_vispy_plots={},
-        show_processed=SimpleNamespace(isChecked=lambda:True))
-    MainWindow.center_raw(fake,'PPG')
+    centered=prepare_raw_window(state.visible_history('PPG'),0.,5.,0.,fit_traces=True)
     report['manual_center']={'requested_visible_seconds':5.,'cached_frame_span_seconds':float(np.ptp(tail[0])),
-        'full_visible_median':float(np.median(x)),'center_used':float(state.initial_references['PPG'][0][0,0])}
+        'full_visible_median':float(np.median(x)),'center_used':float(centered.centers[0,0]),
+        'command_routing_regression':'tests_gui/test_rendering_regressions.py'}
 
-    # Real gaps leave occupied line slots from much older cycles.
+    # Real gaps expire occupied line slots from older cycles.
     ring=SweepRing(5.,10.);ring.append(np.arange(50)/10.,np.ones(50));ring.append([20.,20.1],[2.,2.])
     drawn=np.any(ring.positions!=-10.,axis=(1,2))
     report['stale_sweep_lines']={'drawn_slots':int(drawn.sum()),
         'drawn_slots_older_than_one_window':int(np.count_nonzero(drawn&(ring.stamps<15.1))),
         'newest_sample_time':ring.last_time}
 
-    # A slow source preparation delays all response frames in the batch.
+    # A slow source preparation must not delay a healthy source.
     app=QCoreApplication.instance() or QCoreApplication([])
     def prepare(chunks,*args,**kwargs):
         if chunks==('slow',):time.sleep(.15)
@@ -62,7 +63,7 @@ def main():
         'PPG_response_ms':round((results[0][0]-started)*1000.,2) if results else None,
         'result_sources':list(results[0][1].frames) if results else []}
 
-    # A view change cannot submit a replacement while an obsolete frame is active.
+    # A view change releases its obsolete preparation slot.
     state=RawDisplayState();first=state.begin_frame({'EEG':sources['EEG']},queued_at=1.)
     state.set_window(30.);replacement=state.begin_frame({'PPG':sources['PPG']},queued_at=2.)
     report['inflight_replacement']={'epoch_after_view_change':state.epoch,
@@ -94,6 +95,7 @@ def main():
         def reconfigure(self,*args,**kwargs):pass
         def close(self):pass
     plot=VisPyRawPlot.__new__(VisPyRawPlot)
+    plot.view=SimpleNamespace(scene=None)
     plot.layers={'raw':[Layer() for _ in range(4)],'filtered':[Layer() for _ in range(4)]}
     plot._layer_pool={k:list(v) for k,v in plot.layers.items()}
     plot._configuration=(4,5.,128.);plot._pending_layers=None;plot._pending_configuration=None

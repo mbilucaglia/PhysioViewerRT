@@ -5,7 +5,8 @@ from .render_policy import RAW_DISPLAY_POLICY
 
 def visible_gain(frame, seconds, show_raw=True, show_filtered=True, head=None):
     """One common gain fits extrema about every displayed channel baseline."""
-    times, raw, filtered = frame[:3]
+    from .render_contracts import PreparedFrame
+    times,raw,filtered = (frame.times,frame.raw,frame.filtered) if isinstance(frame,PreparedFrame) else frame[:3]
     times = np.asarray(times)
     if not len(times) or seconds <= 0:
         return None

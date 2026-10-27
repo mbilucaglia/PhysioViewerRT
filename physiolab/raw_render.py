@@ -7,12 +7,14 @@ No pyqtgraph or Qt widget is accessed by these functions.
 import numpy as np
 from .raw_timing import visible_chunk
 from .render_policy import RAW_DISPLAY_POLICY
+from .render_contracts import PreparedFrame, PreparationCancelled
 
 
 def prepare_raw_window(chunks, left, right, origin, reference=None,
                        max_points=RAW_DISPLAY_POLICY.max_points,
                        max_channels=RAW_DISPLAY_POLICY.max_single_channels,
-                       decimation_span=None, shared_scale=None, fit_traces=False, center_trace='raw'):
+                       decimation_span=None, shared_scale=None, fit_traces=False, center_trace='raw',
+                       cancelled=lambda: False):
     """Return time and display-scaled traces for a raw modality.
 
     A result is (time, raw_traces, filtered_traces, centers, scales,
@@ -26,6 +28,7 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
     t_min, t_max = origin + left, origin + right
     selected = []
     for item in reversed(chunks):
+        if cancelled(): raise PreparationCancelled()
         stamps = item[0]
         if stamps[-1] < t_min:
             break
@@ -38,6 +41,7 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
     n = min(selected[-1][1].shape[1], int(max_channels))
     times, raws, filters = [], [], []
     for stamps, raw, processed, _, _ in reversed(selected):
+        if cancelled(): raise PreparationCancelled()
         # Narrow to displayed channels before copying/concatenating samples.
         # EEG acquisition can retain 64+ channels when only 8 are shown.
         ts, x, y = visible_chunk(
@@ -64,20 +68,8 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
         float(decimation_span) if decimation_span is not None else right-left)
     if decimation_seconds <= 0:
         raise ValueError('Decimation window must be positive')
-    stride = RAW_DISPLAY_POLICY.decimation_stride(fs, decimation_seconds, max_points)
-    if stride > 1:
-        # Using origin-relative nominal sample indices fixes the phase across
-        # frames without requiring sample-index counters in the LSL reader.
-        index = np.rint((t - origin) * fs).astype(np.int64)
-        keep = index % stride == 0
-        # During initial connection a short chunk may contain no sample
-        # on the global decimation grid. Render that chunk immediately
-        # rather than waiting for the next grid-aligned timestamp.
-        # Once at least two aligned points exist, resume the stable phase.
-        if np.count_nonzero(keep) >= 2:
-            t, x, y = t[keep], x[keep], y[keep]
-        elif len(t) < 2:
-            return None
+    # Compute references from authoritative selected samples BEFORE visual
+    # reduction. Center and Fit must not depend on plot pixel density.
     if fit_traces:
         # Single-channel displays retain source amplitudes but remove raw and
         # filtered DC offsets independently. A bandpass output need not have
@@ -122,6 +114,32 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
         if not np.isfinite(scales).all() or np.any(scales <= 0):
             raise ValueError('Shared amplitude scale must be finite and positive')
     raw_center, filtered_center = (centers if fit_traces else (centers, centers))
-    return (t-origin, (x-raw_center)/scales+offsets,
-            (y-filtered_center)/scales+offsets, centers, scales,
-            tuple(chunks[-1][3][:n]))
+    if cancelled(): raise PreparationCancelled()
+    gap = np.r_[True, np.diff(t) > 1.5/fs]
+    # Stable source-time bins retain raw/cleaned extrema for EVERY channel,
+    # plus bin endpoints. Taking the union preserves paired original samples.
+    # Gaps/nonfinite boundaries take precedence over the soft point budget.
+    indices = np.arange(len(t))
+    if fs*decimation_seconds > max_points and len(t)>max_points:
+        bins = max(1,int(max_points)//(4*n+2))
+        width = decimation_seconds/bins
+        ids = np.floor((t-origin)/width).astype(np.int64)
+        boundaries = np.r_[0,np.flatnonzero((np.diff(ids)!=0)|gap[1:])+1,len(t)]
+        retained=[]
+        for start,end in zip(boundaries[:-1],boundaries[1:]):
+            if cancelled(): raise PreparationCancelled()
+            retained.extend((start,end-1))
+            for values in (x,y):
+                block=values[start:end]
+                finite=np.isfinite(block)
+                retained.extend((start+np.argmin(np.where(finite,block,np.inf),axis=0)).tolist())
+                retained.extend((start+np.argmax(np.where(finite,block,-np.inf),axis=0)).tolist())
+        invalid=~(np.isfinite(x).all(axis=1)&np.isfinite(y).all(axis=1))
+        edges=np.flatnonzero(invalid|np.r_[False,invalid[:-1]]|np.r_[invalid[1:],False])
+        indices=np.unique(np.r_[retained,edges]).astype(np.intp)
+    cumulative=np.cumsum(gap)
+    connect=np.r_[False,cumulative[indices[1:]]==cumulative[indices[:-1]]]
+    arrays=(t[indices]-origin,(x[indices]-raw_center)/scales+offsets,
+            (y[indices]-filtered_center)/scales+offsets,centers,scales,connect)
+    for array in arrays: array.setflags(write=False)
+    return PreparedFrame(*arrays[:5],tuple(chunks[-1][3][:n]),connect)

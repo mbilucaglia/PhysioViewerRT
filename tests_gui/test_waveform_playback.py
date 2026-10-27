@@ -26,7 +26,7 @@ class WaveformPlaybackTests(unittest.TestCase):
             heads=[]
             with patch.object(w.raw_render_worker,'submit',side_effect=lambda request:heads.append(request)):
                 for duration in (10,30,5,15):
-                    w.raw_display.inflight_ticket=None
+                    w.raw_display.inflight.clear()
                     w.raw_time_window.setCurrentIndex(w.raw_time_window.findData(duration))
                     w.update_raw_xranges();w.draw()
                     self.assertTrue(heads)

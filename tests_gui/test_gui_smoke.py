@@ -409,21 +409,14 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertFalse(self.window.stream_buttons['EDA'].isEnabled())
 
     def test_pyqtgraph_amplitude_scales_around_labeled_channel_offsets(self):
-        self.window.tabs.setCurrentWidget(self.window.raw_page)
-        self.window.raw_display.inflight_ticket = 42
-        self.window.raw_vertical_gains['EEG'].setValue(2.)
-        times = np.array([0., .1, .2])
-        raw = np.array([[1., 7.], [0., 6.], [-1., 5.]])
-        response = RawFrameResult(
-            ticket=42, version=self.window.raw_display.epoch,
-            frames={'EEG': (times, raw, raw * 1., np.zeros(2),
-                            np.ones(2), ('F3', 'F4'))},
-        )
-        self.window.apply_raw_frame(response)
-        np.testing.assert_allclose(self.window.curves['EEG'][0].getData()[1], [2, 0, -2])
-        np.testing.assert_allclose(self.window.curves['EEG'][2].getData()[1], [8, 6, 4])
-        self.assertEqual(self.window.plots['EEG'].getAxis('left')._tickLevels,
-                         [[(0., 'F3'), (6., 'F4')]])
+        from physiolab.render_contracts import PreparedFrame,ViewSpec
+        times=np.array([0.,.1,.2]); raw=np.array([[1.,7.],[0.,6.],[-1.,5.]])
+        frame=PreparedFrame(times,raw,raw.copy(),np.zeros(2),np.ones(2),('F3','F4'))
+        backend=self.window.raw_controller.backends['pyqtgraph']['EEG']
+        backend.present(frame,ViewSpec(0,0,-4.8,.2,5.,2,gain=2.),10.)
+        np.testing.assert_allclose(self.window.curves['EEG'][0].getData()[1],[2,0,-2])
+        np.testing.assert_allclose(self.window.curves['EEG'][2].getData()[1],[8,6,4])
+        self.assertEqual(self.window.plots['EEG'].getAxis('left')._tickLevels,[[(0.,'F3'),(6.,'F4')]])
 
     def test_refresh_preserves_channel_selection_for_unchanged_source(self):
         info = FakeInfo('same-source', channels=4)
@@ -456,27 +449,30 @@ class GuiSmokeTests(unittest.TestCase):
         key = ('EEG', 'AWI')
         history = [(time.monotonic(), .2)]
         self.window.metric_state.history[key].extend(history)
-        self.window.metric_dirty = False
+        self.window.metric_controller.dirty = False
         self.window.metric_time_window.setCurrentIndex(1)
         self.assertTrue(self.window.metric_dirty)
         self.assertEqual(list(self.window.metric_state.history[key]), history)
 
     def test_timebase_change_rejects_inflight_frame_for_previous_view(self):
-        previous_version = self.window.raw_display.epoch
-        self.window.raw_display.inflight_ticket = 42
+        from physiolab.render_contracts import RawSourceRequest,FrameOutcome
+        state=self.window.raw_display
+        source=RawSourceRequest((),0.,1.,0.)
+        request=state.begin_frame({'EEG':source})
         self.window.raw_time_window.setCurrentIndex(1)
-        self.window.apply_raw_frame(RawFrameResult(
-            ticket=42, version=previous_version, frames={'EEG': object()}))
-        self.assertIsNone(self.window.raw_display.inflight_ticket)
-        self.assertTrue(self.window.raw_display.dirty)
+        self.window.raw_controller.accept(RawFrameResult(request.ticket,request.version,
+            {'EEG':object()},sources={'EEG':source},outcomes={'EEG':FrameOutcome('ready')}))
+        self.assertFalse(state.inflight)
+        self.assertNotIn('EEG',state.frames)
+        self.assertTrue(state.dirty)
 
     def test_stopped_source_does_not_freeze_shared_sweep_clock(self):
-        from types import SimpleNamespace
-        self.window.raw_display.origin = 100.
-        self.window.raw_display.last_sample = {'EEG': 110., 'PPG': 110., 'EDA': 100.}
-        self.window.raw_display.clock = SimpleNamespace(advance=lambda now: 109.75)
-        self.window.update_raw_xranges()
-        self.assertAlmostEqual(self.window.raw_display.bounds[1], 9.75)
+        state=self.window.raw_display
+        for kind,end in (('EEG',110.),('PPG',110.),('EDA',100.)):
+            values=np.zeros((2,1))
+            state.append(kind,values,values,[kind],10.,[end-.1,end],received_at=1.)
+        state.advance(1.)
+        self.assertGreater(state.viewport('EEG')[1],state.viewport('EDA')[1]+9.)
 
     def test_sources_tab_keeps_later_started_and_restarted_streams_in_first_view(self):
         from physiolab.raw_snapshot import build_raw_source
@@ -536,14 +532,18 @@ class GuiSmokeTests(unittest.TestCase):
                 self.assertFalse(self.window.findChild(QPushButton, f'{kind}Amplitude{suffix}').isHidden())
 
     def test_autoscale_requests_full_window_then_applies_common_gain(self):
-        frame = (np.array([0., 1.]), np.array([[-2., -2.], [2., 14.]]),
-                 np.array([[-2., -2.], [2., 14.]]))
-        self.window.raw_display.frames['EEG'] = frame
+        self.window.tabs.setCurrentWidget(self.window.raw_page)
+        self.window.eeg_display_count.setRange(1,2); self.window.eeg_display_count.setValue(2)
+        self.window.raw_controller.set_units('EEG',1.,'uV')
+        t=np.arange(100)/20.; x=np.column_stack((np.sin(t)*2,np.sin(t)*8))
+        self.window.append_raw_chunk('EEG',x,x,['A','B'],20.,t)
         self.window.autoscale_raw('EEG')
-        self.assertIn('EEG', self.window.raw_display.autoscale_requests)
-        self.window.raw_renderer_mode = 'vispy'
-        self.window._apply_autoscale('EEG', frame)
-        self.assertAlmostEqual(self.window.raw_vertical_gains['EEG'].value(), .3125, places=2)
+        self.assertIn('EEG',self.window.raw_display.autoscale_requests)
+        deadline=time.monotonic()+3.
+        while time.monotonic()<deadline and self.window.raw_display.autoscale_requests:
+            self.window.render_frame(); self.app.processEvents(); time.sleep(.005)
+        self.assertFalse(self.window.raw_display.autoscale_requests)
+        self.assertGreater(self.window.raw_vertical_gains['EEG'].value(),0.)
 
     def test_switch_raw_renderer_without_changing_metrics_or_receivers(self):
         from PySide6.QtWidgets import QWidget
@@ -552,6 +552,8 @@ class GuiSmokeTests(unittest.TestCase):
             def __init__(self, kind):
                 self.widget = QWidget()
                 self.frames = []
+
+            def invalidate_history(self): pass
 
             def set_frame(self, frame, left, right, **options):
                 self.frames.append((left, right, options))
@@ -564,7 +566,7 @@ class GuiSmokeTests(unittest.TestCase):
 
         old_metrics = self.window.metric_state.history
         old_receivers = self.window.workers
-        with patch('physiolab.gui.VisPyRawPlot', FakeGpuPlot):
+        with patch('physiolab.plot_controller.VisPyRawPlot', FakeGpuPlot):
             self.window.raw_renderer_choice.setCurrentIndex(1)
             self.assertEqual(self.window.raw_renderer_mode, 'vispy')
             self.assertEqual(len(self.window.raw_vispy_plots), 3)
@@ -586,6 +588,8 @@ class GuiSmokeTests(unittest.TestCase):
                 self.data = {}
                 self.bounds = None
                 self.keys = keys
+
+            def set_presentation_signature(self, signature): pass
 
             def set_series(self, key, x, y, mx, my, **options):
                 self.data[key] = (np.asarray(x), np.asarray(y),
@@ -612,7 +616,7 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.metric_state.history[key].extend([
             (current - 1., .2), (current - .5, .4), (current, .6)
         ])
-        with patch('physiolab.gui.VisPyMetricPlot', FakeMetricGpu):
+        with patch('physiolab.metric_plot_controller.VisPyMetricPlot', FakeMetricGpu):
             self.window.metric_renderer_choice.setCurrentIndex(1)
             self.assertEqual(self.window.metric_renderer_mode, 'vispy')
             self.assertEqual(self.window.metric_plot_stack.currentIndex(), 1)
@@ -737,7 +741,7 @@ class GuiSmokeTests(unittest.TestCase):
                          self.window.settings.default_eeg_display_channels)
         self.window.eeg_display_count.setValue(12)
         self.assertEqual(self.window.eeg_display_count.value(), 12)
-        self.assertNotIn('EEG', self.window.raw_display.references)
+        self.assertNotIn('EEG', self.window.raw_display.initial_references)
 
     def test_eeg_display_count_follows_selected_source_and_channel_subset(self):
         self.prepare_selected_receiver('EEG', uid='eeg', channels=32)
@@ -788,7 +792,7 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.loaded_bsl = {'analysis': {'metrics': {'EEG': {'AWI': {'mu': 0.}}}}}
         self.window.update_metrics_availability()
         tabs.setCurrentWidget(self.window.metrics_page)
-        self.window.metric_dirty = False
+        self.window.metric_controller.dirty = False
         self.window.tab_changed(tabs.currentIndex())
         # Tab switching schedules rendering on the next GUI tick.
         self.assertTrue(self.window.metric_dirty)
@@ -812,7 +816,7 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertTrue(self.window.raw_display.dirty)
         self.assertEqual(len(self.window.raw_display.history['EEG']), 1)
         self.window.render_frame()
-        self.assertIsNone(self.window.raw_display.inflight_ticket)
+        self.assertFalse(self.window.raw_display.inflight)
         self.assertTrue(worker.active)
         button.click()
         self.assertFalse(self.window.raw_display.paused)

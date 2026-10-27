@@ -89,7 +89,7 @@ try:
                 sent[kind]=target
         app.processEvents();time.sleep(.003)
     report={'label':args.label,'reducer':args.reducer,'errors':errors,'ASR_processed_samples':workers['EEG'].asr_processed_samples,
-        'display_buffer_seconds':w.raw_display.clock.presentation_delay,
+        'display_buffer_seconds':w.settings.presentation_delay_seconds,
         'eeg_displayed_channels':w.raw_vispy_plots['EEG'].channel_count,'streams':{}}
     for kind in SPECS:
         intervals=np.diff(paint[kind])*1000

@@ -18,6 +18,9 @@ class FakeLayer:
     def set_gain(self, gain, center):
         pass
 
+    def reconfigure(self, *args):
+        pass
+
     def close(self):
         pass
 
@@ -47,8 +50,8 @@ class ProgressiveLayerTests(unittest.TestCase):
             self.assertEqual(FakeLayer.created, 64)
             self.assertEqual(len(plot.layers['raw']), 0)
             plot._ensure_layers(32, 10., 50.)
-            self.assertEqual(FakeLayer.created, 72)
-            self.assertEqual(len(plot._pending_layers['raw']), 4)
+            self.assertEqual(FakeLayer.created, 64)
+            self.assertEqual(len(plot._pending_layers['raw']), 32)
 
 
 if __name__ == '__main__':

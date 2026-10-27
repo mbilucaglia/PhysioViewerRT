@@ -43,5 +43,11 @@ class ViewerSettings:
     def timer_interval_ms(self):
         return max(1, round(1000 / self.display_fps))
 
+    def bounded_view_seconds(self, seconds):
+        seconds = float(seconds)
+        if not math.isfinite(seconds):
+            raise ValueError('View duration must be finite')
+        return min(self.history_seconds, max(.01, seconds))
+
 
 DEFAULT_VIEWER_SETTINGS = ViewerSettings()

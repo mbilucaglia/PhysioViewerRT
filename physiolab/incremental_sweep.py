@@ -46,7 +46,7 @@ class SweepRing:
              self.values[slot]],
         ], dtype=np.float32)
 
-    def append(self, times, values):
+    def append(self, times, values, connect=None):
         """Return only changed (slot, two-vertex segment) pairs.
 
         Idempotent with repeated historical frames. A backwards timestamp is
@@ -56,6 +56,8 @@ class SweepRing:
         v = np.asarray(values, dtype=float)
         if t.ndim != 1 or v.ndim != 1 or t.shape != v.shape:
             raise ValueError('One-dimensional timestamps/values required')
+        if connect is not None:
+            return self._append_selected(t,v,np.asarray(connect,dtype=bool))
         # NumPy handles replay batches without Python work per sample/channel
         # on the GUI thread. Preserve the first sample in each advancing bin.
         finite = np.isfinite(t)
@@ -122,8 +124,46 @@ class SweepRing:
         geometry[valid, 1, 0] = (self.stamps[good] % self.duration)/self.duration
         geometry[valid, 1, 1] = self.values[good]
         self.positions[changed] = geometry
-        return list(zip(changed.tolist(), geometry))
+        stale=self.discard_before(self.last_time-self.duration-1e-9)
+        return list(zip(changed.tolist(), self.positions[changed])) + [
+            (int(slot),self.positions[slot]) for slot in stale if slot not in changed]
 
+    def _append_selected(self,t,v,connect):
+        """Original sample slots with explicit reduction/gap topology.
+
+        Extrema timestamps are irregular after reduction. Never decimate a
+        second time or infer missing samples from their display-bin spacing.
+        """
+        if connect.shape!=t.shape: raise ValueError('Edge mask must match samples')
+        keep=np.isfinite(t)&(t>self.last_time)
+        selected=np.flatnonzero(keep)
+        if not len(selected): return []
+        if self.bin_phase is None:
+            tick=t[selected[0]]*self.rate; self.bin_phase=tick-np.rint(tick)
+        identities=np.rint(t[selected]*self.rate-self.bin_phase).astype(np.int64)
+        slots=identities%self.capacity
+        _,reverse=np.unique(slots[::-1],return_index=True)
+        newest=len(slots)-1-reverse
+        rows=selected[newest]; target=slots[newest]
+        prior_rows=np.maximum(0,rows-1)
+        pt=t[prior_rows].copy(); pv=v[prior_rows].copy()
+        first=rows==0
+        pt[first]=getattr(self,'_selected_time',-np.inf)
+        pv[first]=getattr(self,'_selected_value',np.nan)
+        valid=(connect[rows]&np.isfinite(v[rows])&np.isfinite(pv)&(pt<t[rows])
+               &(np.floor(pt/self.duration)==np.floor(t[rows]/self.duration)))
+        geometry=np.full((len(rows),2,2),-10.,dtype=np.float32)
+        geometry[valid,0,0]=pt[valid]%self.duration/self.duration
+        geometry[valid,0,1]=pv[valid]
+        geometry[valid,1,0]=t[rows[valid]]%self.duration/self.duration
+        geometry[valid,1,1]=v[rows[valid]]
+        self.positions[target]=geometry; self.stamps[target]=t[rows]
+        self.values[target]=v[rows]; self.identities[target]=identities[newest]
+        self.last_time=float(t[selected[-1]]); self.last_id=int(identities[-1])
+        self._selected_time,self._selected_value=self.last_time,float(v[selected[-1]])
+        stale=self.discard_before(self.last_time-self.duration-1e-9)
+        changed=np.union1d(target,stale)
+        return list(zip(changed.tolist(),self.positions[changed]))
 
     def discard_before(self, timestamp):
         """Clear occupied slots older than a sparse marker's visible sweep."""
@@ -239,8 +279,8 @@ class IncrementalSweepLayer:
         self.ring = SweepRing(duration, rate, max_gap)
         self.visual.reset_capacity(self.ring.capacity)
 
-    def append(self, times, values):
-        updates = self.ring.append(times, values)
+    def append(self, times, values, connect=None):
+        updates = self.ring.append(times, values, connect)
         if self.mode == 'points':
             self.expire_points(self.ring.last_time)
             updates = [

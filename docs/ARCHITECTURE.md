@@ -4,12 +4,12 @@ PhysioViewerRT separates acquisition, signal processing, and presentation. Displ
 pause, gain, smoothing, interpolation, and sweep duration are presentation choices;
 they must not change the samples passed to physiological processing.
 
-## Review status — 26 October 2026
+## Rendering ownership — 27 October 2026
 
-The ownership rules below describe the intended design, not a completed modularity
-guarantee. A code audit reproduced controller, scheduling, resource-lifecycle and
-rendering-correctness failures. See [rendering architecture review](RENDERING_ARCHITECTURE_REVIEW.md).
-Rendering stabilization is the next priority; new features are gated in TODO.
+The audit findings now have behavioral regressions and a source-scoped rendering
+implementation. See [the implementation and validation handoff](RENDERING_REFACTOR.md)
+and the historical [audit](RENDERING_ARCHITECTURE_REVIEW.md). New features remain
+gated on the outstanding performance/device validation described in the handoff.
 
 ## Current modules
 
@@ -24,14 +24,17 @@ Rendering stabilization is the next priority; new features are gated in TODO.
 | Metric calculations | `physiological_metrics.py` | Pure modality calculators declare their required history; no widgets or acquisition threads. |
 | Calibration capture and analysis | `calibration_session.py`, `calibration.py` | Capture owns metadata/sample copies, boundaries and completeness checks; analysis and file serialization remain separate. |
 | Metric session state | `metric_state.py`, `emotion.py` | Own qualified histories, latest observations, derived EI, reset and normalization without Qt. |
-| Raw display session | `raw_display_state.py` | Own retained samples, shared clock, scale references, autoscale requests and frame ticket/version lifecycle without Qt. |
-| Raw display preparation | `raw_snapshot.py`, `raw_render.py`, `raw_render_worker.py`, `incremental_sweep.py` | Prepare bounded render payloads; preserve gaps and sweep boundaries. |
-| Plot contracts and GPU presentation | `render_contracts.py`, `vispy_raw.py`, `vispy_metrics.py`, `vispy_plot_engine.py` | VisPy owns graphics; presentation helpers remain testable without OpenGL. |
+| Authoritative signal history | `signal_history.py` | Read-only paired samples, bounded retention, source generations and packet-independent startup references. |
+| Raw commands and view state | `plot_controller.py`, `raw_display_state.py` | Commands, frozen pause snapshots, per-source clocks, viewport and frame validity. No shared presentation clock. |
+| Source preparation scheduling | `raw_render_worker.py` | Bounded per-source execution, cancellation, terminal outcomes and independent completion. |
+| Pure numerical preparation | `raw_snapshot.py`, `raw_render.py` | Immutable snapshots, original timestamps, paired extrema selection, transforms and explicit gap edges; no widgets/GPU resources. |
+| Backend graphics | `render_contracts.py`, `pyqtgraph_raw.py`, `vispy_raw.py`, `incremental_sweep.py`, `vispy_plot_engine.py` | Common raw drawing interface; backend-owned curves, rings, buffers and atomic resource replacement. |
+| Metric presentation | `metric_plot_controller.py`, `vispy_metrics.py` | Metric view/command ownership, frozen sparse observations, shared preparation and CPU/GPU adapters. |
 | Metric display transforms | `metric_display.py` | SciPy interpolation and causal display smoothing preserve original observations. |
 | Metric presentation metadata and controls | `metric_catalog.py`, `metric_widgets.py` | Qualified `(modality, name)` keys identify metrics across histories and controls. |
 | Shared policy | `settings.py`, `render_policy.py` | Centralize viewer timing/history/gain limits and raw geometry/sample budgets. Rulers, labels, autoscale and both renderers use the same geometry. |
 | Desktop widgets | `desktop_widgets.py`, `metric_widgets.py`, `scale_rulers.py` | Reusable Qt views do not own acquisition or processing session state. |
-| Application composition | `gui.py` | Connect Designer controls, asynchronous stream lifecycles, session models, calibration dialogs and renderers. |
+| Application composition | `gui.py` | Connect Designer controls, asynchronous stream lifecycles, session models and calibration dialogs; forward plot commands to controllers. |
 | Diagnostics and test sources | `performance.py`, `synthetic.py` | Optional timing summaries and reproducible demonstration inputs. |
 
 The Designer project under `designer/` controls widget layout and appearance.
@@ -231,8 +234,9 @@ processing and metric cadence are unchanged. Each VisPy cursor is clamped to
 that modality's latest committed sample, even when a shared viewport is ahead.
 No cursor advance is used as proof that new waveform geometry was drawn.
 
-RawDisplayState latches an initial reference after the first two or more real
-startup samples. It retains references for every acquired channel independently
+SignalHistory latches an initial reference from the first `ceil(fs * 0.25)` real
+startup samples (minimum two), independently of transport packet sizes. This is
+within the existing 250 ms presentation buffer. It retains references for every acquired channel independently
 of the displayed subset and viewport history pruning. PPG/SC retain separate
 initial raw/processed DC offsets; EEG uses the selected startup trace anchor.
 Playback drift, Fit, trace toggles and display-count changes reuse those

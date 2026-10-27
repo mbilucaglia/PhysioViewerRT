@@ -62,7 +62,7 @@ try:
             if elapsed>6.:
                 head=w.raw_display.bounds[1]
                 if heads and abs(head-heads[-1])<1e-6:
-                    stalls.append({'elapsed':elapsed,'head':head,'clock_head':w.raw_display.clock.head-origin,'latest':w.raw_display.latest_time-origin,'since_receipt':time.monotonic()-w.raw_display.clock.received_at,'last_sample':{k:v-origin for k,v in w.raw_display.last_sample.items()},'committed':w.raw_display.committed_head})
+                    stalls.append({'elapsed':elapsed,'head':head,'clock_heads':{k:c.head-origin for k,c in w.raw_display.source_clocks.items()},'since_receipt':{k:time.monotonic()-c.received_at for k,c in w.raw_display.source_clocks.items()},'last_sample':{k:v-origin for k,v in w.raw_display.last_sample.items()},'source_bounds':w.raw_display.source_bounds})
                 heads.append(head);ticks.append(last_tick)
                 for kind in workers:
                     renderer=w.raw_vispy_plots.get(kind)
@@ -78,7 +78,7 @@ try:
     report={'errors':errors,'frames_measured':len(heads),'zero_advance_frames':int(np.count_nonzero(steps<=1e-6)),'stalls':stalls,
         'frame_interval_p50_ms':float(np.median(intervals)*1000),'frame_interval_p95_ms':float(np.percentile(intervals,95)*1000),
         'head_step_p50_ms':float(np.median(steps)*1000),'head_step_p95_ms':float(np.percentile(steps,95)*1000),
-        'presentation_buffer_seconds':w.raw_display.clock.presentation_delay,
+        'presentation_buffer_seconds':w.settings.presentation_delay_seconds,
         'source_block_seconds':block_seconds,
         'drawn_sample_age_ms':{k:{'median':float(np.median(v)),'p95':float(np.percentile(v,95))} for k,v in drawn_ages.items()},
         'ring_invalid_slots':{k:int(np.count_nonzero(np.all(w.raw_vispy_plots[k].layers['filtered'][0].ring.positions==-10.,axis=(1,2)))) for k in workers},

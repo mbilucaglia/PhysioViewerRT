@@ -5,108 +5,11 @@ samples, signal processing, metric calculations and data history are unchanged.
 
 VisPy is imported lazily so the standard pyqtgraph installation still works.
 """
-from colorsys import hsv_to_rgb
 
 import numpy as np
 from .render_policy import RAW_DISPLAY_POLICY
 from .display_units import ARBITRARY_UNIT
-
-
-def trace_segments(times, values, left, right, lower=None, upper=None):
-    """Make one batched GL line geometry for all channels.
-
-    Input `values` is [samples, channels], pre-scaled by raw_render.py.
-    Output positions and colors are arrays suitable for one VisPy Line visual.
-    Every channel uses independently disconnected line segments; no diagonal
-    jump between channels, or across NaN/data gaps.
-    """
-    t = np.asarray(times, dtype=float)
-    v = np.asarray(values, dtype=float)
-    if v.ndim != 2 or t.ndim != 1 or v.shape[0] != len(t):
-        raise ValueError('Waveform and timestamp dimensions do not match')
-    default_lower, default_upper = RAW_DISPLAY_POLICY.bounds(v.shape[1])
-    lower = default_lower if lower is None else lower
-    upper = default_upper if upper is None else upper
-    if right <= left or upper <= lower:
-        raise ValueError('Invalid waveform viewport bounds')
-    if len(t) < 2 or not v.shape[1]:
-        return np.empty((0, 2), dtype=np.float32), np.empty((0, 4), dtype=np.float32)
-    x = (t - float(left)) / float(right - left)
-    y = (v - float(lower)) / float(upper - lower)
-    # Shape [channel, consecutive pair, endpoint, xy]. Each pair is an
-    # independent GL segment; the GPU receives just one visual per modality.
-    a = np.stack((x[:-1, None] + np.zeros_like(y[:-1]), y[:-1]), axis=-1)
-    b = np.stack((x[1:, None] + np.zeros_like(y[1:]), y[1:]), axis=-1)
-    valid = (np.isfinite(a).all(axis=-1) & np.isfinite(b).all(axis=-1)
-             & (np.maximum(a[..., 0], b[..., 0]) >= 0)
-             & (np.minimum(a[..., 0], b[..., 0]) <= 1))
-    positions = np.stack((a.transpose(1, 0, 2), b.transpose(1, 0, 2)), axis=2)
-    flat = positions.reshape(-1, 2, 2)
-    good = valid.T.ravel()
-    flat = flat[good]
-    if not len(flat):
-        return np.empty((0, 2), dtype=np.float32), np.empty((0, 4), dtype=np.float32)
-    channel_ids = np.repeat(np.arange(v.shape[1], dtype=int), len(t)-1)[good]
-    colors = np.zeros((len(flat)*2, 4), dtype=np.float32)
-    unique, inverse = np.unique(channel_ids, return_inverse=True)
-    palette = np.asarray([
-        (*hsv_to_rgb(float(index % max(v.shape[1], 3)) / max(v.shape[1], 3),
-                     0.77, 0.98), 0.92)
-        for index in unique
-    ], dtype=np.float32)
-    colors[0::2] = palette[inverse]
-    colors[1::2] = palette[inverse]
-    return flat.reshape(-1, 2).astype(np.float32), colors
-
-
-def sweep_segments(times, values, duration, head, scale=1.0):
-    """Stable 2-pass left-to-right sweep geometry with previous-cycle persistence.
-
-    Previous-cycle samples remain on the right of the advancing sweep head;
-    current-cycle samples occupy the left. Segments may never cross a cycle
-    boundary or join the old and new sweeps. Input amplitudes already have
-    shared-policy channel offsets applied by prepare_raw_window().
-    """
-    times = np.asarray(times, dtype=float)
-    values = np.asarray(values, dtype=float)
-    if duration <= 0 or scale <= 0:
-        raise ValueError('Sweep duration and vertical gain must be positive')
-    if values.ndim != 2 or times.ndim != 1 or len(times) != len(values):
-        raise ValueError('Mismatched sweep samples')
-    if len(times) < 2 or not values.shape[1]:
-        return (np.empty((0, 2), np.float32),
-                np.empty((0, 4), np.float32))
-    cycle = np.floor(times / duration).astype(np.int64)
-    current = int(np.floor(head / duration))
-    phase = float(head % duration)
-    x = np.mod(times, duration)
-    n = values.shape[1]
-    offsets = RAW_DISPLAY_POLICY.offsets(n)
-    gain_values = offsets + scale * (values - offsets)
-    lower, upper = RAW_DISPLAY_POLICY.bounds(n)
-    normalized_y = (gain_values - lower) / (upper - lower)
-    valid_samples = ((cycle == current)
-                     | ((cycle == current - 1) & (x >= phase)))
-    valid_samples &= times <= head + 1e-6
-    pairs = (valid_samples[:-1] & valid_samples[1:]
-             & (cycle[:-1] == cycle[1:])
-             & (np.diff(times) <= max(.5, duration / 3.)))
-    a = np.stack((x[:-1, None]/duration + np.zeros_like(normalized_y[:-1]),
-                  normalized_y[:-1]), axis=-1)
-    b = np.stack((x[1:, None]/duration + np.zeros_like(normalized_y[1:]),
-                  normalized_y[1:]), axis=-1)
-    valid = (pairs[:, None]
-             & np.isfinite(a).all(axis=2)
-             & np.isfinite(b).all(axis=2))
-    segments = np.stack((a.transpose(1, 0, 2),
-                         b.transpose(1, 0, 2)), axis=2).reshape(-1, 2, 2)
-    keep = valid.T.ravel()
-    segments = segments[keep]
-    if not len(segments):
-        return (np.empty((0, 2), np.float32),
-                np.empty((0, 4), np.float32))
-    colors = np.ones((len(segments)*2, 4), np.float32)
-    return segments.reshape(-1, 2).astype(np.float32), colors
+from .render_contracts import PreparedFrame
 
 
 class VisPyRawPlot:
@@ -206,8 +109,9 @@ class VisPyRawPlot:
         for group in self._layer_pool.values():
             for layer in group:
                 layer.visual.visible = False
-                ring = layer.ring
-                layer.reconfigure(ring.duration, ring.rate, max_gap=ring.max_gap)
+                # Retired banks are invisible and reconfigured before reuse in
+                # _ensure_layers. Missing sources must not allocate/upload all
+                # of their retained buffers on every healthy-source draw tick.
         self.layers = {'raw': [], 'filtered': []}
         self._configuration = self._pending_configuration = self._pending_layers = None
         self._target_channels = 0
@@ -218,12 +122,10 @@ class VisPyRawPlot:
         self.canvas.update()
 
     def invalidate_history(self):
-        """Replay rescaled display data without replacing GPU programs."""
-        for group in self.layers.values():
-            for layer in group:
-                ring = layer.ring
-                layer.reconfigure(ring.duration, ring.rate, max_gap=ring.max_gap)
-        self._latest = -np.inf
+        """Invalidate staging only. Active geometry stays intact until commit."""
+        self._pending_layers = None
+        self._pending_configuration = None
+        self._configuration = None
 
     def warm_channels(self, count, duration, nominal_fs):
         """Prepare one spare channel pair per idle tick, including driver linking.
@@ -277,73 +179,38 @@ class VisPyRawPlot:
             return self.layers, True
         if not hasattr(self, '_layer_pool'):
             self._layer_pool = {'raw': [], 'filtered': []}
-        # Timebase changes reset storage, never the linked shader programs.
-        if (self._pending_layers is None
-                and all(len(self._layer_pool[key]) >= count
-                        for key in ('raw', 'filtered'))):
-            for key in ('raw', 'filtered'):
-                for layer in self._layer_pool[key]:
-                    layer.visual.visible = False
-                self.layers[key] = self._layer_pool[key][:count]
-                for layer in self.layers[key]:
-                    layer.reconfigure(duration, rate)
-            self._configuration = config
-            self._target_channels = count
-            self._latest = -np.inf
-            self._apply_gain()
-            self.raw_line = self.layers['raw'][0].visual if count else None
-            self.filtered_line = self.layers['filtered'][0].visual if count else None
-            return self.layers, True
         if self._pending_configuration != config:
-            if self._pending_layers is not None:
-                for key, group in self._pending_layers.items():
-                    for layer in group:
-                        if layer not in self._layer_pool[key]:
-                            layer.close()
             self._pending_configuration = config
             self._pending_layers = {'raw': [], 'filtered': []}
         target = self._pending_layers
         built = len(target['raw'])
-        for i in range(built, min(count, built + 4)):
-            if i < len(self._layer_pool['raw']):
-                raw_layer = self._layer_pool['raw'][i]
-                filtered_layer = self._layer_pool['filtered'][i]
-                raw_layer.reconfigure(duration, rate)
-                filtered_layer.reconfigure(duration, rate)
-            else:
-                raw_layer = IncrementalSweepLayer(
-                    self.view.scene, duration, rate, '#db3232')
-                filtered_layer = IncrementalSweepLayer(
-                    self.view.scene, duration, rate, '#171717')
-            raw_layer.visual.visible = False
-            filtered_layer.visual.visible = False
-            target['raw'].append(raw_layer)
-            target['filtered'].append(filtered_layer)
+        spare_count=min(sum(layer not in self.layers[key] and layer not in target[key]
+                            for layer in self._layer_pool[key]) for key in ('raw','filtered'))
+        limit=count if spare_count>=count-built else min(count,built+4)
+        for i in range(built, limit):
+            for key, color in (('raw','#db3232'),('filtered','#171717')):
+                spare = next((layer for layer in self._layer_pool[key]
+                              if layer not in self.layers[key] and layer not in target[key]), None)
+                if spare is None:
+                    spare = IncrementalSweepLayer(self.view.scene,duration,rate,color)
+                    self._layer_pool[key].append(spare)
+                else:
+                    spare.reconfigure(duration,rate)
+                spare.visual.visible = False
+                target[key].append(spare)
         return target, len(target['raw']) == count
 
     def _commit_layers(self, layers, config):
-        """Atomically replace the visible sweep after every channel is ready."""
-        old = self.layers
+        """Swap disjoint generations after all replacement channels have data."""
+        for group in self.layers.values():
+            for layer in group: layer.visual.visible = False
         self.layers = layers
         self._configuration = config
         self._target_channels = config[0]
-        self._pending_layers = None
-        self._pending_configuration = None
-        for group in old.values():
-            for layer in group:
-                layer.visual.visible = False
-        for key in ('raw', 'filtered'):
-            for i, layer in enumerate(layers[key]):
-                if i < len(self._layer_pool[key]):
-                    if self._layer_pool[key][i] is not layer:
-                        self._layer_pool[key][i].close()
-                    self._layer_pool[key][i] = layer
-                else:
-                    self._layer_pool[key].append(layer)
+        self._pending_layers = self._pending_configuration = None
         self._apply_gain()
         self.raw_line = layers['raw'][0].visual if layers['raw'] else None
-        self.filtered_line = (
-            layers['filtered'][0].visual if layers['filtered'] else None)
+        self.filtered_line = layers['filtered'][0].visual if layers['filtered'] else None
 
     def needs_history_replay(self, count, duration):
         """New GPU channels must receive full history, not just live tails."""
@@ -372,10 +239,15 @@ class VisPyRawPlot:
     def set_frame(self, frame, left, right, show_raw=True, show_filtered=True,
                   sweep_head=None, nominal_fs=None,
                   max_points=RAW_DISPLAY_POLICY.max_points):
-        times, raw, filtered, _, _, names = frame
+        # Public set_frame remains compatible with diagnostic fixtures from
+        # before the controller. Runtime present() always supplies PreparedFrame.
+        if not isinstance(frame,PreparedFrame): frame=PreparedFrame(*frame)
+        times,raw,filtered,names=frame.times,frame.raw,frame.filtered,frame.names
+        connect = frame.connect
         if sweep_head is not None and np.isfinite(sweep_head):
             stop = int(np.searchsorted(times, sweep_head, side='right'))
             times, raw, filtered = times[:stop], raw[:stop], filtered[:stop]
+            if connect is not None: connect = connect[:stop]
         duration = float(right-left)
         if duration <= 0:
             return
@@ -387,7 +259,7 @@ class VisPyRawPlot:
         if nominal_fs is not None and nominal_fs > 0:
             # Match the worker's fixed-clock decimation; never infer GPU
             # capacity from a short first frame or fallback grid samples.
-            rate = RAW_DISPLAY_POLICY.display_rate(nominal_fs, duration, max_points)
+            rate = float(nominal_fs)
         elif self._configuration and self._configuration[:2] == (n, duration):
             rate = self._configuration[2]
         else:
@@ -410,7 +282,7 @@ class VisPyRawPlot:
                 if layer.ring.last_time >= float(times[-1]):
                     continue
                 normalized = (values[:, i] - lower) / (upper-lower)
-                layer.append(times, normalized)
+                layer.append(times, normalized, connect=connect)
         if self._pending_layers is not None:
             if not ready:
                 return
@@ -439,6 +311,18 @@ class VisPyRawPlot:
         )
         self.engine.set_channel_labels(channel_names)
         self.canvas.update()
+
+    def present(self, frame, view, fs):
+        if frame is None:
+            self.reset()
+            self.sweep_duration=view.duration
+            self.engine.set_axis_labels(duration=view.duration,bounds=(0.,1.))
+            return True
+        self.set_amplitude_units(float(frame.scales[0]),view.unit)
+        self.set_vertical_gain(view.gain)
+        self.set_frame(frame,0.,view.duration,show_raw=view.show_raw,
+                       show_filtered=view.show_filtered,sweep_head=view.right,nominal_fs=fs)
+        return not self.history_needs_replay(view.channels,view.duration)
 
     def close(self):
         self._drop_layers()

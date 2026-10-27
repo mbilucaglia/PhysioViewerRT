@@ -22,20 +22,21 @@ from .worker import Receiver
 from .processing import validate_preprocessing
 from .channel_selection import validated_indices
 from .lsl_tasks import LSLTask
-from .metric_display import prepare_metric_curve, metric_amplitude_label
+from .metric_display import metric_amplitude_label
 from .scale_rulers import ScaleRuler
 from .branding import apply_window_branding
 from .modality_labels import modality_label
-from .raw_render_worker import RawRenderWorker
-from .raw_snapshot import build_raw_source
-from .vispy_raw import VisPyRawPlot
-from .vispy_metrics import VisPyMetricPlot
+
+
+
+
 from .performance import PerformanceMonitor
 from .settings import DEFAULT_VIEWER_SETTINGS
 from .metric_catalog import DEFAULT_METRICS, validate_metrics, metric_color
 from .metric_widgets import build_metric_toggles, build_metric_readouts
 from .display_units import DEFAULT_EEG_DISPLAY_STEP, ARBITRARY_UNIT
-from .raw_display_state import RawDisplayState
+from .plot_controller import PlotController
+from .metric_plot_controller import MetricPlotController
 from .metric_state import MetricState
 from .calibration_session import CalibrationSession
 from .calibration_tasks import CalibrationAnalysisTask
@@ -55,7 +56,7 @@ from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
 from .desktop_widgets import CheckChannelDropdown, CalibrationScreen, ResponsiveSources
 from .source_conversion_widgets import SourceConversionControls
-from .amplitude_display import visible_gain
+
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration,
     DURATION_SECONDS,
@@ -67,9 +68,10 @@ class MainWindow(QMainWindow):
     def __init__(self, settings=DEFAULT_VIEWER_SETTINGS, metric_definitions=DEFAULT_METRICS):
         super().__init__()
         self.settings = settings
-        self.raw_display = RawDisplayState(settings)
+
         self.metric_definitions = validate_metrics(metric_definitions)
         self.metric_state = MetricState(self.metric_definitions, settings.metric_history_capacity)
+        self.metric_controller = MetricPlotController(self.metric_state,settings)
         self.asr_session = ASRSession()
         self.asr_tasks = []
         self._asr_report_dialog = None
@@ -102,26 +104,29 @@ class MainWindow(QMainWindow):
         self._closing = False
         self.performance = PerformanceMonitor()
         self._last_gui_tick = time.monotonic()
-        self.plots, self.curves = {}, {}
+        self.raw_controller = PlotController(settings,self.performance,self)
+        self.raw_display = self.raw_controller.state
+        self.raw_controller.frame_presented.connect(self.raw_frame_presented)
+        self.raw_controller.gain_changed.connect(self.raw_gain_fitted)
+        self.raw_controller.status.connect(lambda text:self.statusBar().showMessage(text))
+        self.plots = {}
         self.raw_plot_stacks = {}
-        self.raw_vispy_plots = {}
-        self.raw_renderer_mode = 'pyqtgraph'
         self.raw_vertical_gains = {}
         self.raw_autoscale_buttons = {}
-        self.metric_dirty = True
-        self.metric_presentation_epoch = 0
-        self.metric_renderer_mode = 'pyqtgraph'
-        self.vispy_metric_plot = None
-        self.metric_gl_bounds = (-settings.default_view_seconds, 0.)
+
+
+
+
+
         self.metric_labels, self.metric_status = {}, {}
-        self.metric_ruler_keys = set()
+
         self.capture = None
         self.loaded_eyc = None
         self.loaded_bsl = None
         self.calibration_paths = {'EYC': None, 'BSL': None}
-        self.metric_plot_origin = time.monotonic()
-        self.metric_view_seconds = settings.default_view_seconds
-        self.metric_follow_live = True
+
+
+
         self.iaf_hz = 10.0
         self._load_designer_layout()
         self._connect_designer_controls()
@@ -143,9 +148,6 @@ class MainWindow(QMainWindow):
             self.raw_renderer_choice.setCurrentIndex(1)
             self.metric_renderer_choice.setCurrentIndex(1)
 
-        self.raw_render_worker = RawRenderWorker(self)
-        self.raw_render_worker.frame_ready.connect(self.apply_raw_frame)
-        self.raw_render_worker.start()
 
         self.statusBar().showMessage('Start an LSL source, then press Refresh LSL.')
         self.timer = QTimer(self)
@@ -692,7 +694,7 @@ class MainWindow(QMainWindow):
         self.show_processed = self._required_ui('showFiltered', QCheckBox)
         self.show_raw.setChecked(True)
         self.show_processed.setChecked(True)
-        self._raw_trace_selection_refresh = False
+
         self.show_raw.toggled.connect(self.raw_trace_selection_changed)
         self.show_processed.toggled.connect(self.raw_trace_selection_changed)
         self.raw_renderer_choice = self._required_ui('rawRendererChoice', QComboBox)
@@ -766,7 +768,7 @@ class MainWindow(QMainWindow):
             host.layout().addWidget(stack)
             self.raw_plot_stacks[kind] = stack
             self.plots[kind] = plot
-            self.curves[kind] = []
+            self.raw_controller.register_plot(kind, plot)
             gain = self._required_ui(f'{kind}Amplitude', QDoubleSpinBox)
             gain.hide()  # Keep bounded gain state; adjustment uses − / Fit / + only.
             gain.setDecimals(2)
@@ -865,16 +867,7 @@ class MainWindow(QMainWindow):
         self.metric_plot.setMouseEnabled(x=True, y=True)
         self.metric_plot.getViewBox().sigRangeChangedManually.connect(
             self.metric_view_changed_manually)
-        self.metric_curves = {}
-        self.metric_point_curves = {}
-        for index, key in enumerate(self.metric_state.keys):
-            color = metric_color(index)
-            self.metric_curves[key] = self.metric_plot.plot(
-                name=f'{key[0]} / {key[1]}',
-                pen=pg.mkPen(color, width=2), connect='finite')
-            self.metric_point_curves[key] = self.metric_plot.plot(
-                pen=None, symbol='o', symbolSize=5,
-                symbolBrush=pg.mkBrush(color), symbolPen=None)
+        self.metric_controller.attach(self.metric_plot)
         self.metric_plot_stack = QStackedWidget()
         fallback = QWidget()
         fallback_layout = QGridLayout(fallback)
@@ -903,12 +896,12 @@ class MainWindow(QMainWindow):
             lambda: self.set_plot_paused('raw', not self.raw_display.paused))
         self._required_ui('metricsPlotPause', QPushButton).clicked.connect(
             lambda: self.set_plot_paused('metrics', not self.metric_plot_paused))
-        self.raw_display.paused = False
-        self.metric_plot_paused = False
+
+
         self.metric_y_auto = self._required_ui('metricsYAuto', QCheckBox)
         self.metric_y_auto.setToolTip('Continuously fit the vertical range to visible metric values. '
             'Turn off to hold the range; Fit adjusts it once; −/+ select a manual zoom.')
-        self._metric_manual_y = None
+
         self.metric_y_auto.toggled.connect(self._metric_vertical_auto_changed)
         self._required_ui('metricsYOut', QToolButton).clicked.connect(lambda:self.zoom_metric_y(1.25))
         self._required_ui('metricsYIn', QToolButton).clicked.connect(lambda:self.zoom_metric_y(.8))
@@ -994,13 +987,7 @@ class MainWindow(QMainWindow):
         self.schedule_source_change(kind)
 
     def change_eeg_display_count(self, *_):
-        """Only limit waveform channels; do not change LSL processing."""
-        self.raw_display.references.pop('EEG', None)
-        self.raw_display.invalidate()
-        # Keep the current GPU scene visible while its replacement is
-        # prepared; VisPyRawPlot commits the complete channel set atomically.
-        self.curves['EEG'] = []
-        self.plots['EEG'].clear()
+        self.raw_controller.set_channels(self.eeg_display_count.value())
 
     @property
 
@@ -1045,7 +1032,7 @@ class MainWindow(QMainWindow):
         self.raw_panel_order = order
         self.raw_plot_splitter.setSizes(sizes)
         self.raw_peripheral_splitter.setSizes(side_sizes)
-        self.raw_display.dirty = True
+        self.raw_controller.change()
 
     def set_raw_focus(self, kind, focused):
         """One shared expansion policy for every raw signal panel."""
@@ -1066,22 +1053,18 @@ class MainWindow(QMainWindow):
         self.raw_peripheral_splitter.setVisible(self.focused_raw_kind != self.raw_panel_order[0])
         if not focused and hasattr(self, '_raw_splitter_sizes'):
             self.raw_plot_splitter.setSizes(self._raw_splitter_sizes)
-        self.raw_display.dirty = True
+        self.raw_controller.change()
 
     def set_plot_paused(self, scope, paused):
         if scope == 'raw':
-            self.raw_display.paused = bool(paused)
+            self.raw_controller.set_paused(paused)
             set_view_paused(self._required_ui('rawPlotPause', QPushButton), paused)
-            if not paused:
-                # Preserve GPU ring contents across plot-only pause/resume.
-                # Replay buffered samples without a blank-frame reset.
-                self.raw_display.dirty = True
         else:
-            self.metric_plot_paused = bool(paused)
+            self.metric_controller.set_paused(paused)
             set_view_paused(self._required_ui('metricsPlotPause', QPushButton), paused)
             if not paused:
-                self.metric_presentation_epoch += 1
-                self.metric_dirty = True
+                self.metric_controller.changed()
+                self.metric_controller.data_changed()
 
     def queue_lsl_task(self, operation, info=None):
         """Run blocking LSL APIs outside the Qt GUI event loop."""
@@ -1270,8 +1253,9 @@ class MainWindow(QMainWindow):
             self.connect_stream(kind)
 
     def reset_stream_display(self, kind):
-        self.raw_display.reset(kind)
+        self.raw_controller.reset(kind)
         self.metric_state.reset(kind)
+        self.metric_controller.reset(kind)
         self.affect_state.reset(kind)
         self.sync_affect_sources()
         if kind == 'EDA':
@@ -1279,11 +1263,6 @@ class MainWindow(QMainWindow):
             self.refresh_affect_references()
         self.raw_autoscale_buttons[kind].setEnabled(False)
         self.raw_center_buttons[kind].setEnabled(False)
-        plot = self.plots[kind]
-        plot.clear()
-        self.curves[kind] = []
-        if kind in self.raw_vispy_plots:
-            self.raw_vispy_plots[kind].reset()
         self.refresh_metrics()
 
     def stop_stream(self, kind):
@@ -1390,10 +1369,10 @@ class MainWindow(QMainWindow):
             self.affect_state.update(kind, metric, float(timestamps[-1]))
         if refresh_labels:
             self.refresh_metric_labels()
-        self.metric_dirty = True
+        self.metric_controller.data_changed()
 
     def set_stream_display_scale(self, kind, scale, unit):
-        self.raw_display.set_units(kind, scale, unit)
+        self.raw_controller.set_units(kind, scale, unit)
 
     def displayed_value(self, kind, name, value):
         return self.metric_state.normalized_value(
@@ -1402,9 +1381,9 @@ class MainWindow(QMainWindow):
     def refresh_metrics(self, *_):
         # Explicit normalization/baseline/source changes require a rebuild.
         # Ordinary live metric samples do NOT call this method.
-        self.metric_presentation_epoch += 1
+        self.metric_controller.changed()
         self.refresh_metric_labels()
-        self.metric_dirty = True
+        self.metric_controller.data_changed()
 
     def refresh_metric_labels(self):
         available = set()
@@ -1433,96 +1412,87 @@ class MainWindow(QMainWindow):
                 status = 'Live' if self.normalization.currentData() == 'identity' else 'Live · BSL normalized'
             label.setText(status or 'Waiting for data')
 
-    def set_metric_renderer(self, *_):
-        """Swap only Metrics presentation, keeping computation untouched."""
-        mode = self.metric_renderer_choice.currentData()
-        if mode == self.metric_renderer_mode:
+    @property
+    def _metric_manual_y(self): return self.metric_controller.manual_y
+
+    @property
+    def metric_dirty(self): return self.metric_controller.dirty
+
+    @property
+    def metric_renderer_mode(self): return self.metric_controller.mode
+
+    @property
+    def metric_plot_origin(self): return self.metric_controller.origin
+
+    @property
+    def metric_gl_bounds(self): return self.metric_controller.bounds
+
+    @property
+    def metric_follow_live(self): return self.metric_controller.follow_live
+
+    @property
+    def metric_presentation_epoch(self): return self.metric_controller.generation
+
+    @property
+    def metric_ruler_keys(self): return self.metric_controller.ruler_keys
+
+    @property
+    def metric_plot_paused(self): return self.metric_controller.paused
+
+    @property
+    def metric_view_seconds(self): return self.metric_controller.duration
+
+    @property
+    def vispy_metric_plot(self): return self.metric_controller.gpu
+
+    @property
+    def metric_curves(self): return self.metric_controller.backends['pyqtgraph'].curves
+
+    @property
+    def metric_point_curves(self): return self.metric_controller.backends['pyqtgraph'].markers
+
+    def set_metric_renderer(self,*_):
+        mode=self.metric_renderer_choice.currentData()
+        try:
+            self.metric_controller.set_backend(mode)
+        except Exception as exc:
+            self.metric_renderer_choice.blockSignals(True)
+            self.metric_renderer_choice.setCurrentIndex(0)
+            self.metric_renderer_choice.blockSignals(False)
+            QMessageBox.warning(self,'Metrics OpenGL unavailable',str(exc))
             return
-        if mode == 'vispy' and self.vispy_metric_plot is None:
-            try:
-                self.vispy_metric_plot = VisPyMetricPlot(self.metric_state.keys)
-                self.metric_plot_stack.addWidget(self.vispy_metric_plot.widget)
-            except Exception as exc:
-                self.metric_renderer_choice.blockSignals(True)
-                self.metric_renderer_choice.setCurrentIndex(0)
-                self.metric_renderer_choice.blockSignals(False)
-                QMessageBox.warning(
-                    self, 'Metrics OpenGL unavailable',
-                    f'Could not initialize VisPy metrics renderer: {exc}'
-                )
-                return
-        self.metric_renderer_mode = mode
-        self.metric_plot_stack.setCurrentIndex(1 if mode == 'vispy' else 0)
-        self.set_metric_vertical_auto(self.metric_y_auto.isChecked())
-        if not self.metric_y_auto.isChecked() and self._metric_manual_y is not None:
-            self._apply_metric_y_range(*self._metric_manual_y)
-        self.update_metric_xrange()
-        self.metric_dirty = True
+        if mode=='vispy' and self.metric_plot_stack.indexOf(self.vispy_metric_plot.widget)<0:
+            self.metric_plot_stack.addWidget(self.vispy_metric_plot.widget)
+        self.metric_plot_stack.setCurrentIndex(1 if mode=='vispy' else 0)
         self.refresh_metric_plot()
 
-    def _metric_vertical_auto_changed(self, enabled):
-        if not enabled:
-            self._metric_manual_y = (self.vispy_metric_plot.y_range
-                if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None
-                else tuple(self.metric_plot.viewRange()[1]))
-        self.set_metric_vertical_auto(enabled)
+    def _metric_vertical_auto_changed(self,enabled):
+        self.metric_controller.set_auto(enabled)
 
-    def set_metric_vertical_auto(self, enabled):
-        self.metric_plot.enableAutoRange(axis='y', enable=enabled)
-        if self.vispy_metric_plot is not None:
-            self.vispy_metric_plot.set_y_auto(enabled)
+    def set_metric_vertical_auto(self,enabled):
+        self.metric_controller.set_auto(enabled)
 
-    def _apply_metric_y_range(self, low, high):
-        self._metric_manual_y = (low, high)
-        if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None:
-            self.vispy_metric_plot.set_y_range(low, high)
-        else:
-            self.metric_plot.setYRange(low, high, padding=0)
+    def _apply_metric_y_range(self,low,high):
+        self.metric_controller.set_y_range(low,high)
 
-    def zoom_metric_y(self, factor):
+    def zoom_metric_y(self,factor):
         self.metric_y_auto.setChecked(False)
-        if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None:
-            low, high = self.vispy_metric_plot.y_range
-        else:
-            low, high = self.metric_plot.viewRange()[1]
-        center, half = (low+high)/2., (high-low)*factor/2.
-        self._apply_metric_y_range(center-half, center+half)
+        self.metric_controller.zoom_y(factor)
 
     def fit_metric_y(self):
         self.metric_y_auto.setChecked(False)
-        if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None:
-            self.vispy_metric_plot.fit_y()
-            self._metric_manual_y = self.vispy_metric_plot.y_range
-            return
-        left, right = self.metric_plot.viewRange()[0]
-        values = []
-        for key in self.metric_curves:
-            if self.metric_checks[key].isChecked():
-                for curve in (self.metric_curves[key], self.metric_point_curves[key]):
-                    if not curve.isVisible():
-                        continue
-                    x, y = curve.getData()
-                    if x is not None:
-                        mask = (x >= left) & (x <= right) & np.isfinite(y)
-                        values.extend(y[mask])
-        if values:
-            low, high = float(np.min(values)), float(np.max(values))
-            pad = max(.1, (high-low)*.08)
-            self._apply_metric_y_range(low-pad, high+pad)
-        else:
-            self._apply_metric_y_range(-1., 1.)
+        self.metric_controller.fit_y()
 
-    def set_metric_time_window(self, *_):
-        seconds = self.metric_time_window.currentData()
-        if seconds is None:
-            return
-        self.metric_view_seconds = float(seconds)
-        self.resume_metric_live()
+    def set_metric_time_window(self,*_):
+        seconds=self.metric_time_window.currentData()
+        if seconds is not None:
+            self.metric_controller.set_window(seconds)
+            self.resume_metric_live()
 
     def zoom_metric_plot(self, scale):
-        self.metric_view_seconds = float(np.clip(
+        self.metric_controller.set_window(float(np.clip(
             self.metric_view_seconds * scale, 1.0, self.settings.history_seconds
-        ))
+        )))
         self.metric_time_window.blockSignals(True)
         idx = self.metric_time_window.findData(self.metric_view_seconds)
         if idx < 0:
@@ -1533,117 +1503,35 @@ class MainWindow(QMainWindow):
         self.resume_metric_live()
 
     def resume_metric_live(self):
-        self.metric_follow_live = True
-        self.metric_dirty = True
-        set_action(self.metric_live_button, 'Live', 'live')
+        self.metric_controller.resume()
+        set_action(self.metric_live_button,'Live','live')
         self.metric_live_button.setEnabled(False)
-        self.update_metric_xrange()
 
-    def metric_view_changed_manually(self, *_):
-        if self.metric_renderer_mode == 'vispy':
-            return
-        xlow, xhigh = self.metric_plot.viewRange()[0]
-        span = float(max(.01, xhigh - xlow))
-        is_zoom = abs(span - self.metric_view_seconds) > max(.001, .001*self.metric_view_seconds)
-        was_following = self.metric_follow_live
-        self.metric_view_seconds = span
-        if was_following and is_zoom:
-            self.update_metric_xrange()
-        else:
-            self.metric_follow_live = False
-            set_action(self.metric_live_button, 'Follow live', 'live')
-            self.metric_live_button.setEnabled(True)
+    def metric_view_changed_manually(self,*_):
+        if self.metric_renderer_mode=='vispy': return
+        self.metric_controller.manual_view(*self.metric_plot.viewRange()[0])
+        following=self.metric_controller.follow_live
+        set_action(self.metric_live_button,'Live' if following else 'Follow live','live')
+        self.metric_live_button.setEnabled(not following)
 
     def update_metric_xrange(self):
-        if self.metric_follow_live:
-            elapsed = time.monotonic() - self.metric_plot_origin
-            self.metric_gl_bounds = (
-                elapsed - self.metric_view_seconds, elapsed
-            )
-            if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot:
-                self.vispy_metric_plot.set_xrange(*self.metric_gl_bounds)
-            else:
-                self.metric_plot.setXRange(*self.metric_gl_bounds, padding=0)
+        self.metric_controller.advance()
 
-    def refresh_metric_plot(self, *_):
-        now = time.monotonic()
-        method = self.metric_smoothing.currentData()
-        duration = self.metric_smoothing_duration.currentData()
-        interpolation = self.metric_interpolation.currentData()
-        show_markers = self.metric_sample_markers.isChecked()
-        gpu = self.vispy_metric_plot if self.metric_renderer_mode == 'vispy' else None
-        ruler_keys = set()
-        if gpu and hasattr(gpu, 'set_presentation_signature'):
-            gpu.set_presentation_signature((
-                self.normalization.currentData(), method, float(duration),
-                interpolation, bool(show_markers),
-                self.metric_presentation_epoch,
-            ))
-        for (kind, name), curve in self.metric_curves.items():
-            key = (kind, name)
-            visible = self.metric_checks[key].isChecked()
-            markers = self.metric_point_curves[key]
-            if not gpu:
-                curve.setVisible(visible)
-                markers.setVisible(visible and (show_markers or interpolation == 'none'))
-            if not visible:
-                if gpu:
-                    empty = np.empty(0)
-                    gpu.set_series(key, empty, empty, empty, empty, visible=False)
-                continue
-            points = [(t, val) for t, val in self.metric_state.history[key]
-                      if now - t <= 300]
-            if not points:
-                if gpu:
-                    empty = np.empty(0)
-                    gpu.set_series(key, empty, empty, empty, empty, visible=False)
-                else:
-                    curve.clear()
-                    markers.clear()
-                continue
-            timestamps = np.asarray(
-                [t - self.metric_plot_origin for t, _ in points], dtype=float
-            )
-            display = [self.displayed_value(kind, name, val) for _, val in points]
-            values = np.asarray(
-                [float(v) if v is not None else np.nan for v in display],
-                dtype=float,
-            )
-            x, y, measured_x, measured_y = prepare_metric_curve(
-                timestamps, values,
-                smoothing=method, seconds=float(duration),
-                interpolation=interpolation, display_hz=20.0,
-                max_gap=1.1,
-            )
-            if np.isfinite(measured_y).any():
-                ruler_keys.add(key)
-            if gpu:
-                gpu.set_series(
-                    key, x, y, measured_x, measured_y,
-                    visible=visible, show_line=interpolation != 'none',
-                    show_markers=show_markers or interpolation == 'none',
-                )
-            else:
-                if interpolation == 'none':
-                    curve.clear()
-                else:
-                    curve.setData(x, y, connect='finite')
-                if show_markers or interpolation == 'none':
-                    markers.setData(measured_x, measured_y)
-                else:
-                    markers.clear()
-        if gpu:
-            gpu.refresh_axes()
-        self.metric_ruler_keys = ruler_keys
+    def refresh_metric_plot(self,*_):
+        self.metric_controller.refresh(normalization=self.normalization.currentData(),
+            references=self.metric_references(),smoothing=self.metric_smoothing.currentData(),
+            seconds=self.metric_smoothing_duration.currentData(),
+            interpolation=self.metric_interpolation.currentData(),
+            markers=self.metric_sample_markers.isChecked(),
+            visible={key for key,control in self.metric_checks.items() if control.isChecked()})
         self.update_metric_rulers()
-        self.metric_dirty = False
 
     def update_metric_rulers(self, *_):
         unit, description = metric_amplitude_label(
             self.metric_definitions, self.metric_ruler_keys,
             self.normalization.currentData(), self.raw_display.units)
         if self.metric_renderer_mode == 'vispy' and self.vispy_metric_plot is not None:
-            self.vispy_metric_plot.set_amplitude_units(unit, description)
+            self.metric_controller.set_units(unit, description)
             return
         box = self.metric_plot.getViewBox()
         (left, right), (bottom, top) = box.viewRange()
@@ -1653,56 +1541,26 @@ class MainWindow(QMainWindow):
         self.metric_amplitude_ruler.setToolTip(description)
 
     def append_raw_chunk(self, kind, raw, processed, names, fs, timestamps):
-        self.raw_display.append(kind, raw, processed, names, fs, timestamps,
-            center_trace='filtered' if self.show_processed.isChecked() else 'raw')
+        self.raw_controller.append(kind,raw,processed,names,fs,timestamps)
 
     def set_raw_renderer(self, *_):
-        """Switch only the Raw Data presentation backend at runtime."""
-        mode = self.raw_renderer_choice.currentData()
-        if mode == self.raw_renderer_mode:
+        mode=self.raw_renderer_choice.currentData()
+        try:
+            self.raw_controller.set_backend(mode)
+        except Exception as exc:
+            self.raw_renderer_choice.blockSignals(True)
+            self.raw_renderer_choice.setCurrentIndex(0)
+            self.raw_renderer_choice.blockSignals(False)
+            QMessageBox.warning(self,'OpenGL renderer unavailable',str(exc))
             return
-        if mode == 'vispy':
-            try:
-                for kind, stack in self.raw_plot_stacks.items():
-                    if kind not in self.raw_vispy_plots:
-                        gpu_started = time.perf_counter()
-                        renderer = VisPyRawPlot(kind)
-                        self.raw_vispy_plots[kind] = renderer
-                        stack.addWidget(renderer.widget)
-                        self.performance.measure(
-                            'raw_gpu_canvas_init_' + kind,
-                            time.perf_counter() - gpu_started)
-            except Exception as exc:
-                self.raw_renderer_choice.blockSignals(True)
-                self.raw_renderer_choice.setCurrentIndex(0)
-                self.raw_renderer_choice.blockSignals(False)
-                QMessageBox.warning(self, 'OpenGL renderer unavailable',
-                                    f'Could not initialize VisPy/OpenGL: {exc}')
-                return
-        self.raw_renderer_mode = mode
-        for kind, stack in self.raw_plot_stacks.items():
-            stack.setCurrentIndex(1 if mode == 'vispy' else 0)
-        # Manual GPU panning is excluded from this first A/B experiment.
-        if mode == 'vispy':
-            self.resume_raw_live()
-        else:
-            # A paused renderer switch cannot rely on a subsequent live tick
-            # to replace the fallback plot's initial empty (-5, 0) range.
-            for plot in self.plots.values():
-                plot.setXRange(*self.raw_display.bounds, padding=0)
-        self.raw_display.dirty = True
-        self.statusBar().showMessage(
-            'Raw Data renderer: ' + ('VisPy / OpenGL (experimental)'
-                                    if mode == 'vispy' else 'pyqtgraph')
-        )
+        for kind,stack in self.raw_plot_stacks.items():
+            backend=self.raw_controller.backends[mode][kind]
+            if stack.indexOf(backend.widget)<0: stack.addWidget(backend.widget)
+            stack.setCurrentWidget(backend.widget)
+        self.statusBar().showMessage('Raw Data renderer: '+mode)
 
     def set_raw_vertical_gain(self, kind):
-        """Independent per-modality gain; one uniform gain for all EEG leads."""
-        if kind in self.raw_vispy_plots:
-            self.raw_vispy_plots[kind].set_vertical_gain(
-                self.raw_vertical_gains[kind].value()
-            )
-        self.raw_display.dirty = True
+        self.raw_controller.set_gain(kind,self.raw_vertical_gains[kind].value())
 
     def adjust_raw_vertical_gain(self, kind, multiplier):
         control = self.raw_vertical_gains[kind]
@@ -1710,63 +1568,45 @@ class MainWindow(QMainWindow):
                                        self.settings.gain_minimum, self.settings.gain_maximum)))
 
     def center_raw(self,kind):
-        frame=self.raw_display.frames.get(kind)
-        reference=self.raw_display.initial_references.get(kind)
-        if frame is None or reference is None:
-            return
-        times,raw,filtered,old_centers,scales,_=frame
-        end=float(times[-1])
-        if self.raw_renderer_mode=='pyqtgraph':
-            end=min(end,self.plots[kind].viewRange()[0][1])
-        keep=(times>=end-self.raw_display.view_seconds)&(times<=end)
-        if not np.any(keep):
-            return
-        count=raw.shape[1]
-        offsets=RAW_DISPLAY_POLICY.offsets(count)
-        centers=reference[0].copy()
-        if kind in ('PPG','EDA'):
-            centers[0,:count]=old_centers[0]+np.median(raw[keep]-offsets,axis=0)*scales
-            centers[1,:count]=old_centers[1]+np.median(filtered[keep]-offsets,axis=0)*scales
-        else:
-            anchor=filtered if self.show_processed.isChecked() else raw
-            centers[:count]=old_centers+np.median(anchor[keep]-offsets,axis=0)*scales
-        self.raw_display.initial_references[kind]=(centers,reference[1])
-        self.raw_display.references.pop(kind,None)
-        self.raw_display.invalidate()
-        self._raw_trace_selection_refresh=True
-        if kind in self.raw_vispy_plots:
-            self.raw_vispy_plots[kind].invalidate_history()
+        self.raw_controller.center(kind)
 
-    def autoscale_raw(self, kind):
-        # Normal GPU frames contain only the new tail. Ask the preparation
-        # worker for the whole displayed window before measuring extrema.
-        if kind not in self.raw_display.frames:
-            return
-        self.raw_display.request_autoscale(kind)
+    def autoscale_raw(self,kind):
+        self.raw_controller.fit(kind)
 
-    def _apply_autoscale(self, kind, frame):
-        head = (frame[0][-1]
-                if self.raw_renderer_mode == 'vispy'
-                else self.plots[kind].viewRange()[0][1])
-        gain = visible_gain(frame, self.raw_display.view_seconds,
-                            self.show_raw.isChecked(), self.show_processed.isChecked(), head)
-        if gain is None:
-            self.statusBar().showMessage(f'{modality_label(kind)}: no visible signal variation to autoscale')
-            return
-        control = self.raw_vertical_gains[kind]
-        control.setDecimals(max(2, min(12, int(np.ceil(-np.log10(gain)))+3)))
-        control.setRange(min(control.minimum(), gain), max(control.maximum(), gain))
+    def raw_gain_fitted(self,kind,gain):
+        control=self.raw_vertical_gains[kind]
+        control.blockSignals(True)
+        control.setDecimals(max(2,min(12,int(np.ceil(-np.log10(gain)))+3)))
+        control.setRange(min(control.minimum(),gain),max(control.maximum(),gain))
         control.setValue(gain)
+        control.blockSignals(False)
         self.statusBar().showMessage(f'{modality_label(kind)}: amplitude fitted to visible extrema')
+
+    def raw_frame_presented(self,kind):
+        self.raw_autoscale_buttons[kind].setEnabled(True)
+        self.raw_center_buttons[kind].setEnabled(True)
+
+    @property
+    def raw_renderer_mode(self): return self.raw_controller.mode
+
+    @property
+    def raw_vispy_plots(self): return self.raw_controller.backends['vispy']
+
+    @property
+    def raw_render_worker(self): return self.raw_controller.scheduler
+
+    @property
+    def curves(self):
+        return {kind:backend.curves for kind,backend in self.raw_controller.backends['pyqtgraph'].items()}
 
     def set_raw_time_window(self, *_):
         seconds = self.raw_time_window.currentData()
         if seconds is not None:
-            self.raw_display.set_window(seconds)
+            self.raw_controller.set_window(seconds)
             self.resume_raw_live()
 
     def zoom_raw_plots(self, factor):
-        self.raw_display.set_window(np.clip(
+        self.raw_controller.set_window(np.clip(
             self.raw_display.view_seconds * factor, 1.0, self.settings.history_seconds))
         self.raw_time_window.blockSignals(True)
         index = self.raw_time_window.findData(self.raw_display.view_seconds)
@@ -1779,66 +1619,41 @@ class MainWindow(QMainWindow):
         self.resume_raw_live()
 
     def resume_raw_live(self):
-        self.raw_display.follow_live = True
-        set_action(self.raw_live_button, 'Live', 'live')
+        self.raw_controller.follow_live()
+        set_action(self.raw_live_button,'Live','live')
         self.raw_live_button.setEnabled(False)
-        self.update_raw_xranges()
-        self.raw_display.dirty = True
 
-    def raw_view_changed_manually(self, kind, *_):
-        if QApplication.activePopupWidget() is not None:
-            self.raw_display.dirty = True
-            return
-        low, high = self.plots[kind].viewRange()[0]
-        span = float(max(.01, high - low))
-        was_following = self.raw_display.follow_live
-        # A wheel zoom changes the width of the time axis; it should
-        # NOT freeze live acquisition. Horizontal dragging translates the
-        # viewport without changing its width and deliberately pauses it.
-        is_zoom = abs(span - self.raw_display.view_seconds) > max(.001, .001*self.raw_display.view_seconds)
-        self.raw_display.set_window(span)
-        if was_following and is_zoom:
-            self.update_raw_xranges()
-        else:
-            self.raw_display.follow_live = False
-            set_action(self.raw_live_button, 'Follow live', 'live')
-            self.raw_live_button.setEnabled(True)
-            for other, plot in self.plots.items():
-                if other != kind:
-                    plot.setXRange(low, high, padding=0)
-        self.draw()
+    def raw_view_changed_manually(self,kind,*_):
+        if QApplication.activePopupWidget() is not None: return
+        self.raw_controller.manual_view(*self.plots[kind].viewRange()[0])
+        following=self.raw_display.follow_live
+        set_action(self.raw_live_button,'Live' if following else 'Follow live','live')
+        self.raw_live_button.setEnabled(not following)
 
-    def raw_view_scrolled(self, *_):
-        # Let the user drag the scroll bar without competing with plot paints.
-        self.raw_display.interacting_until = time.monotonic() + .16
-        self.raw_display.dirty = True
+    def raw_view_scrolled(self,*_):
+        self.raw_controller.defer_interaction()
 
     def raw_plot_visible(self, kind):
         widget = self.raw_plot_stacks[kind]
         return self.tabs.currentWidget() is self.raw_page and widget.isVisible()
 
     def update_raw_xranges(self):
-        changed = self.raw_display.advance(time.monotonic())
-        if self.raw_renderer_mode == 'vispy' and changed:
-            self.raw_display.dirty = True
-        elif self.raw_renderer_mode == 'pyqtgraph' and changed:
-            for kind, plot in self.plots.items():
-                if self.raw_plot_visible(kind):
-                    plot.setXRange(*self.raw_display.viewport(kind), padding=0)
+        self.raw_controller.set_visible(k for k in self.raw_plot_stacks if self.raw_plot_visible(k))
+        self.raw_controller.tick()
 
     def tab_changed(self, index):
         if hasattr(self, 'affect_view'):
             self.affect_view.set_active(self.tabs.widget(index) is self.affect_page)
         if self.tabs.widget(index) is self.raw_page:
-            self.raw_display.tab_entered_at = time.perf_counter()
-            self.raw_display.dirty = True
-            self.raw_display.last_render_at = 0.
+
+            self.raw_controller.change()
+
             # Never submit a first large EEG render synchronously from the
             # tab-change event. The regular timer handles acquisition first
             # and schedules one latest-only background reduction afterwards.
         elif self.tabs.widget(index) is self.metrics_page and not self.metric_plot_paused:
             self.refresh_metric_labels()
-            self.metric_dirty = True
+            self.metric_controller.data_changed()
             # Paint after Qt has handled the tab change, on the display timer.
 
     def poll_receivers(self):
@@ -1892,233 +1707,33 @@ class MainWindow(QMainWindow):
             self._last_reduction_indicators[kind] = signature
 
     def render_frame(self):
-        started = time.perf_counter()
-        now = time.monotonic()
-        self.performance.measure('tick_delay', max(0., now - self._last_gui_tick - self.settings.timer_interval_ms / 1000.))
-        self._last_gui_tick = now
+        started=time.perf_counter()
+        now=time.monotonic()
+        self.performance.measure('tick_delay',max(0.,now-self._last_gui_tick-self.settings.timer_interval_ms/1000.))
+        self._last_gui_tick=now
         self.refresh_asr_indicator(now)
         self.refresh_peripheral_indicators(now)
-        if not self._closing:
-            # No GUI sample draining or rendering while a menu is open.
-            # Source threads keep collecting into bounded mailboxes instead.
-            popup_open = QApplication.activePopupWidget() is not None
-            if not popup_open:
-                self.poll_receivers()
+        if not self._closing and QApplication.activePopupWidget() is None:
+            self.poll_receivers()
             self.update_raw_xranges()
-            if not popup_open:
-                if (self.tabs.currentWidget() is self.raw_page
-                        and (not self.raw_display.paused or self.raw_display.autoscale_requests
-                             or self._raw_trace_selection_refresh)):
-                    if now >= self.raw_display.interacting_until:
-                        # The precise GUI timer caps frequency; the in-flight
-                        # ticket prevents overlapping preparation requests.
-                        if self.raw_display.dirty:
-                            self.draw()
-                elif self.tabs.currentWidget() is self.metrics_page and not self.metric_plot_paused:
-                    self.update_metric_xrange()
-                    if self.metric_dirty:
-                        self.refresh_metric_plot()
-                elif self.tabs.currentWidget() is self.affect_page:
-                    self.refresh_affect_view()
-                self.warm_raw_renderers()
-        self.performance.measure('gui_timer_total', time.perf_counter() - started)
+            if self.tabs.currentWidget() is self.metrics_page and (not self.metric_plot_paused or self.metric_dirty):
+                self.update_metric_xrange()
+                if self.metric_dirty: self.refresh_metric_plot()
+            elif self.tabs.currentWidget() is self.affect_page:
+                self.refresh_affect_view()
+        self.performance.measure('gui_timer_total',time.perf_counter()-started)
         if self.performance.enabled:
-            self.performance.maybe_flush({
-                kind: worker.mailbox.stats()
-                for kind, worker in self.workers.items()
-            })
+            self.performance.maybe_flush({k:w.mailbox.stats() for k,w in self.workers.items()})
 
-    def warm_raw_renderers(self):
-        """Link one spare channel pair per tick, before the user needs it.
 
-        Reserve the acquired channel count, not just the visible EEG subset.
-        Smaller panels finish first; all work stays on the OpenGL GUI thread.
-        """
-        if (self.raw_renderer_mode != 'vispy'
-                or self.tabs.currentWidget() not in (self.sources_page, self.raw_page)
-                or os.environ.get('QT_QPA_PLATFORM', '').lower() == 'offscreen'):
-            return
-        candidates = []
-        for kind, renderer in self.raw_vispy_plots.items():
-            worker = self.workers.get(kind)
-            info = worker.info if worker is not None else self.selectors[kind].currentData()
-            if info is None or info.nominal_srate() <= 0:
-                continue
-            count = (len(worker.selected_names) if worker is not None
-                     else len(self.channel_selectors[kind].selected_indices()))
-            if count > renderer.reserved_channel_count:
-                candidates.append((count, kind, renderer, info.nominal_srate()))
-        for count, kind, renderer, fs in sorted(candidates, key=lambda item: item[0]):
-            started = time.perf_counter()
-            if renderer.warm_channels(count, self.raw_display.view_seconds, fs):
-                self.performance.measure('raw_gpu_warmup_' + kind,
-                                         time.perf_counter() - started)
-                break
 
     def raw_trace_selection_changed(self):
-        self.raw_display.invalidate()
-        self._raw_trace_selection_refresh = True
+        self.raw_controller.set_traces(self.show_raw.isChecked(),self.show_processed.isChecked())
 
     def draw(self):
-        """Submit a lightweight snapshot; never reduce data on the GUI thread."""
-        if self.tabs.currentWidget() is not self.raw_page or self.raw_display.origin is None:
-            return
-        if QApplication.activePopupWidget() is not None or self.raw_display.inflight_ticket is not None:
-            return
-        self.raw_display.dirty = False
-        self.raw_display.last_render_at = time.monotonic()
-        sources = {}
-        for kind, chunks in self.raw_display.history.items():
-            if not chunks or not self.raw_plot_visible(kind):
-                continue
-            display_count = min(chunks[-1][1].shape[1],
-                                self.eeg_display_count.value() if kind == 'EEG'
-                                else RAW_DISPLAY_POLICY.max_single_channels)
-            if self.raw_renderer_mode == 'vispy':
-                # Two consecutive sweep cycles are needed: the completed
-                # cycle remains visible to the right of the advancing head.
-                _, high = self.raw_display.viewport(kind)
-                low = high - RAW_DISPLAY_POLICY.history_cycles * self.raw_display.view_seconds
-            else:
-                low, high = self.plots[kind].viewRange()[0]
-            renderer = self.raw_vispy_plots.get(kind)
-            latest = None
-            if (renderer is not None
-                    and renderer.sweep_duration == self.raw_display.view_seconds
-                    and np.isfinite(renderer.latest_sample_time)
-                    and not renderer.history_needs_replay(
-                        display_count,
-                        self.raw_display.view_seconds)):
-                latest = float(renderer.latest_sample_time)
-            replay_history = (
-                self.raw_renderer_mode == 'vispy'
-                and renderer is not None
-                and renderer.history_needs_replay(
-                    display_count,
-                    self.raw_display.view_seconds))
-            if kind in self.raw_display.autoscale_requests:
-                latest = None
-                replay_history = True
-            reference=self.raw_display.recording_reference(kind,display_count)
-            if reference is None:
-                continue  # Need two real startup samples to latch the recording reference.
-            source = build_raw_source(
-                chunks, left=low, right=high,
-                replay_history=replay_history,
-                origin=self.raw_display.origin,
-                reference=reference,
-                vispy=self.raw_renderer_mode == 'vispy',
-                latest=latest, sweep_seconds=self.raw_display.view_seconds,
-                max_channels=display_count,
-                shared_scale=self.raw_display.display_scales.get(kind),
-                fit_traces=kind in ('PPG', 'EDA'),
-                center_trace=('filtered' if kind == 'EEG' and self.show_processed.isChecked() else 'raw'),
-            )
-            if source is not None:
-                sources[kind] = source
-        request = self.raw_display.begin_frame(sources)
-        if request is not None:
-            self.raw_render_worker.submit(request)
+        self.update_raw_xranges()
 
-    def apply_raw_frame(self, response):
-        """Accept at most one completed raw frame; no Qt signal backlog."""
-        started = time.perf_counter()
-        self.performance.measure('raw_prepare', response.prepare_ms / 1000.)
-        if response.queued_at is not None:
-            self.performance.measure(
-                'raw_worker_roundtrip',
-                max(0., time.perf_counter() - response.queued_at)
-            )
-        if not self.raw_display.accepts(response.ticket, response.version):
-            return
-        if (self.tabs.currentWidget() is not self.raw_page
-                or (self.raw_display.paused and not self.raw_display.autoscale_requests
-                    and not self._raw_trace_selection_refresh)
-                or QApplication.activePopupWidget() is not None
-                or time.monotonic() < self.raw_display.interacting_until):
-            self.raw_display.dirty = True
-            return
-        presentation_head = (self.raw_display.bounds[1] if response.presentation_head is None
-                             else response.presentation_head)
-        presentation_heads = getattr(response,'presentation_heads',None) or {}
-        self._raw_trace_selection_refresh = False
-        for kind, frame in response.frames.items():
-            if not self.raw_plot_visible(kind) or frame is None:
-                continue
-            timestamps, raw, filtered, centers, spreads, names = frame
-            self.raw_autoscale_buttons[kind].setEnabled(True)
-            self.raw_center_buttons[kind].setEnabled(True)
-            if kind in self.raw_display.autoscale_requests:
-                self.raw_display.autoscale_requests.discard(kind)
-                self._apply_autoscale(kind, frame)
-            plot = self.plots[kind]
-            n = raw.shape[1]
-            changed = self.raw_display.remember_frame(kind, frame)
-            if kind in ('PPG', 'EDA') and changed and kind in self.raw_vispy_plots:
-                self.raw_vispy_plots[kind].invalidate_history()
-            if self.raw_renderer_mode == 'vispy':
-                self.raw_vispy_plots[kind].set_amplitude_units(
-                    DEFAULT_EEG_DISPLAY_STEP if kind == 'EEG' else float(spreads[0]),
-                    self.raw_display.units.get(kind, ARBITRARY_UNIT))
-                self.raw_vispy_plots[kind].set_vertical_gain(
-                    self.raw_vertical_gains[kind].value()
-                )
-                gpu_started = time.perf_counter()
-                self.raw_vispy_plots[kind].set_frame(
-                    frame, 0., self.raw_display.view_seconds,
-                    show_raw=self.show_raw.isChecked(),
-                    show_filtered=self.show_processed.isChecked(),
-                    sweep_head=presentation_heads.get(kind,presentation_head),
-                    nominal_fs=(self.raw_display.history[kind][-1][4]
-                                if self.raw_display.history[kind] else None),
-                )
-                self.performance.measure(
-                    'raw_gpu_frame_' + kind,
-                    time.perf_counter() - gpu_started)
-                if self.raw_display.tab_entered_at is not None:
-                    self.performance.measure(
-                        'raw_tab_to_first_frame',
-                        max(0., time.perf_counter() - self.raw_display.tab_entered_at))
-                    self.raw_display.tab_entered_at = None
-                continue
-            if len(self.curves[kind]) != 2 * n:
-                plot.clear()
-                self.curves[kind] = []
-                plot.enableAutoRange(axis='y', enable=False)
-                plot.setYRange(*RAW_DISPLAY_POLICY.bounds(n), padding=0)
-                plot.getAxis('left').setTicks([
-                    list(zip(RAW_DISPLAY_POLICY.offsets(n), map(str, names)))])
-                for i, name in enumerate(names):
-                    color = pg.intColor(i, hues=max(n, 3))
-                    self.curves[kind].append(plot.plot(
-                        name=f'{name} raw', pen=pg.mkPen(color, width=1),
-                        connect='finite', antialias=False
-                    ))
-                    self.curves[kind].append(plot.plot(
-                        name=f'{name} processed',
-                        pen=pg.mkPen(color, width=1, style=Qt.PenStyle.DashLine),
-                        connect='finite', antialias=False
-                    ))
-            gain = self.raw_vertical_gains[kind].value()
-            for i in range(n):
-                offset = RAW_DISPLAY_POLICY.channel_spacing * i
-                if self.show_raw.isChecked():
-                    self.curves[kind][2*i].setData(
-                        timestamps, offset + gain * (raw[:, i] - offset))
-                else:
-                    self.curves[kind][2*i].clear()
-                if self.show_processed.isChecked():
-                    self.curves[kind][2*i+1].setData(
-                        timestamps, offset + gain * (filtered[:, i] - offset))
-                else:
-                    self.curves[kind][2*i+1].clear()
-        if self.raw_renderer_mode == 'vispy':
-            committed_head = presentation_head
-            self.raw_display.committed_head = committed_head
-            for kind, renderer in self.raw_vispy_plots.items():
-                if self.raw_plot_visible(kind) and renderer.configured:
-                    renderer.set_sweep_head(presentation_heads.get(kind,committed_head))
-        self.performance.measure('raw_qt_paint', time.perf_counter() - started)
+
 
     def ready_stream(self, kind, channels, fs):
         if kind == 'EEG':
@@ -2358,11 +1973,8 @@ class MainWindow(QMainWindow):
             task.wait()
         for task in list(self.lsl_tasks.values()):
             task.wait(3000)
-        self.raw_render_worker.stop()
-        for glplot in self.raw_vispy_plots.values():
-            glplot.close()
-        if self.vispy_metric_plot is not None:
-            self.vispy_metric_plot.close()
+        self.raw_controller.close()
+        self.metric_controller.close()
         self.affect_view.close()
         for worker in self.workers.values():
             worker.stop()

@@ -101,7 +101,7 @@ class SparseMarkerTests(unittest.TestCase):
     def test_jittered_sparse_markers_expire_after_cursor_passes_old_cycle(self):
         from unittest.mock import patch
         from physiolab.incremental_sweep import IncrementalSweepLayer
-        from physiolab.vispy_metrics import metric_sweep_points
+        from reference_geometry import metric_sweep_points
 
         class Visual:
             def __init__(self, capacity, color, mode, parent):

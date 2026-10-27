@@ -42,8 +42,8 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
         plot.reset()
         self.assertFalse(plot.configured)
         self.assertEqual(plot.reserved_channel_count, 8)
-        self.assertTrue(all(not np.isfinite(layer.ring.last_time)
-                            for layer in plot._layer_pool['raw']))
+        self.assertTrue(all(not layer.visual.visible for layer in plot._layer_pool['raw']))
+        self.assertFalse(np.isfinite(plot.latest_sample_time))
         plot.set_frame(frame, 0., 5., nominal_fs=64.)
         self.assertEqual(programs, tuple(layer.visual.shared_program
                                         for layer in plot.layers['raw']))
@@ -147,12 +147,13 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
             visuals = tuple(layer.visual for layer in plot.layers['raw'])
             programs = tuple(visual.shared_program for visual in visuals)
             frame(4, 10.)
-            self.assertEqual(visuals, tuple(layer.visual for layer in plot.layers['raw']))
+            self.assertTrue(set(visuals).isdisjoint(layer.visual for layer in plot.layers['raw']))
             frame(2, 10.)
             self.assertEqual(visuals[:2], tuple(layer.visual for layer in plot.layers['raw']))
             frame(4, 5.)
-            self.assertEqual(programs, tuple(layer.visual.shared_program
-                                            for layer in plot.layers['raw']))
+            self.assertTrue(all(program in [layer.visual.shared_program for layer in plot._layer_pool['raw']]
+                                for program in programs))
+            self.assertEqual(plot.reserved_channel_count,8)
             self.assertTrue(all(layer.ring.last_time == times[-1]
                                 for layer in plot.layers['raw']))
         finally:
