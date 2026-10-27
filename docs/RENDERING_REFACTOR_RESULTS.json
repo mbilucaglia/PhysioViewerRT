@@ -1,0 +1,5981 @@
+{
+  "date": "2026-10-27",
+  "baseline_commit": "bcd8d35",
+  "implementation_commit": "403355a7c1b42f8e1172b24f9b39932b95eaf953",
+  "hardware": {
+    "cpu": "AMD Ryzen Threadripper PRO 5975WX",
+    "cores": 32,
+    "logical_processors": 64,
+    "gpu": "NVIDIA GeForce GT 730",
+    "os": "Windows 11 10.0.22631",
+    "python": "3.12.10",
+    "ram": "not recorded",
+    "real_device_validation": false
+  },
+  "workload": {
+    "cases": 16,
+    "trial_seconds": 23,
+    "draw_measurement_after_seconds": 5,
+    "source_process": "independent LSL producer",
+    "timebases_seconds": [
+      5,
+      10,
+      30,
+      5,
+      15
+    ],
+    "EEG_channels_acquired": 32,
+    "EEG_rate_hz": 256,
+    "PPG_rate_hz": 128,
+    "SC_rate_hz": 32,
+    "presentation_buffer_seconds": 0.25,
+    "native_Qt": true,
+    "timings_include_startup": true,
+    "physical_scanout_measured": false
+  },
+  "core_suite_summary": [
+    "ok",
+    "OK"
+  ],
+  "gui_suite_summary": [
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "OK (skipped=3)"
+  ],
+  "audit_pure": {
+    "decimation_peak": {
+      "input_samples": 15360,
+      "output_samples": 833,
+      "input_peak": 100.0,
+      "display_peak": 100.0,
+      "timebase_seconds": 30
+    },
+    "manual_center": {
+      "requested_visible_seconds": 5.0,
+      "cached_frame_span_seconds": 0.1015625,
+      "full_visible_median": 10.0,
+      "center_used": 10.0,
+      "command_routing_regression": "tests_gui/test_rendering_regressions.py"
+    },
+    "stale_sweep_lines": {
+      "drawn_slots": 1,
+      "drawn_slots_older_than_one_window": 0,
+      "newest_sample_time": 20.1
+    },
+    "cross_source_preparation": {
+      "injected_EEG_ms": 150.0,
+      "PPG_response_ms": 4.08,
+      "result_sources": [
+        "PPG"
+      ]
+    },
+    "inflight_replacement": {
+      "epoch_after_view_change": 1,
+      "active_old_epoch": 0,
+      "can_submit_replacement_before_old_completion": true
+    },
+    "main_window": {
+      "lines": 1916,
+      "methods": 120,
+      "direct_raw_display_assignments": 0,
+      "assigned_fields": []
+    },
+    "startup_reference_packet_dependence": {
+      "same_samples": true,
+      "one_packet_center": 1.0,
+      "two_packets_center": 1.0
+    },
+    "active_pending_resource_aliasing": {
+      "active_visibility_before": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "replacement_ready": false,
+      "active_visibility_after_first_staging_step": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "pending_aliases_active": false
+    }
+  },
+  "audit_native": {
+    "initial_backend": "vispy",
+    "has_prepared_frame": true,
+    "paused_backend_switch": {
+      "CPU_curve_count": 2,
+      "prepared_frame_available": true,
+      "dirty": false,
+      "display_paused": true
+    },
+    "paused_timebase": {
+      "old_plot_seconds": 5.0,
+      "requested_seconds": 10.0,
+      "actual_plot_seconds": 10.0
+    },
+    "source_gap_recovery": {
+      "newest_sample": 120.9,
+      "viewport_head_after_new_input": 120.65,
+      "viewport_head_two_seconds_later": 120.9,
+      "remaining_lag_seconds": 0.0
+    }
+  },
+  "native_transitions": {
+    "transitions": [
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 16.192399998544715
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 10,
+        "settle_ms": 91.46259998669848
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 30,
+        "settle_ms": 85.05680000234861
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 47.4990000075195
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 15,
+        "settle_ms": 41.045699996175244
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 316.51949998922646
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 10,
+        "settle_ms": 418.2909999944968
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 30,
+        "settle_ms": 325.9962999873096
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 64.4112000009045
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 15,
+        "settle_ms": 102.74170000047889
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 54.32279998785816
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 10,
+        "settle_ms": 168.47089999646414
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 30,
+        "settle_ms": 23.566000003484078
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 97.55349998886231
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 15,
+        "settle_ms": 99.99269999389071
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 72.62300000002142
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 10,
+        "settle_ms": 84.5166000071913
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 30,
+        "settle_ms": 99.5143000036478
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 99.89840000343975
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 15,
+        "settle_ms": 100.03940000024159
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 48.39099998935126
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 10,
+        "settle_ms": 41.67839999718126
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 30,
+        "settle_ms": 42.47709999617655
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 33.707399998093024
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 15,
+        "settle_ms": 29.58010000293143
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 49.17350001051091
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 10,
+        "settle_ms": 69.17729999986477
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 30,
+        "settle_ms": 88.4924999991199
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 65.0078000035137
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 15,
+        "settle_ms": 104.42460000922438
+      }
+    ],
+    "memory": [
+      {
+        "seconds": 300,
+        "working_set_bytes": 825958400,
+        "private_commit_bytes": 2398900224,
+        "ring_cpu_bytes": 210470400,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 812810240,
+        "private_commit_bytes": 2386784256,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 959946752,
+        "private_commit_bytes": 2534264832,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 816603136,
+        "private_commit_bytes": 2390216704,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 973602816,
+        "private_commit_bytes": 2547224576,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 816467968,
+        "private_commit_bytes": 2389909504,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 972017664,
+        "private_commit_bytes": 2545606656,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 814219264,
+        "private_commit_bytes": 2387644416,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 972660736,
+        "private_commit_bytes": 2546253824,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 814895104,
+        "private_commit_bytes": 2388258816,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 971440128,
+        "private_commit_bytes": 2544607232,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 813645824,
+        "private_commit_bytes": 2386632704,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 972075008,
+        "private_commit_bytes": 2545238016,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 814268416,
+        "private_commit_bytes": 2387243008,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 972070912,
+        "private_commit_bytes": 2545225728,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 819122176,
+        "private_commit_bytes": 2392113152,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 975552512,
+        "private_commit_bytes": 2548703232,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 819060736,
+        "private_commit_bytes": 2392051712,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 975605760,
+        "private_commit_bytes": 2548756480,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 819105792,
+        "private_commit_bytes": 2392100864,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 975654912,
+        "private_commit_bytes": 2548822016,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      }
+    ],
+    "errors": [],
+    "draw_events": {
+      "EEG": 119,
+      "PPG": 125,
+      "EDA": 123
+    },
+    "passed": true,
+    "close_ms": 122.84050000016578
+  },
+  "cases": [
+    {
+      "label": "baseline-32-both",
+      "repo": "bcd8d35",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 32,
+      "channels_displayed": 32,
+      "reducer": "both",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5871,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 531,
+          "draw_interval_ms": {
+            "count": 530,
+            "p50": 32.267300004605204,
+            "p95": 41.55841500250969,
+            "p99": 65.73606100530023,
+            "max": 110.93560000881553
+          },
+          "data_advancing_draws": 527,
+          "data_advance_interval_ms": {
+            "count": 526,
+            "p50": 32.29104999627452,
+            "p95": 43.890725002711406,
+            "p99": 65.87547500384971,
+            "max": 110.93560000881553
+          },
+          "drawn_sample_age_ms": {
+            "count": 531,
+            "p50": 273.41559999331366,
+            "p95": 293.6041249995469,
+            "p99": 304.15763999189954,
+            "max": 346.1777000047732
+          },
+          "cursor_lead_ms": {
+            "count": 531,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "EDA": {
+          "draws": 532,
+          "draw_interval_ms": {
+            "count": 531,
+            "p50": 32.28759999910835,
+            "p95": 44.70969999965746,
+            "p99": 71.3210300076753,
+            "max": 100.81850001006387
+          },
+          "data_advancing_draws": 507,
+          "data_advance_interval_ms": {
+            "count": 506,
+            "p50": 32.4518999987049,
+            "p95": 61.116275002859766,
+            "p99": 73.37283999950158,
+            "max": 100.81850001006387
+          },
+          "drawn_sample_age_ms": {
+            "count": 532,
+            "p50": 426.0199999989709,
+            "p95": 460.2837899925362,
+            "p99": 468.2265849929535,
+            "max": 475.3842999925837
+          },
+          "cursor_lead_ms": {
+            "count": 532,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "PPG": {
+          "draws": 532,
+          "draw_interval_ms": {
+            "count": 531,
+            "p50": 32.257600003504194,
+            "p95": 44.760849996237084,
+            "p99": 71.45674999919723,
+            "max": 101.1988999962341
+          },
+          "data_advancing_draws": 531,
+          "data_advance_interval_ms": {
+            "count": 530,
+            "p50": 32.25775000464637,
+            "p95": 44.772604995523565,
+            "p99": 71.4621749991784,
+            "max": 101.1988999962341
+          },
+          "drawn_sample_age_ms": {
+            "count": 532,
+            "p50": 304.32519999158103,
+            "p95": 325.537314988469,
+            "p99": 341.48834299820004,
+            "max": 356.8723499920452
+          },
+          "cursor_lead_ms": {
+            "count": 532,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.4064000095240772,
+          "first_new_timebase_draw_ms": {
+            "EEG": 92.47850000974722,
+            "EDA": 89.24530001240782,
+            "PPG": 90.94700000423472
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.4135000053793192,
+          "first_new_timebase_draw_ms": {
+            "EEG": 91.98209999885876,
+            "EDA": 88.75460000126623,
+            "PPG": 90.455400000792
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.3831000067293644,
+          "first_new_timebase_draw_ms": {
+            "EEG": 70.98920000134967,
+            "EDA": 67.83139999606647,
+            "PPG": 69.45290000294335
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.37429999792948365,
+          "first_new_timebase_draw_ms": {
+            "EEG": 69.37959999777377,
+            "EDA": 66.10130000626668,
+            "PPG": 67.81049999699462
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 792,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 30.0,
+          "max": 1357.0
+        },
+        "ingress_gui": {
+          "count": 792,
+          "p50": 0.007,
+          "p95": 1.6493499999999996,
+          "p99": 1.7135400000000003,
+          "max": 3.117
+        },
+        "raw_gpu_warmup_PPG": {
+          "count": 1,
+          "p50": 15.945,
+          "p95": 15.945,
+          "p99": 15.945,
+          "max": 15.945
+        },
+        "gui_timer_total": {
+          "count": 792,
+          "p50": 1.737,
+          "p95": 3.34725,
+          "p99": 3.5925900000000017,
+          "max": 16.481
+        },
+        "raw_prepare": {
+          "count": 667,
+          "p50": 0.223,
+          "p95": 0.5017999999999949,
+          "p99": 1.2736200000000109,
+          "max": 4.352
+        },
+        "raw_worker_roundtrip": {
+          "count": 667,
+          "p50": 3.534,
+          "p95": 13.773799999999994,
+          "p99": 26.249940000000233,
+          "max": 130.488
+        },
+        "raw_gpu_warmup_EDA": {
+          "count": 1,
+          "p50": 11.573,
+          "p95": 11.573,
+          "p99": 11.573,
+          "max": 11.573
+        },
+        "raw_gpu_frame_EEG": {
+          "count": 665,
+          "p50": 9.252,
+          "p95": 13.231799999999994,
+          "p99": 24.06496000000003,
+          "max": 231.794
+        },
+        "raw_tab_to_first_frame": {
+          "count": 1,
+          "p50": 1662.957,
+          "p95": 1662.957,
+          "p99": 1662.957,
+          "max": 1662.957
+        },
+        "raw_gpu_frame_EDA": {
+          "count": 665,
+          "p50": 0.356,
+          "p95": 0.4468,
+          "p99": 0.9295600000000003,
+          "max": 11.956
+        },
+        "raw_gpu_frame_PPG": {
+          "count": 665,
+          "p50": 0.354,
+          "p95": 0.45659999999999995,
+          "p99": 1.1730000000000025,
+          "max": 15.644
+        },
+        "raw_qt_paint": {
+          "count": 665,
+          "p50": 10.138,
+          "p95": 14.267399999999995,
+          "p99": 31.420040000000185,
+          "max": 232.916
+        }
+      },
+      "outcomes": {},
+      "ring_cpu_bytes": {
+        "EEG": 2457600,
+        "PPG": 76800,
+        "EDA": 38400
+      }
+    },
+    {
+      "label": "baseline-32-off",
+      "repo": "bcd8d35",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 32,
+      "channels_displayed": 32,
+      "reducer": "off",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5891,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 529,
+          "draw_interval_ms": {
+            "count": 528,
+            "p50": 32.16230000543874,
+            "p95": 40.52285999277956,
+            "p99": 66.65119100478478,
+            "max": 123.61129999044351
+          },
+          "data_advancing_draws": 527,
+          "data_advance_interval_ms": {
+            "count": 526,
+            "p50": 32.16230000543874,
+            "p95": 40.950800004793564,
+            "p99": 66.65152500499971,
+            "max": 123.61129999044351
+          },
+          "drawn_sample_age_ms": {
+            "count": 529,
+            "p50": 273.4605500008911,
+            "p95": 292.13083999056835,
+            "p99": 306.05832199158624,
+            "max": 368.55990000185557
+          },
+          "cursor_lead_ms": {
+            "count": 529,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "EDA": {
+          "draws": 530,
+          "draw_interval_ms": {
+            "count": 529,
+            "p50": 32.16380000230856,
+            "p95": 41.83244000305422,
+            "p99": 71.80966800195182,
+            "max": 113.20690000138711
+          },
+          "data_advancing_draws": 517,
+          "data_advance_interval_ms": {
+            "count": 516,
+            "p50": 32.19030000036582,
+            "p95": 50.18744999324554,
+            "p99": 76.91207999960176,
+            "max": 113.20690000138711
+          },
+          "drawn_sample_age_ms": {
+            "count": 530,
+            "p50": 334.5695249954588,
+            "p95": 363.770750004187,
+            "p99": 375.90891300176736,
+            "max": 396.4696000039112
+          },
+          "cursor_lead_ms": {
+            "count": 530,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "PPG": {
+          "draws": 530,
+          "draw_interval_ms": {
+            "count": 529,
+            "p50": 32.1857000089949,
+            "p95": 40.78501999611033,
+            "p99": 72.84338400582804,
+            "max": 113.51129999093246
+          },
+          "data_advancing_draws": 525,
+          "data_advance_interval_ms": {
+            "count": 524,
+            "p50": 32.186550000915304,
+            "p95": 43.09683500105165,
+            "p99": 73.38213300579797,
+            "max": 113.51129999093246
+          },
+          "drawn_sample_age_ms": {
+            "count": 530,
+            "p50": 282.66902500763535,
+            "p95": 311.4670050061249,
+            "p99": 321.8223549997493,
+            "max": 366.9256499997573
+          },
+          "cursor_lead_ms": {
+            "count": 530,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.37629999860655516,
+          "first_new_timebase_draw_ms": {
+            "EEG": 95.52279999479651,
+            "EDA": 92.20400000049267,
+            "PPG": 93.90789999451954
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.42320000648032874,
+          "first_new_timebase_draw_ms": {
+            "EEG": 113.45459999574814,
+            "EDA": 110.07910000625998,
+            "PPG": 111.81390000274405
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.38690000656060874,
+          "first_new_timebase_draw_ms": {
+            "EEG": 100.68669999600388,
+            "EDA": 96.98040000512265,
+            "PPG": 98.92330000002403
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.39280000783037394,
+          "first_new_timebase_draw_ms": {
+            "EEG": 110.30319999554195,
+            "EDA": 106.96109999844339,
+            "PPG": 108.66539999551605
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 787,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 45.139999999999986,
+          "max": 1373.0
+        },
+        "ingress_gui": {
+          "count": 787,
+          "p50": 0.006,
+          "p95": 1.6827999999999996,
+          "p99": 1.7619799999999999,
+          "max": 4.095
+        },
+        "raw_gpu_warmup_PPG": {
+          "count": 1,
+          "p50": 15.775,
+          "p95": 15.775,
+          "p99": 15.775,
+          "max": 15.775
+        },
+        "gui_timer_total": {
+          "count": 787,
+          "p50": 1.752,
+          "p95": 3.4161999999999995,
+          "p99": 3.6329999999999987,
+          "max": 16.313
+        },
+        "raw_prepare": {
+          "count": 665,
+          "p50": 0.222,
+          "p95": 0.5451999999999997,
+          "p99": 2.28816000000001,
+          "max": 6.541
+        },
+        "raw_worker_roundtrip": {
+          "count": 665,
+          "p50": 3.52,
+          "p95": 13.907799999999996,
+          "p99": 19.550360000000005,
+          "max": 39.841
+        },
+        "raw_gpu_warmup_EDA": {
+          "count": 1,
+          "p50": 11.418,
+          "p95": 11.418,
+          "p99": 11.418,
+          "max": 11.418
+        },
+        "raw_gpu_frame_EEG": {
+          "count": 663,
+          "p50": 9.219,
+          "p95": 11.785299999999996,
+          "p99": 27.76809999999999,
+          "max": 227.508
+        },
+        "raw_tab_to_first_frame": {
+          "count": 1,
+          "p50": 1660.453,
+          "p95": 1660.453,
+          "p99": 1660.453,
+          "max": 1660.453
+        },
+        "raw_gpu_frame_EDA": {
+          "count": 663,
+          "p50": 0.355,
+          "p95": 0.412,
+          "p99": 0.7889999999999993,
+          "max": 11.894
+        },
+        "raw_gpu_frame_PPG": {
+          "count": 663,
+          "p50": 0.353,
+          "p95": 0.5110999999999996,
+          "p99": 1.2548999999999997,
+          "max": 15.013
+        },
+        "raw_qt_paint": {
+          "count": 663,
+          "p50": 10.105,
+          "p95": 12.898999999999997,
+          "p99": 36.04179999999994,
+          "max": 228.619
+        }
+      },
+      "outcomes": {},
+      "ring_cpu_bytes": {
+        "EEG": 2457600,
+        "PPG": 76800,
+        "EDA": 38400
+      }
+    },
+    {
+      "label": "baseline-8-both",
+      "repo": "bcd8d35",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 8,
+      "reducer": "both",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5863,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 544,
+          "draw_interval_ms": {
+            "count": 543,
+            "p50": 33.380499997292645,
+            "p95": 36.184910000883974,
+            "p99": 44.984433998470216,
+            "max": 78.55089999793563
+          },
+          "data_advancing_draws": 543,
+          "data_advance_interval_ms": {
+            "count": 542,
+            "p50": 33.36729999864474,
+            "p95": 36.18950500094797,
+            "p99": 44.98915699834471,
+            "max": 78.55089999793563
+          },
+          "drawn_sample_age_ms": {
+            "count": 544,
+            "p50": 264.36549999925774,
+            "p95": 278.4778274995915,
+            "p99": 285.6883215007838,
+            "max": 290.7854499935638
+          },
+          "cursor_lead_ms": {
+            "count": 544,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "EDA": {
+          "draws": 545,
+          "draw_interval_ms": {
+            "count": 544,
+            "p50": 33.30390000337502,
+            "p95": 39.06014999884064,
+            "p99": 47.30562500131793,
+            "max": 72.7649000036763
+          },
+          "data_advancing_draws": 525,
+          "data_advance_interval_ms": {
+            "count": 524,
+            "p50": 33.511799992993474,
+            "p95": 45.2984949988604,
+            "p99": 65.28951200438314,
+            "max": 72.7649000036763
+          },
+          "drawn_sample_age_ms": {
+            "count": 545,
+            "p50": 413.03709999192506,
+            "p95": 439.13763998716604,
+            "p99": 447.09056000108825,
+            "max": 460.1037499960512
+          },
+          "cursor_lead_ms": {
+            "count": 545,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "PPG": {
+          "draws": 545,
+          "draw_interval_ms": {
+            "count": 544,
+            "p50": 33.315199994831346,
+            "p95": 39.204170004086336,
+            "p99": 48.52435300679647,
+            "max": 73.02359999448527
+          },
+          "data_advancing_draws": 543,
+          "data_advance_interval_ms": {
+            "count": 542,
+            "p50": 33.320699993055314,
+            "p95": 39.284885001688956,
+            "p99": 50.465320007060754,
+            "max": 73.02359999448527
+          },
+          "drawn_sample_age_ms": {
+            "count": 545,
+            "p50": 294.87864999100566,
+            "p95": 314.78684998874087,
+            "p99": 321.89893599424977,
+            "max": 324.7145999921486
+          },
+          "cursor_lead_ms": {
+            "count": 545,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.4120999947190285,
+          "first_new_timebase_draw_ms": {
+            "EEG": 36.603599990485236,
+            "EDA": 33.45879999687895,
+            "PPG": 35.11659998912364
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.4298999992897734,
+          "first_new_timebase_draw_ms": {
+            "EEG": 38.401099998736754,
+            "EDA": 34.65660000802018,
+            "PPG": 36.602500011213124
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.38470000436063856,
+          "first_new_timebase_draw_ms": {
+            "EEG": 54.33939999784343,
+            "EDA": 51.243000008980744,
+            "PPG": 52.809000000706874
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.37489998794626445,
+          "first_new_timebase_draw_ms": {
+            "EEG": 50.75270000088494,
+            "EDA": 47.689999992144294,
+            "PPG": 49.28429999563377
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 796,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1373.0
+        },
+        "ingress_gui": {
+          "count": 796,
+          "p50": 0.007,
+          "p95": 1.572,
+          "p99": 1.7380499999999999,
+          "max": 2.196
+        },
+        "raw_gpu_warmup_PPG": {
+          "count": 1,
+          "p50": 16.408,
+          "p95": 16.408,
+          "p99": 16.408,
+          "max": 16.408
+        },
+        "gui_timer_total": {
+          "count": 796,
+          "p50": 1.745,
+          "p95": 3.56625,
+          "p99": 14.7857,
+          "max": 96.205
+        },
+        "raw_prepare": {
+          "count": 678,
+          "p50": 0.212,
+          "p95": 0.27415,
+          "p99": 0.4771400000000003,
+          "max": 6.523
+        },
+        "raw_worker_roundtrip": {
+          "count": 678,
+          "p50": 3.5534999999999997,
+          "p95": 3.9021500000000002,
+          "p99": 5.030510000000002,
+          "max": 21.578
+        },
+        "raw_gpu_warmup_EDA": {
+          "count": 1,
+          "p50": 12.645,
+          "p95": 12.645,
+          "p99": 12.645,
+          "max": 12.645
+        },
+        "raw_gpu_frame_EEG": {
+          "count": 676,
+          "p50": 2.462,
+          "p95": 3.1775,
+          "p99": 7.402,
+          "max": 75.498
+        },
+        "raw_tab_to_first_frame": {
+          "count": 1,
+          "p50": 1653.117,
+          "p95": 1653.117,
+          "p99": 1653.117,
+          "max": 1653.117
+        },
+        "raw_gpu_frame_EDA": {
+          "count": 676,
+          "p50": 0.353,
+          "p95": 0.415,
+          "p99": 1.1245,
+          "max": 11.931
+        },
+        "raw_gpu_frame_PPG": {
+          "count": 676,
+          "p50": 0.353,
+          "p95": 0.439,
+          "p99": 1.44475,
+          "max": 11.376
+        },
+        "raw_qt_paint": {
+          "count": 676,
+          "p50": 3.3375000000000004,
+          "p95": 4.297499999999999,
+          "p99": 10.58225,
+          "max": 76.554
+        },
+        "raw_gpu_warmup_EEG": {
+          "count": 24,
+          "p50": 14.461500000000001,
+          "p95": 15.798199999999998,
+          "p99": 77.68610999999996,
+          "max": 96.142
+        }
+      },
+      "outcomes": {},
+      "ring_cpu_bytes": {
+        "EEG": 1843200,
+        "PPG": 76800,
+        "EDA": 38400
+      }
+    },
+    {
+      "label": "baseline-8-off",
+      "repo": "bcd8d35",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 8,
+      "reducer": "off",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5887,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 543,
+          "draw_interval_ms": {
+            "count": 542,
+            "p50": 33.480849997431505,
+            "p95": 36.81633500455064,
+            "p99": 46.31903200453963,
+            "max": 85.83270000235643
+          },
+          "data_advancing_draws": 542,
+          "data_advance_interval_ms": {
+            "count": 541,
+            "p50": 33.47679998842068,
+            "p95": 36.81760000472423,
+            "p99": 46.32098000438419,
+            "max": 85.83270000235643
+          },
+          "drawn_sample_age_ms": {
+            "count": 543,
+            "p50": 265.16819999960717,
+            "p95": 283.34178500808775,
+            "p99": 289.510391006188,
+            "max": 302.5859500194201
+          },
+          "cursor_lead_ms": {
+            "count": 543,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "EDA": {
+          "draws": 543,
+          "draw_interval_ms": {
+            "count": 542,
+            "p50": 33.48925000318559,
+            "p95": 37.38863000253332,
+            "p99": 50.775082999462036,
+            "max": 79.2617999977665
+          },
+          "data_advancing_draws": 530,
+          "data_advance_interval_ms": {
+            "count": 529,
+            "p50": 33.50809999392368,
+            "p95": 41.64065999502781,
+            "p99": 65.11832399526611,
+            "max": 89.64620000915602
+          },
+          "drawn_sample_age_ms": {
+            "count": 543,
+            "p50": 318.02420000894926,
+            "p95": 347.21608002728317,
+            "p99": 355.2397550086607,
+            "max": 366.9847999990452
+          },
+          "cursor_lead_ms": {
+            "count": 543,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "PPG": {
+          "draws": 543,
+          "draw_interval_ms": {
+            "count": 542,
+            "p50": 33.48649999679765,
+            "p95": 37.71353000774978,
+            "p99": 52.739502000622494,
+            "max": 79.85300000291318
+          },
+          "data_advancing_draws": 540,
+          "data_advance_interval_ms": {
+            "count": 539,
+            "p50": 33.492299990030006,
+            "p95": 37.86502001166808,
+            "p99": 55.942877995839815,
+            "max": 79.85300000291318
+          },
+          "drawn_sample_age_ms": {
+            "count": 543,
+            "p50": 269.10220000718255,
+            "p95": 291.39246000995627,
+            "p99": 295.97632400662405,
+            "max": 308.28335000842344
+          },
+          "cursor_lead_ms": {
+            "count": 543,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.3951999970013276,
+          "first_new_timebase_draw_ms": {
+            "EEG": 57.74329999985639,
+            "EDA": 54.01750000601169,
+            "PPG": 55.99320000328589
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.4622999986167997,
+          "first_new_timebase_draw_ms": {
+            "EEG": 52.86049999995157,
+            "EDA": 49.83390000415966,
+            "PPG": 51.407999999355525
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.3789000038523227,
+          "first_new_timebase_draw_ms": {
+            "EEG": 44.2207000014605,
+            "EDA": 36.14240000024438,
+            "PPG": 40.70990000036545
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.39370000013150275,
+          "first_new_timebase_draw_ms": {
+            "EEG": 46.936700004152954,
+            "EDA": 43.75149999395944,
+            "PPG": 45.398699992801994
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 800,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1373.0
+        },
+        "ingress_gui": {
+          "count": 800,
+          "p50": 0.006,
+          "p95": 1.6181,
+          "p99": 1.7530599999999998,
+          "max": 3.529
+        },
+        "raw_gpu_warmup_PPG": {
+          "count": 1,
+          "p50": 16.583,
+          "p95": 16.583,
+          "p99": 16.583,
+          "max": 16.583
+        },
+        "gui_timer_total": {
+          "count": 800,
+          "p50": 1.7165,
+          "p95": 3.5364999999999998,
+          "p99": 16.501260000000002,
+          "max": 94.77
+        },
+        "raw_prepare": {
+          "count": 679,
+          "p50": 0.211,
+          "p95": 0.26010000000000005,
+          "p99": 0.5375200000000004,
+          "max": 2.115
+        },
+        "raw_worker_roundtrip": {
+          "count": 679,
+          "p50": 3.5,
+          "p95": 3.8448,
+          "p99": 9.662620000000043,
+          "max": 122.89
+        },
+        "raw_gpu_warmup_EDA": {
+          "count": 1,
+          "p50": 11.579,
+          "p95": 11.579,
+          "p99": 11.579,
+          "max": 11.579
+        },
+        "raw_gpu_frame_EEG": {
+          "count": 677,
+          "p50": 2.468,
+          "p95": 3.4661999999999993,
+          "p99": 9.287000000000008,
+          "max": 79.465
+        },
+        "raw_tab_to_first_frame": {
+          "count": 1,
+          "p50": 1663.017,
+          "p95": 1663.017,
+          "p99": 1663.017,
+          "max": 1663.017
+        },
+        "raw_gpu_frame_EDA": {
+          "count": 677,
+          "p50": 0.351,
+          "p95": 0.4161999999999999,
+          "p99": 1.0558800000000017,
+          "max": 12.104
+        },
+        "raw_gpu_frame_PPG": {
+          "count": 677,
+          "p50": 0.351,
+          "p95": 0.43699999999999967,
+          "p99": 0.9806000000000001,
+          "max": 12.714
+        },
+        "raw_qt_paint": {
+          "count": 677,
+          "p50": 3.345,
+          "p95": 4.488999999999994,
+          "p99": 12.336760000000002,
+          "max": 80.535
+        },
+        "raw_gpu_warmup_EEG": {
+          "count": 24,
+          "p50": 15.5945,
+          "p95": 18.1159,
+          "p99": 77.05676999999997,
+          "max": 94.652
+        }
+      },
+      "outcomes": {},
+      "ring_cpu_bytes": {
+        "EEG": 1843200,
+        "PPG": 76800,
+        "EDA": 38400
+      }
+    },
+    {
+      "label": "refactor-32-both",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 32,
+      "channels_displayed": 32,
+      "reducer": "both",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5862,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 520,
+          "draw_interval_ms": {
+            "count": 519,
+            "p50": 32.539099993300624,
+            "p95": 46.85977000772249,
+            "p99": 71.58132400159958,
+            "max": 141.62940000824165
+          },
+          "data_advancing_draws": 519,
+          "data_advance_interval_ms": {
+            "count": 518,
+            "p50": 32.54094999283552,
+            "p95": 46.94805500694197,
+            "p99": 71.58515600152896,
+            "max": 141.62940000824165
+          },
+          "drawn_sample_age_ms": {
+            "count": 520,
+            "p50": 272.7427249919856,
+            "p95": 290.89116499453667,
+            "p99": 300.1973099974566,
+            "max": 346.23584999644663
+          },
+          "cursor_lead_ms": {
+            "count": 520,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 520,
+            "p50": 19.423049998295028,
+            "p95": 34.94569499962381,
+            "p99": 51.03290399070818,
+            "max": 78.06790000176989
+          },
+          "request_age_at_draw_ms": {
+            "count": 520,
+            "p50": 20.105850002437364,
+            "p95": 35.63683999891509,
+            "p99": 52.50875399404307,
+            "max": 99.10669999953825
+          }
+        },
+        "EDA": {
+          "draws": 521,
+          "draw_interval_ms": {
+            "count": 520,
+            "p50": 32.58700000151293,
+            "p95": 46.233380011835834,
+            "p99": 71.43566000930146,
+            "max": 139.15070000803098
+          },
+          "data_advancing_draws": 502,
+          "data_advance_interval_ms": {
+            "count": 501,
+            "p50": 32.736900000600144,
+            "p95": 59.617000006255694,
+            "p99": 72.11890000326093,
+            "max": 139.15070000803098
+          },
+          "drawn_sample_age_ms": {
+            "count": 521,
+            "p50": 421.7998499952955,
+            "p95": 450.0112999958219,
+            "p99": 463.3943300053943,
+            "max": 482.9412999970373
+          },
+          "cursor_lead_ms": {
+            "count": 521,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 521,
+            "p50": 17.93800000450574,
+            "p95": 32.43409999413416,
+            "p99": 46.22622000169938,
+            "max": 77.64160000078846
+          },
+          "request_age_at_draw_ms": {
+            "count": 521,
+            "p50": 18.400700006168336,
+            "p95": 33.06850000808481,
+            "p99": 46.80909999005962,
+            "max": 86.49220000370406
+          }
+        },
+        "PPG": {
+          "draws": 521,
+          "draw_interval_ms": {
+            "count": 520,
+            "p50": 32.55075000197394,
+            "p95": 46.617559998412595,
+            "p99": 74.47665500192647,
+            "max": 143.21490000293124
+          },
+          "data_advancing_draws": 520,
+          "data_advance_interval_ms": {
+            "count": 519,
+            "p50": 32.55100001115352,
+            "p95": 46.64311999804339,
+            "p99": 74.51721000194104,
+            "max": 143.21490000293124
+          },
+          "drawn_sample_age_ms": {
+            "count": 521,
+            "p50": 297.06094998982735,
+            "p95": 319.4647499913117,
+            "p99": 332.99384999554604,
+            "max": 368.0072499992093
+          },
+          "cursor_lead_ms": {
+            "count": 521,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 521,
+            "p50": 17.753299995092675,
+            "p95": 32.5035999994725,
+            "p99": 48.83729999419298,
+            "max": 79.60800000000745
+          },
+          "request_age_at_draw_ms": {
+            "count": 521,
+            "p50": 18.240400007925928,
+            "p95": 33.447200010414235,
+            "p99": 49.131259997375295,
+            "max": 88.74730000388809
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.43060000461991876,
+          "first_new_timebase_draw_ms": {
+            "EEG": 65.08440000470728,
+            "EDA": 61.54130000504665,
+            "PPG": 63.486099999863654
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.39480000850744545,
+          "first_new_timebase_draw_ms": {
+            "EEG": 101.76570000476204,
+            "EDA": 20.189300004858524,
+            "PPG": 22.11600000737235
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.38559999666176736,
+          "first_new_timebase_draw_ms": {
+            "EEG": 85.09399999456946,
+            "EDA": 81.8200999929104,
+            "PPG": 83.57350000005681
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.42209999810438603,
+          "first_new_timebase_draw_ms": {
+            "EEG": 110.00090000743512,
+            "EDA": 106.07900000468362,
+            "PPG": 108.33450000791345
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 768,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 46.0,
+          "max": 1373.0
+        },
+        "ingress_gui": {
+          "count": 768,
+          "p50": 0.007,
+          "p95": 1.724,
+          "p99": 1.8829700000000003,
+          "max": 2.512
+        },
+        "raw_warmup_EDA": {
+          "count": 2,
+          "p50": 18.531,
+          "p95": 20.7288,
+          "p99": 20.92416,
+          "max": 20.973
+        },
+        "gui_timer_total": {
+          "count": 768,
+          "p50": 1.828,
+          "p95": 4.1311999999999935,
+          "p99": 29.94380000000002,
+          "max": 141.518
+        },
+        "raw_prepare_EDA": {
+          "count": 647,
+          "p50": 0.129,
+          "p95": 0.3951999999999996,
+          "p99": 1.7172799999999682,
+          "max": 8.689
+        },
+        "raw_queue_age_EDA": {
+          "count": 647,
+          "p50": 0.247,
+          "p95": 0.9056999999999986,
+          "p99": 6.824859999999994,
+          "max": 7.661
+        },
+        "raw_backend_EDA": {
+          "count": 647,
+          "p50": 0.395,
+          "p95": 0.52,
+          "p99": 0.8581199999999971,
+          "max": 13.163
+        },
+        "raw_prepare_PPG": {
+          "count": 646,
+          "p50": 0.125,
+          "p95": 0.40975,
+          "p99": 3.3285499999999124,
+          "max": 9.455
+        },
+        "raw_queue_age_PPG": {
+          "count": 646,
+          "p50": 0.228,
+          "p95": 0.8785000000000001,
+          "p99": 6.8863999999999965,
+          "max": 116.767
+        },
+        "raw_backend_PPG": {
+          "count": 646,
+          "p50": 0.422,
+          "p95": 0.5597500000000001,
+          "p99": 0.9720999999999981,
+          "max": 22.942
+        },
+        "raw_prepare_EEG": {
+          "count": 644,
+          "p50": 0.378,
+          "p95": 1.3421000000000018,
+          "p99": 7.3130500000000085,
+          "max": 21.101
+        },
+        "raw_queue_age_EEG": {
+          "count": 644,
+          "p50": 0.3475,
+          "p95": 0.9770500000000003,
+          "p99": 7.099030000000009,
+          "max": 118.072
+        },
+        "raw_backend_EEG": {
+          "count": 644,
+          "p50": 9.1745,
+          "p95": 15.838400000000007,
+          "p99": 36.86498000000062,
+          "max": 207.362
+        },
+        "raw_warmup_PPG": {
+          "count": 1,
+          "p50": 14.367,
+          "p95": 14.367,
+          "p99": 14.367,
+          "max": 14.367
+        },
+        "raw_warmup_EEG": {
+          "count": 32,
+          "p50": 26.1625,
+          "p95": 33.678749999999994,
+          "p99": 107.50486000000015,
+          "max": 139.681
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_stale_EEG": 1,
+        "raw_ready_EDA": 647,
+        "raw_ready_PPG": 646,
+        "raw_ready_EEG": 644
+      },
+      "ring_cpu_bytes": {
+        "EEG": 13107200,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-32-eda",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 32,
+      "channels_displayed": 32,
+      "reducer": "eda",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5889,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 520,
+          "draw_interval_ms": {
+            "count": 519,
+            "p50": 32.49279998999555,
+            "p95": 45.357230001536664,
+            "p99": 75.28124599746661,
+            "max": 156.13619999203365
+          },
+          "data_advancing_draws": 519,
+          "data_advance_interval_ms": {
+            "count": 518,
+            "p50": 32.4877499951981,
+            "p95": 45.35974500104203,
+            "p99": 75.28174899736769,
+            "max": 156.13619999203365
+          },
+          "drawn_sample_age_ms": {
+            "count": 520,
+            "p50": 272.7370249995147,
+            "p95": 292.5792624882888,
+            "p99": 310.2136604953557,
+            "max": 339.404550002655
+          },
+          "cursor_lead_ms": {
+            "count": 520,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 520,
+            "p50": 19.416900002397597,
+            "p95": 35.54701000321074,
+            "p99": 51.67465499325767,
+            "max": 71.27729999774601
+          },
+          "request_age_at_draw_ms": {
+            "count": 520,
+            "p50": 20.12895000370918,
+            "p95": 36.880064995057175,
+            "p99": 53.87151600749333,
+            "max": 92.36710000550374
+          }
+        },
+        "EDA": {
+          "draws": 522,
+          "draw_interval_ms": {
+            "count": 521,
+            "p50": 32.4865000002319,
+            "p95": 44.52490000403486,
+            "p99": 74.70520000206287,
+            "max": 129.82539999939036
+          },
+          "data_advancing_draws": 494,
+          "data_advance_interval_ms": {
+            "count": 493,
+            "p50": 32.680600008461624,
+            "p95": 61.773500009439886,
+            "p99": 79.78337200474921,
+            "max": 129.82539999939036
+          },
+          "drawn_sample_age_ms": {
+            "count": 522,
+            "p50": 423.0688250027015,
+            "p95": 449.3207649946271,
+            "p99": 457.92928849463345,
+            "max": 480.44230000232346
+          },
+          "cursor_lead_ms": {
+            "count": 522,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 522,
+            "p50": 17.915750002430286,
+            "p95": 34.69485000532586,
+            "p99": 48.53975099613307,
+            "max": 56.571299995994195
+          },
+          "request_age_at_draw_ms": {
+            "count": 522,
+            "p50": 18.365700001595542,
+            "p95": 35.52479999270872,
+            "p99": 48.94689500550157,
+            "max": 57.33250000048429
+          }
+        },
+        "PPG": {
+          "draws": 521,
+          "draw_interval_ms": {
+            "count": 520,
+            "p50": 32.43719998863526,
+            "p95": 45.73952500286396,
+            "p99": 76.6592119882988,
+            "max": 136.96050000726245
+          },
+          "data_advancing_draws": 520,
+          "data_advance_interval_ms": {
+            "count": 519,
+            "p50": 32.433199987281114,
+            "p95": 45.740750002732966,
+            "p99": 76.68216398829838,
+            "max": 136.96050000726245
+          },
+          "drawn_sample_age_ms": {
+            "count": 521,
+            "p50": 270.6863999919733,
+            "p95": 293.5111999831861,
+            "p99": 311.46624000393774,
+            "max": 318.19355000334326
+          },
+          "cursor_lead_ms": {
+            "count": 521,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 521,
+            "p50": 17.967100007808767,
+            "p95": 33.4281999967061,
+            "p99": 47.903120002592836,
+            "max": 60.82629998854827
+          },
+          "request_age_at_draw_ms": {
+            "count": 521,
+            "p50": 18.444100001943298,
+            "p95": 34.016000005067326,
+            "p99": 48.774080001748985,
+            "max": 61.18249999417458
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.3836999967461452,
+          "first_new_timebase_draw_ms": {
+            "EEG": 63.25269999797456,
+            "EDA": 59.70470000465866,
+            "PPG": 61.66479999956209
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.371000001905486,
+          "first_new_timebase_draw_ms": {
+            "EEG": 113.4161999943899,
+            "EDA": 37.58790000574663,
+            "PPG": 39.74819999712054
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.39420000393874943,
+          "first_new_timebase_draw_ms": {
+            "EEG": 77.52160000381991,
+            "EDA": 74.17599999462254,
+            "PPG": 75.99329999356996
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.39370000013150275,
+          "first_new_timebase_draw_ms": {
+            "EEG": 126.22960000589956,
+            "EDA": 35.70400000899099,
+            "PPG": 37.541500001680106
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 772,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 45.0,
+          "max": 1358.0
+        },
+        "ingress_gui": {
+          "count": 772,
+          "p50": 0.007,
+          "p95": 1.73045,
+          "p99": 1.87958,
+          "max": 2.225
+        },
+        "raw_warmup_EDA": {
+          "count": 2,
+          "p50": 20.121,
+          "p95": 22.1145,
+          "p99": 22.2917,
+          "max": 22.336
+        },
+        "gui_timer_total": {
+          "count": 772,
+          "p50": 1.8094999999999999,
+          "p95": 4.068549999999996,
+          "p99": 26.462669999999985,
+          "max": 135.642
+        },
+        "raw_prepare_EDA": {
+          "count": 649,
+          "p50": 0.124,
+          "p95": 0.36160000000000003,
+          "p99": 0.871159999999998,
+          "max": 6.172
+        },
+        "raw_queue_age_EDA": {
+          "count": 649,
+          "p50": 0.242,
+          "p95": 0.9756,
+          "p99": 6.275879999999992,
+          "max": 9.836
+        },
+        "raw_backend_EDA": {
+          "count": 649,
+          "p50": 0.391,
+          "p95": 0.5254000000000001,
+          "p99": 1.087319999999997,
+          "max": 14.198
+        },
+        "raw_prepare_PPG": {
+          "count": 648,
+          "p50": 0.125,
+          "p95": 0.44029999999999997,
+          "p99": 1.1176299999999981,
+          "max": 10.434
+        },
+        "raw_queue_age_PPG": {
+          "count": 648,
+          "p50": 0.209,
+          "p95": 0.851,
+          "p99": 6.075339999999998,
+          "max": 105.617
+        },
+        "raw_backend_PPG": {
+          "count": 648,
+          "p50": 0.4125,
+          "p95": 0.5905499999999998,
+          "p99": 1.0920699999999994,
+          "max": 24.59
+        },
+        "raw_prepare_EEG": {
+          "count": 643,
+          "p50": 0.382,
+          "p95": 1.1688,
+          "p99": 6.647460000000091,
+          "max": 112.041
+        },
+        "raw_queue_age_EEG": {
+          "count": 643,
+          "p50": 0.405,
+          "p95": 1.1101999999999994,
+          "p99": 6.408000000000002,
+          "max": 7.375
+        },
+        "raw_backend_EEG": {
+          "count": 643,
+          "p50": 9.215,
+          "p95": 15.9354,
+          "p99": 43.39966000000014,
+          "max": 207.765
+        },
+        "raw_warmup_PPG": {
+          "count": 1,
+          "p50": 14.107,
+          "p95": 14.107,
+          "p99": 14.107,
+          "max": 14.107
+        },
+        "raw_warmup_EEG": {
+          "count": 32,
+          "p50": 23.0325,
+          "p95": 32.59989999999999,
+          "p99": 104.80678000000013,
+          "max": 133.842
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 3,
+        "raw_stale_PPG": 3,
+        "raw_stale_EEG": 3,
+        "raw_ready_EDA": 649,
+        "raw_ready_PPG": 648,
+        "raw_ready_EEG": 643
+      },
+      "ring_cpu_bytes": {
+        "EEG": 13107200,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-32-off",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 32,
+      "channels_displayed": 32,
+      "reducer": "off",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5888,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 521,
+          "draw_interval_ms": {
+            "count": 520,
+            "p50": 32.4850500037428,
+            "p95": 43.95958000095559,
+            "p99": 79.03405399862085,
+            "max": 161.83769999770448
+          },
+          "data_advancing_draws": 520,
+          "data_advance_interval_ms": {
+            "count": 519,
+            "p50": 32.48750000784639,
+            "p95": 43.985160000738674,
+            "p99": 79.0515879986925,
+            "max": 161.83769999770448
+          },
+          "drawn_sample_age_ms": {
+            "count": 521,
+            "p50": 275.1089000084903,
+            "p95": 293.62539999419823,
+            "p99": 319.92762999725505,
+            "max": 367.6666500105057
+          },
+          "cursor_lead_ms": {
+            "count": 521,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 521,
+            "p50": 19.383899998501875,
+            "p95": 32.13550000509713,
+            "p99": 56.68956000008609,
+            "max": 111.93429998820648
+          },
+          "request_age_at_draw_ms": {
+            "count": 521,
+            "p50": 20.05200000712648,
+            "p95": 33.251700006076135,
+            "p99": 62.0158399979115,
+            "max": 126.46639999002218
+          }
+        },
+        "EDA": {
+          "draws": 521,
+          "draw_interval_ms": {
+            "count": 520,
+            "p50": 32.456000000820495,
+            "p95": 43.00915500716653,
+            "p99": 80.19041099236341,
+            "max": 140.81029999942984
+          },
+          "data_advancing_draws": 500,
+          "data_advance_interval_ms": {
+            "count": 499,
+            "p50": 32.559700004640035,
+            "p95": 60.03014000161783,
+            "p99": 80.40494399145246,
+            "max": 140.81029999942984
+          },
+          "drawn_sample_age_ms": {
+            "count": 521,
+            "p50": 331.2862999882782,
+            "p95": 360.1506499981042,
+            "p99": 370.6071599881397,
+            "max": 446.3863999990281
+          },
+          "cursor_lead_ms": {
+            "count": 521,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 521,
+            "p50": 17.898899997817352,
+            "p95": 30.285300003015436,
+            "p99": 52.71918000362346,
+            "max": 114.37940000905655
+          },
+          "request_age_at_draw_ms": {
+            "count": 521,
+            "p50": 18.435499994666316,
+            "p95": 31.16460000455845,
+            "p99": 54.02365999470929,
+            "max": 123.1539000000339
+          }
+        },
+        "PPG": {
+          "draws": 521,
+          "draw_interval_ms": {
+            "count": 520,
+            "p50": 32.38600000622682,
+            "p95": 43.62364499611428,
+            "p99": 79.6995720022823,
+            "max": 140.39400000183377
+          },
+          "data_advancing_draws": 520,
+          "data_advance_interval_ms": {
+            "count": 519,
+            "p50": 32.39060001214966,
+            "p95": 43.65218999591887,
+            "p99": 79.71288400236524,
+            "max": 140.39400000183377
+          },
+          "drawn_sample_age_ms": {
+            "count": 521,
+            "p50": 270.1867499999935,
+            "p95": 288.9255499903811,
+            "p99": 309.93279000685993,
+            "max": 385.63045000773855
+          },
+          "cursor_lead_ms": {
+            "count": 521,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 521,
+            "p50": 17.761800001608208,
+            "p95": 30.31370000098832,
+            "p99": 53.01796000567256,
+            "max": 116.00179999368265
+          },
+          "request_age_at_draw_ms": {
+            "count": 521,
+            "p50": 18.31030000175815,
+            "p95": 31.00099999574013,
+            "p99": 53.83986000088033,
+            "max": 124.89569999161176
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.40780000563245267,
+          "first_new_timebase_draw_ms": {
+            "EEG": 70.16090000979602,
+            "EDA": 66.53949999599718,
+            "PPG": 68.34349999553524
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.3932000108761713,
+          "first_new_timebase_draw_ms": {
+            "EEG": 130.29430000460707,
+            "EDA": 35.320800001500174,
+            "PPG": 37.210299997241236
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.37369999336078763,
+          "first_new_timebase_draw_ms": {
+            "EEG": 109.98900000413414,
+            "EDA": 106.6698000067845,
+            "PPG": 108.41760000039358
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.37799999699927866,
+          "first_new_timebase_draw_ms": {
+            "EEG": 128.77609999850392,
+            "EDA": 125.4616999940481,
+            "PPG": 127.20499999704771
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 767,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 65.44000000000051,
+          "max": 1358.0
+        },
+        "ingress_gui": {
+          "count": 767,
+          "p50": 0.007,
+          "p95": 1.7347,
+          "p99": 1.88934,
+          "max": 2.09
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 19.552500000000002,
+          "p95": 21.31605,
+          "p99": 21.47281,
+          "max": 21.512
+        },
+        "gui_timer_total": {
+          "count": 767,
+          "p50": 1.783,
+          "p95": 3.8522999999999947,
+          "p99": 28.460060000000016,
+          "max": 131.324
+        },
+        "raw_prepare_EDA": {
+          "count": 647,
+          "p50": 0.123,
+          "p95": 0.3490999999999998,
+          "p99": 0.8267199999999939,
+          "max": 8.46
+        },
+        "raw_queue_age_EDA": {
+          "count": 647,
+          "p50": 0.194,
+          "p95": 0.822299999999998,
+          "p99": 6.152499999999997,
+          "max": 6.934
+        },
+        "raw_backend_EDA": {
+          "count": 647,
+          "p50": 0.393,
+          "p95": 0.5287,
+          "p99": 0.9592199999999875,
+          "max": 21.393
+        },
+        "raw_prepare_PPG": {
+          "count": 647,
+          "p50": 0.125,
+          "p95": 0.362,
+          "p99": 1.3452199999999894,
+          "max": 10.048
+        },
+        "raw_queue_age_PPG": {
+          "count": 647,
+          "p50": 0.249,
+          "p95": 1.1008999999999995,
+          "p99": 6.099019999999999,
+          "max": 7.551
+        },
+        "raw_backend_PPG": {
+          "count": 647,
+          "p50": 0.416,
+          "p95": 0.5530999999999998,
+          "p99": 0.9804199999999937,
+          "max": 12.83
+        },
+        "raw_prepare_EEG": {
+          "count": 642,
+          "p50": 0.377,
+          "p95": 1.0957499999999998,
+          "p99": 6.094990000000024,
+          "max": 22.112
+        },
+        "raw_queue_age_EEG": {
+          "count": 642,
+          "p50": 0.3955,
+          "p95": 1.0794999999999995,
+          "p99": 6.366870000000003,
+          "max": 112.568
+        },
+        "raw_backend_EEG": {
+          "count": 642,
+          "p50": 9.27,
+          "p95": 14.369599999999961,
+          "p99": 43.681480000000285,
+          "max": 211.04
+        },
+        "raw_warmup_EDA": {
+          "count": 1,
+          "p50": 14.281,
+          "p95": 14.281,
+          "p99": 14.281,
+          "max": 14.281
+        },
+        "raw_warmup_EEG": {
+          "count": 32,
+          "p50": 23.667,
+          "p95": 33.05975,
+          "p99": 99.64364000000012,
+          "max": 129.421
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_stale_EEG": 1,
+        "raw_ready_EDA": 647,
+        "raw_ready_PPG": 647,
+        "raw_ready_EEG": 642
+      },
+      "ring_cpu_bytes": {
+        "EEG": 13107200,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-32-ppg",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 32,
+      "channels_displayed": 32,
+      "reducer": "ppg",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5854,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 511,
+          "draw_interval_ms": {
+            "count": 510,
+            "p50": 32.744399999501184,
+            "p95": 51.23278499595468,
+            "p99": 80.48280699833391,
+            "max": 208.81070000177715
+          },
+          "data_advancing_draws": 510,
+          "data_advance_interval_ms": {
+            "count": 509,
+            "p50": 32.74019999662414,
+            "p95": 51.26911999541333,
+            "p99": 80.55078399833303,
+            "max": 208.81070000177715
+          },
+          "drawn_sample_age_ms": {
+            "count": 511,
+            "p50": 271.3520999823231,
+            "p95": 293.5392749932362,
+            "p99": 308.86285000160564,
+            "max": 356.7172500042943
+          },
+          "cursor_lead_ms": {
+            "count": 511,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 511,
+            "p50": 19.78699999745004,
+            "p95": 33.01639999699546,
+            "p99": 50.062000006437195,
+            "max": 78.82709999103099
+          },
+          "request_age_at_draw_ms": {
+            "count": 511,
+            "p50": 20.459899998968467,
+            "p95": 34.557749997475185,
+            "p99": 51.26202000683395,
+            "max": 99.64770000078715
+          }
+        },
+        "EDA": {
+          "draws": 512,
+          "draw_interval_ms": {
+            "count": 511,
+            "p50": 32.68090001074597,
+            "p95": 50.423100001353305,
+            "p99": 83.18077999720107,
+            "max": 208.16799999738578
+          },
+          "data_advancing_draws": 480,
+          "data_advance_interval_ms": {
+            "count": 479,
+            "p50": 32.85469999536872,
+            "p95": 62.68102000176438,
+            "p99": 85.87154400389392,
+            "max": 239.65709999902174
+          },
+          "drawn_sample_age_ms": {
+            "count": 512,
+            "p50": 326.6613499945379,
+            "p95": 362.47548250103137,
+            "p99": 379.27187649926054,
+            "max": 394.77650000480935
+          },
+          "cursor_lead_ms": {
+            "count": 512,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 512,
+            "p50": 18.174250006268267,
+            "p95": 31.43189999900642,
+            "p99": 44.77365000522693,
+            "max": 91.97210001002531
+          },
+          "request_age_at_draw_ms": {
+            "count": 512,
+            "p50": 18.644800002221018,
+            "p95": 32.09174500516383,
+            "p99": 44.973862009792335,
+            "max": 92.62650000164285
+          }
+        },
+        "PPG": {
+          "draws": 512,
+          "draw_interval_ms": {
+            "count": 511,
+            "p50": 32.713300010073,
+            "p95": 48.00930000055814,
+            "p99": 81.98786000575629,
+            "max": 208.6529999942286
+          },
+          "data_advancing_draws": 511,
+          "data_advance_interval_ms": {
+            "count": 510,
+            "p50": 32.70910000719596,
+            "p95": 48.01919000092311,
+            "p99": 82.0234340058231,
+            "max": 208.6529999942286
+          },
+          "drawn_sample_age_ms": {
+            "count": 512,
+            "p50": 296.51897499570623,
+            "p95": 321.0624874976929,
+            "p99": 334.46327798912534,
+            "max": 374.58539998624474
+          },
+          "cursor_lead_ms": {
+            "count": 512,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 512,
+            "p50": 18.245150000439025,
+            "p95": 31.535455000266666,
+            "p99": 48.76777700017549,
+            "max": 88.45379999547731
+          },
+          "request_age_at_draw_ms": {
+            "count": 512,
+            "p50": 18.751649993646424,
+            "p95": 32.32076999847777,
+            "p99": 49.218531006190396,
+            "max": 94.58980000636075
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.39459999243263155,
+          "first_new_timebase_draw_ms": {
+            "EEG": 98.54219999397174,
+            "EDA": 94.91580000030808,
+            "PPG": 96.87969999504276
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.40350000199396163,
+          "first_new_timebase_draw_ms": {
+            "EEG": 102.10299999744166,
+            "EDA": 19.764299999224022,
+            "PPG": 21.851199999218807
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.4054000019095838,
+          "first_new_timebase_draw_ms": {
+            "EEG": 62.65880000137258,
+            "EDA": 59.528099998715334,
+            "PPG": 61.17899999662768
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.3890000079991296,
+          "first_new_timebase_draw_ms": {
+            "EEG": 97.46129999984987,
+            "EDA": 93.90829999756534,
+            "PPG": 95.74439999414608
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 766,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 45.0,
+          "max": 1358.0
+        },
+        "ingress_gui": {
+          "count": 766,
+          "p50": 0.007,
+          "p95": 1.7075,
+          "p99": 1.9013000000000004,
+          "max": 3.559
+        },
+        "raw_warmup_EDA": {
+          "count": 2,
+          "p50": 20.014000000000003,
+          "p95": 21.8491,
+          "p99": 22.01222,
+          "max": 22.053
+        },
+        "gui_timer_total": {
+          "count": 766,
+          "p50": 1.802,
+          "p95": 4.02675,
+          "p99": 28.069000000000013,
+          "max": 134.614
+        },
+        "raw_prepare_EDA": {
+          "count": 644,
+          "p50": 0.123,
+          "p95": 0.36885,
+          "p99": 0.7707600000000134,
+          "max": 5.443
+        },
+        "raw_queue_age_EDA": {
+          "count": 644,
+          "p50": 0.1865,
+          "p95": 0.8113500000000002,
+          "p99": 6.540360000000002,
+          "max": 109.536
+        },
+        "raw_backend_EDA": {
+          "count": 644,
+          "p50": 0.4,
+          "p95": 0.50685,
+          "p99": 0.6615700000000001,
+          "max": 12.266
+        },
+        "raw_prepare_PPG": {
+          "count": 643,
+          "p50": 0.124,
+          "p95": 0.36779999999999996,
+          "p99": 3.645360000000043,
+          "max": 10.221
+        },
+        "raw_queue_age_PPG": {
+          "count": 643,
+          "p50": 0.243,
+          "p95": 0.9600999999999986,
+          "p99": 6.17222,
+          "max": 6.94
+        },
+        "raw_backend_PPG": {
+          "count": 643,
+          "p50": 0.421,
+          "p95": 0.5588,
+          "p99": 1.1100600000000003,
+          "max": 20.876
+        },
+        "raw_prepare_EEG": {
+          "count": 639,
+          "p50": 0.374,
+          "p95": 1.2293,
+          "p99": 5.01758,
+          "max": 21.518
+        },
+        "raw_queue_age_EEG": {
+          "count": 639,
+          "p50": 0.423,
+          "p95": 0.9731000000000002,
+          "p99": 6.44688,
+          "max": 109.709
+        },
+        "raw_backend_EEG": {
+          "count": 639,
+          "p50": 9.377,
+          "p95": 15.195800000000006,
+          "p99": 38.05642,
+          "max": 206.773
+        },
+        "raw_warmup_PPG": {
+          "count": 1,
+          "p50": 15.579,
+          "p95": 15.579,
+          "p99": 15.579,
+          "max": 15.579
+        },
+        "raw_warmup_EEG": {
+          "count": 32,
+          "p50": 24.2225,
+          "p95": 32.54035,
+          "p99": 101.95345000000012,
+          "max": 132.738
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 2,
+        "raw_stale_PPG": 2,
+        "raw_stale_EEG": 2,
+        "raw_ready_EDA": 644,
+        "raw_ready_PPG": 643,
+        "raw_ready_EEG": 639
+      },
+      "ring_cpu_bytes": {
+        "EEG": 13107200,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-8-both",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 8,
+      "reducer": "both",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5860,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 543,
+          "draw_interval_ms": {
+            "count": 542,
+            "p50": 32.993299995723646,
+            "p95": 37.39464000609587,
+            "p99": 54.091306998889316,
+            "max": 84.22170000267215
+          },
+          "data_advancing_draws": 542,
+          "data_advance_interval_ms": {
+            "count": 541,
+            "p50": 32.98819999326952,
+            "p95": 37.39490000589285,
+            "p99": 54.12817999895205,
+            "max": 84.22170000267215
+          },
+          "drawn_sample_age_ms": {
+            "count": 543,
+            "p50": 261.8958999955794,
+            "p95": 275.8832499865093,
+            "p99": 282.566135005618,
+            "max": 318.3130999968853
+          },
+          "cursor_lead_ms": {
+            "count": 543,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 543,
+            "p50": 11.335300005157478,
+            "p95": 14.529530008439904,
+            "p99": 28.955595999141252,
+            "max": 74.5314999949187
+          },
+          "request_age_at_draw_ms": {
+            "count": 543,
+            "p50": 11.858600002597086,
+            "p95": 15.264929996919815,
+            "p99": 31.627888004004628,
+            "max": 75.2716999995755
+          }
+        },
+        "EDA": {
+          "draws": 543,
+          "draw_interval_ms": {
+            "count": 542,
+            "p50": 32.97854999982519,
+            "p95": 39.58637500982149,
+            "p99": 52.55598999778169,
+            "max": 91.53240000887308
+          },
+          "data_advancing_draws": 522,
+          "data_advance_interval_ms": {
+            "count": 521,
+            "p50": 33.327299999655224,
+            "p95": 48.48349999519996,
+            "p99": 67.57541999395468,
+            "max": 91.53240000887308
+          },
+          "drawn_sample_age_ms": {
+            "count": 543,
+            "p50": 414.1755500022555,
+            "p95": 437.88077500794316,
+            "p99": 453.2209039805457,
+            "max": 467.2737000073539
+          },
+          "cursor_lead_ms": {
+            "count": 543,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 543,
+            "p50": 11.269199996604584,
+            "p95": 15.392259998770887,
+            "p99": 24.84745799156382,
+            "max": 39.029999999911524
+          },
+          "request_age_at_draw_ms": {
+            "count": 543,
+            "p50": 11.778200001572259,
+            "p95": 16.292359998624303,
+            "p99": 26.52037999738242,
+            "max": 41.77999999956228
+          }
+        },
+        "PPG": {
+          "draws": 543,
+          "draw_interval_ms": {
+            "count": 542,
+            "p50": 33.23570000065956,
+            "p95": 39.07649499597028,
+            "p99": 55.02596200400149,
+            "max": 102.14350000023842
+          },
+          "data_advancing_draws": 542,
+          "data_advance_interval_ms": {
+            "count": 541,
+            "p50": 33.23490000911988,
+            "p95": 39.07719999551773,
+            "p99": 55.02858000400011,
+            "max": 102.14350000023842
+          },
+          "drawn_sample_age_ms": {
+            "count": 543,
+            "p50": 288.7149500020314,
+            "p95": 303.8881099986611,
+            "p99": 314.9907480046386,
+            "max": 354.86669999954756
+          },
+          "cursor_lead_ms": {
+            "count": 543,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 543,
+            "p50": 11.344499987899326,
+            "p95": 16.038749995641407,
+            "p99": 31.991905997274692,
+            "max": 72.32790000853129
+          },
+          "request_age_at_draw_ms": {
+            "count": 543,
+            "p50": 11.837199999717996,
+            "p95": 16.743220001808364,
+            "p99": 34.776948000944785,
+            "max": 72.7651000051992
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.3887000057147816,
+          "first_new_timebase_draw_ms": {
+            "EEG": 46.05299999821,
+            "EDA": 42.71110000263434,
+            "PPG": 44.42910000216216
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.4523999959928915,
+          "first_new_timebase_draw_ms": {
+            "EEG": 59.08170000475366,
+            "EDA": 29.80020000541117,
+            "PPG": 31.394899997394532
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.3828000044450164,
+          "first_new_timebase_draw_ms": {
+            "EEG": 36.80180000083055,
+            "EDA": 33.778900004108436,
+            "PPG": 35.327600009622984
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.3859999997075647,
+          "first_new_timebase_draw_ms": {
+            "EEG": 41.69650000403635,
+            "EDA": 37.64029999729246,
+            "PPG": 40.17740000563208
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 798,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1358.0
+        },
+        "ingress_gui": {
+          "count": 798,
+          "p50": 0.006,
+          "p95": 1.6824999999999992,
+          "p99": 1.8920599999999999,
+          "max": 3.991
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 20.741500000000002,
+          "p95": 23.20255,
+          "p99": 23.42131,
+          "max": 23.476
+        },
+        "gui_timer_total": {
+          "count": 798,
+          "p50": 1.7805,
+          "p95": 3.5216,
+          "p99": 17.299949999999995,
+          "max": 25.761
+        },
+        "raw_prepare_EDA": {
+          "count": 676,
+          "p50": 0.1495,
+          "p95": 0.338,
+          "p99": 0.653,
+          "max": 7.387
+        },
+        "raw_queue_age_EDA": {
+          "count": 676,
+          "p50": 0.309,
+          "p95": 0.6125,
+          "p99": 4.79375,
+          "max": 6.594
+        },
+        "raw_backend_EDA": {
+          "count": 676,
+          "p50": 0.36,
+          "p95": 0.50375,
+          "p99": 0.9635,
+          "max": 21.465
+        },
+        "raw_prepare_PPG": {
+          "count": 676,
+          "p50": 0.147,
+          "p95": 0.36,
+          "p99": 1.294,
+          "max": 9.774
+        },
+        "raw_queue_age_PPG": {
+          "count": 676,
+          "p50": 0.3055,
+          "p95": 0.60325,
+          "p99": 2.4375,
+          "max": 6.734
+        },
+        "raw_backend_PPG": {
+          "count": 676,
+          "p50": 0.382,
+          "p95": 0.55925,
+          "p99": 1.2655,
+          "max": 11.542
+        },
+        "raw_warmup_EDA": {
+          "count": 1,
+          "p50": 13.912,
+          "p95": 13.912,
+          "p99": 13.912,
+          "max": 13.912
+        },
+        "raw_prepare_EEG": {
+          "count": 675,
+          "p50": 0.182,
+          "p95": 0.37859999999999994,
+          "p99": 1.064319999999991,
+          "max": 14.003
+        },
+        "raw_queue_age_EEG": {
+          "count": 675,
+          "p50": 0.285,
+          "p95": 0.575,
+          "p99": 1.3560799999999953,
+          "max": 5.988
+        },
+        "raw_backend_EEG": {
+          "count": 675,
+          "p50": 2.428,
+          "p95": 3.6234999999999986,
+          "p99": 12.017339999999999,
+          "max": 166.941
+        },
+        "raw_warmup_EEG": {
+          "count": 8,
+          "p50": 15.605,
+          "p95": 20.679249999999996,
+          "p99": 22.416649999999997,
+          "max": 22.851
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_stale_EEG": 1,
+        "raw_ready_EDA": 676,
+        "raw_ready_PPG": 676,
+        "raw_ready_EEG": 675
+      },
+      "ring_cpu_bytes": {
+        "EEG": 3276800,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-8-eda",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 8,
+      "reducer": "eda",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5862,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 541,
+          "draw_interval_ms": {
+            "count": 540,
+            "p50": 33.150300005218014,
+            "p95": 37.274239990802,
+            "p99": 53.034936999320074,
+            "max": 154.63600000657607
+          },
+          "data_advancing_draws": 539,
+          "data_advance_interval_ms": {
+            "count": 538,
+            "p50": 33.19059999921592,
+            "p95": 37.30071999161736,
+            "p99": 53.06597099930513,
+            "max": 154.63600000657607
+          },
+          "drawn_sample_age_ms": {
+            "count": 541,
+            "p50": 262.61970000632573,
+            "p95": 282.8448000072967,
+            "p99": 324.0384599950631,
+            "max": 336.9038999953773
+          },
+          "cursor_lead_ms": {
+            "count": 541,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 541,
+            "p50": 11.140400005388074,
+            "p95": 14.067900003283285,
+            "p99": 24.487080005928874,
+            "max": 37.47380001004785
+          },
+          "request_age_at_draw_ms": {
+            "count": 541,
+            "p50": 11.675500005367212,
+            "p95": 14.687600007164292,
+            "p99": 27.512619993649427,
+            "max": 38.69090000807773
+          }
+        },
+        "EDA": {
+          "draws": 541,
+          "draw_interval_ms": {
+            "count": 540,
+            "p50": 33.0932000069879,
+            "p95": 39.182079998863614,
+            "p99": 52.232809998677126,
+            "max": 156.1604000016814
+          },
+          "data_advancing_draws": 518,
+          "data_advance_interval_ms": {
+            "count": 517,
+            "p50": 33.407299997634254,
+            "p95": 50.00427999766542,
+            "p99": 67.48557200480717,
+            "max": 178.37100000178907
+          },
+          "drawn_sample_age_ms": {
+            "count": 541,
+            "p50": 415.5455500003882,
+            "p95": 444.71164999413304,
+            "p99": 453.93937000771984,
+            "max": 473.042350000469
+          },
+          "cursor_lead_ms": {
+            "count": 541,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 541,
+            "p50": 12.193299990030937,
+            "p95": 16.051300000981428,
+            "p99": 28.233819996239664,
+            "max": 39.59749999921769
+          },
+          "request_age_at_draw_ms": {
+            "count": 541,
+            "p50": 12.813399996957742,
+            "p95": 16.67309999174904,
+            "p99": 29.79094000183984,
+            "max": 42.59939999610651
+          }
+        },
+        "PPG": {
+          "draws": 541,
+          "draw_interval_ms": {
+            "count": 540,
+            "p50": 33.11895000661025,
+            "p95": 38.367445005860645,
+            "p99": 51.2222010054393,
+            "max": 146.38879999984056
+          },
+          "data_advancing_draws": 539,
+          "data_advance_interval_ms": {
+            "count": 538,
+            "p50": 33.13750000233995,
+            "p95": 38.40508500870783,
+            "p99": 51.25948300526942,
+            "max": 146.38879999984056
+          },
+          "drawn_sample_age_ms": {
+            "count": 541,
+            "p50": 265.00870000745635,
+            "p95": 281.9824499893002,
+            "p99": 327.12195999920374,
+            "max": 388.8974000001326
+          },
+          "cursor_lead_ms": {
+            "count": 541,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 541,
+            "p50": 12.22619999316521,
+            "p95": 15.734400003566407,
+            "p99": 26.576539999223336,
+            "max": 148.4022999939043
+          },
+          "request_age_at_draw_ms": {
+            "count": 541,
+            "p50": 12.77729999856092,
+            "p95": 16.25830000557471,
+            "p99": 29.555980008444763,
+            "max": 148.94949999870732
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.4889999981969595,
+          "first_new_timebase_draw_ms": {
+            "EEG": 41.25189999467693,
+            "EDA": 38.14649999549147,
+            "PPG": 39.76430000329856
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.40190000436268747,
+          "first_new_timebase_draw_ms": {
+            "EEG": 44.176099996548146,
+            "EDA": 40.88810000394005,
+            "PPG": 42.60670000803657
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.4271000070730224,
+          "first_new_timebase_draw_ms": {
+            "EEG": 29.884000003221445,
+            "EDA": 26.778100000228733,
+            "PPG": 28.41890000854619
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.38440000207629055,
+          "first_new_timebase_draw_ms": {
+            "EEG": 55.87129999184981,
+            "EDA": 51.9168000028003,
+            "PPG": 53.73679999320302
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 797,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1357.0
+        },
+        "ingress_gui": {
+          "count": 797,
+          "p50": 0.006,
+          "p95": 1.6665999999999996,
+          "p99": 1.8550399999999991,
+          "max": 2.684
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 19.262500000000003,
+          "p95": 21.41575,
+          "p99": 21.60715,
+          "max": 21.655
+        },
+        "gui_timer_total": {
+          "count": 797,
+          "p50": 1.852,
+          "p95": 3.559599999999999,
+          "p99": 16.02391999999998,
+          "max": 23.887
+        },
+        "raw_prepare_EDA": {
+          "count": 678,
+          "p50": 0.151,
+          "p95": 0.3353,
+          "p99": 0.5793800000000001,
+          "max": 7.34
+        },
+        "raw_queue_age_EDA": {
+          "count": 678,
+          "p50": 0.319,
+          "p95": 0.59815,
+          "p99": 4.012680000000004,
+          "max": 5.884
+        },
+        "raw_backend_EDA": {
+          "count": 678,
+          "p50": 0.362,
+          "p95": 0.5216,
+          "p99": 1.0835300000000057,
+          "max": 20.748
+        },
+        "raw_prepare_PPG": {
+          "count": 678,
+          "p50": 0.153,
+          "p95": 0.3460499999999998,
+          "p99": 0.6848500000000035,
+          "max": 9.53
+        },
+        "raw_queue_age_PPG": {
+          "count": 678,
+          "p50": 0.3135,
+          "p95": 0.5743999999999996,
+          "p99": 4.476800000000001,
+          "max": 8.526
+        },
+        "raw_backend_PPG": {
+          "count": 678,
+          "p50": 0.386,
+          "p95": 0.5330499999999999,
+          "p99": 1.1680200000000014,
+          "max": 10.839
+        },
+        "raw_warmup_EDA": {
+          "count": 1,
+          "p50": 11.67,
+          "p95": 11.67,
+          "p99": 11.67,
+          "max": 11.67
+        },
+        "raw_prepare_EEG": {
+          "count": 677,
+          "p50": 0.182,
+          "p95": 0.385,
+          "p99": 1.7614000000000165,
+          "max": 17.097
+        },
+        "raw_queue_age_EEG": {
+          "count": 677,
+          "p50": 0.279,
+          "p95": 0.555,
+          "p99": 1.5996800000000209,
+          "max": 4.859
+        },
+        "raw_backend_EEG": {
+          "count": 677,
+          "p50": 2.461,
+          "p95": 3.2549999999999977,
+          "p99": 10.927280000000016,
+          "max": 150.396
+        },
+        "raw_warmup_EEG": {
+          "count": 8,
+          "p50": 15.0435,
+          "p95": 17.120549999999998,
+          "p99": 17.60971,
+          "max": 17.732
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_stale_EEG": 1,
+        "raw_ready_EDA": 678,
+        "raw_ready_PPG": 678,
+        "raw_ready_EEG": 677
+      },
+      "ring_cpu_bytes": {
+        "EEG": 3276800,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-8-off",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 8,
+      "reducer": "off",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5886,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 542,
+          "draw_interval_ms": {
+            "count": 541,
+            "p50": 33.157400001073256,
+            "p95": 36.57959999691229,
+            "p99": 54.004220006754636,
+            "max": 102.59819999919273
+          },
+          "data_advancing_draws": 541,
+          "data_advance_interval_ms": {
+            "count": 540,
+            "p50": 33.13324999908218,
+            "p95": 36.57962999714073,
+            "p99": 54.01138700675802,
+            "max": 102.59819999919273
+          },
+          "drawn_sample_age_ms": {
+            "count": 542,
+            "p50": 262.0106750036939,
+            "p95": 275.36270749624236,
+            "p99": 284.73555350079556,
+            "max": 327.01305000227876
+          },
+          "cursor_lead_ms": {
+            "count": 542,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 542,
+            "p50": 11.314449999190401,
+            "p95": 13.668899999174752,
+            "p99": 26.803732993139427,
+            "max": 69.28760001028422
+          },
+          "request_age_at_draw_ms": {
+            "count": 542,
+            "p50": 11.777750005421694,
+            "p95": 14.400744994782144,
+            "p99": 28.146619997423844,
+            "max": 81.22420001018327
+          }
+        },
+        "EDA": {
+          "draws": 542,
+          "draw_interval_ms": {
+            "count": 541,
+            "p50": 33.051699996576644,
+            "p95": 37.75469999527559,
+            "p99": 57.59645999933135,
+            "max": 101.86060001433361
+          },
+          "data_advancing_draws": 525,
+          "data_advance_interval_ms": {
+            "count": 524,
+            "p50": 33.29059999668971,
+            "p95": 45.40953000396252,
+            "p99": 67.94219400457223,
+            "max": 101.86060001433361
+          },
+          "drawn_sample_age_ms": {
+            "count": 542,
+            "p50": 320.57047500711633,
+            "p95": 341.4204150205478,
+            "p99": 352.23851801580173,
+            "max": 370.454450006946
+          },
+          "cursor_lead_ms": {
+            "count": 542,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 542,
+            "p50": 11.971949999860954,
+            "p95": 15.092710002500096,
+            "p99": 29.33672200626463,
+            "max": 69.38179999997374
+          },
+          "request_age_at_draw_ms": {
+            "count": 542,
+            "p50": 12.558800000988413,
+            "p95": 15.908749997470295,
+            "p99": 30.697136003145722,
+            "max": 77.91150000412017
+          }
+        },
+        "PPG": {
+          "draws": 542,
+          "draw_interval_ms": {
+            "count": 541,
+            "p50": 33.035399988875724,
+            "p95": 38.156599999638274,
+            "p99": 49.85948000103244,
+            "max": 102.33359999256209
+          },
+          "data_advancing_draws": 541,
+          "data_advance_interval_ms": {
+            "count": 540,
+            "p50": 33.05414999340428,
+            "p95": 38.1581699992239,
+            "p99": 49.89570300094788,
+            "max": 102.33359999256209
+          },
+          "drawn_sample_age_ms": {
+            "count": 542,
+            "p50": 264.27167501242366,
+            "p95": 277.8448075077904,
+            "p99": 284.5204945094884,
+            "max": 325.46935000573285
+          },
+          "cursor_lead_ms": {
+            "count": 542,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 542,
+            "p50": 12.250350002432242,
+            "p95": 15.314054997725178,
+            "p99": 25.613894997222825,
+            "max": 70.14909999270458
+          },
+          "request_age_at_draw_ms": {
+            "count": 542,
+            "p50": 12.788200001523364,
+            "p95": 16.111014994385183,
+            "p99": 26.12620900239563,
+            "max": 79.68480000272393
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.46490000386256725,
+          "first_new_timebase_draw_ms": {
+            "EEG": 51.075900002615526,
+            "EDA": 47.730000005685724,
+            "PPG": 49.53469999600202
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.515899999300018,
+          "first_new_timebase_draw_ms": {
+            "EEG": 58.19350000820123,
+            "EDA": 28.554800010169856,
+            "PPG": 30.431000006501563
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.4216999950585887,
+          "first_new_timebase_draw_ms": {
+            "EEG": 62.1026000007987,
+            "EDA": 58.82769999152515,
+            "PPG": 60.532399991643615
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.38910000876057893,
+          "first_new_timebase_draw_ms": {
+            "EEG": 83.36859999690205,
+            "EDA": 80.05260000936687,
+            "PPG": 81.82829999714158
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 794,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1358.0
+        },
+        "ingress_gui": {
+          "count": 794,
+          "p50": 0.007,
+          "p95": 1.6734499999999994,
+          "p99": 1.8692799999999998,
+          "max": 2.39
+        },
+        "raw_warmup_EDA": {
+          "count": 2,
+          "p50": 20.091,
+          "p95": 22.2321,
+          "p99": 22.42242,
+          "max": 22.47
+        },
+        "gui_timer_total": {
+          "count": 794,
+          "p50": 1.7734999999999999,
+          "p95": 3.472149999999999,
+          "p99": 17.344609999999992,
+          "max": 24.689
+        },
+        "raw_prepare_EDA": {
+          "count": 676,
+          "p50": 0.149,
+          "p95": 0.345,
+          "p99": 0.5914999999999999,
+          "max": 8.378
+        },
+        "raw_queue_age_EDA": {
+          "count": 676,
+          "p50": 0.308,
+          "p95": 0.614,
+          "p99": 4.442500000000001,
+          "max": 5.949
+        },
+        "raw_backend_EDA": {
+          "count": 676,
+          "p50": 0.361,
+          "p95": 0.521,
+          "p99": 1.0354999999999999,
+          "max": 13.959
+        },
+        "raw_prepare_PPG": {
+          "count": 676,
+          "p50": 0.153,
+          "p95": 0.3745,
+          "p99": 3.93375,
+          "max": 10.393
+        },
+        "raw_queue_age_PPG": {
+          "count": 676,
+          "p50": 0.312,
+          "p95": 0.6045,
+          "p99": 2.8287500000000003,
+          "max": 8.014
+        },
+        "raw_backend_PPG": {
+          "count": 676,
+          "p50": 0.378,
+          "p95": 0.56025,
+          "p99": 0.97525,
+          "max": 20.095
+        },
+        "raw_prepare_EEG": {
+          "count": 675,
+          "p50": 0.18,
+          "p95": 0.4053,
+          "p99": 1.5038599999999778,
+          "max": 16.908
+        },
+        "raw_queue_age_EEG": {
+          "count": 675,
+          "p50": 0.275,
+          "p95": 0.5922999999999999,
+          "p99": 4.30864,
+          "max": 5.827
+        },
+        "raw_backend_EEG": {
+          "count": 675,
+          "p50": 2.423,
+          "p95": 3.347999999999996,
+          "p99": 13.092999999999993,
+          "max": 151.538
+        },
+        "raw_warmup_PPG": {
+          "count": 1,
+          "p50": 14.489,
+          "p95": 14.489,
+          "p99": 14.489,
+          "max": 14.489
+        },
+        "raw_warmup_EEG": {
+          "count": 8,
+          "p50": 16.128,
+          "p95": 19.835399999999996,
+          "p99": 20.987879999999997,
+          "max": 21.276
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_stale_EEG": 1,
+        "raw_ready_EDA": 676,
+        "raw_ready_PPG": 676,
+        "raw_ready_EEG": 675
+      },
+      "ring_cpu_bytes": {
+        "EEG": 3276800,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-8-ppg",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 8,
+      "reducer": "ppg",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5864,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 541,
+          "draw_interval_ms": {
+            "count": 540,
+            "p50": 33.03885000059381,
+            "p95": 37.473960006173,
+            "p99": 48.929963008122286,
+            "max": 136.19850001123268
+          },
+          "data_advancing_draws": 540,
+          "data_advance_interval_ms": {
+            "count": 539,
+            "p50": 33.031500002834946,
+            "p95": 37.47652000602102,
+            "p99": 48.931746008165646,
+            "max": 136.19850001123268
+          },
+          "drawn_sample_age_ms": {
+            "count": 541,
+            "p50": 260.61169999593403,
+            "p95": 273.6548999964725,
+            "p99": 279.85978000506293,
+            "max": 291.2946500000544
+          },
+          "cursor_lead_ms": {
+            "count": 541,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 541,
+            "p50": 11.220200001844205,
+            "p95": 13.451100006932393,
+            "p99": 23.21605999895837,
+            "max": 31.317700006184168
+          },
+          "request_age_at_draw_ms": {
+            "count": 541,
+            "p50": 11.685899997246452,
+            "p95": 13.944399994215928,
+            "p99": 25.2314999990631,
+            "max": 43.56629999529105
+          }
+        },
+        "EDA": {
+          "draws": 540,
+          "draw_interval_ms": {
+            "count": 539,
+            "p50": 33.10869999404531,
+            "p95": 39.00108000088945,
+            "p99": 52.545025993313175,
+            "max": 136.32969999162015
+          },
+          "data_advancing_draws": 522,
+          "data_advance_interval_ms": {
+            "count": 521,
+            "p50": 33.25300000142306,
+            "p95": 45.39389999990817,
+            "p99": 69.35600000142585,
+            "max": 136.32969999162015
+          },
+          "drawn_sample_age_ms": {
+            "count": 540,
+            "p50": 316.7408500012243,
+            "p95": 343.2699799974216,
+            "p99": 348.06658399204025,
+            "max": 361.5321999968728
+          },
+          "cursor_lead_ms": {
+            "count": 540,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 540,
+            "p50": 11.639499993179925,
+            "p95": 14.59765500476351,
+            "p99": 23.008910997014038,
+            "max": 34.350300004007295
+          },
+          "request_age_at_draw_ms": {
+            "count": 540,
+            "p50": 12.11094999598572,
+            "p95": 15.222460001677973,
+            "p99": 25.21519500558498,
+            "max": 36.09229999710806
+          }
+        },
+        "PPG": {
+          "draws": 541,
+          "draw_interval_ms": {
+            "count": 540,
+            "p50": 32.93310000299243,
+            "p95": 38.69703498858142,
+            "p99": 51.76986600126847,
+            "max": 135.72489999933168
+          },
+          "data_advancing_draws": 540,
+          "data_advance_interval_ms": {
+            "count": 539,
+            "p50": 32.94150000147056,
+            "p95": 38.70966998947551,
+            "p99": 51.83297200128439,
+            "max": 135.72489999933168
+          },
+          "drawn_sample_age_ms": {
+            "count": 541,
+            "p50": 288.1306999915978,
+            "p95": 303.97024999547284,
+            "p99": 316.1098000069615,
+            "max": 324.0817000041716
+          },
+          "cursor_lead_ms": {
+            "count": 541,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 541,
+            "p50": 11.619299999438226,
+            "p95": 14.930599994841032,
+            "p99": 23.318239997024673,
+            "max": 38.99770000134595
+          },
+          "request_age_at_draw_ms": {
+            "count": 541,
+            "p50": 12.181500002043322,
+            "p95": 15.577400001347996,
+            "p99": 24.857659995905124,
+            "max": 40.152200002921745
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.4938999918522313,
+          "first_new_timebase_draw_ms": {
+            "EEG": 38.642400002572685,
+            "EDA": 35.558299990952946,
+            "PPG": 37.10849999333732
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.4920999926980585,
+          "first_new_timebase_draw_ms": {
+            "EEG": 45.874899995396845,
+            "EDA": 18.286199992871843,
+            "PPG": 19.738400005735457
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.3932000108761713,
+          "first_new_timebase_draw_ms": {
+            "EEG": 53.11690000235103,
+            "EDA": 50.199800010886975,
+            "PPG": 51.70660000294447
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.40049999370239675,
+          "first_new_timebase_draw_ms": {
+            "EEG": 52.92630000622012,
+            "EDA": 49.84310000145342,
+            "PPG": 51.43049999605864
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 800,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1342.0
+        },
+        "ingress_gui": {
+          "count": 800,
+          "p50": 0.006,
+          "p95": 1.6260499999999998,
+          "p99": 1.7831399999999997,
+          "max": 2.185
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 19.3815,
+          "p95": 21.92895,
+          "p99": 22.15539,
+          "max": 22.212
+        },
+        "gui_timer_total": {
+          "count": 800,
+          "p50": 1.8655,
+          "p95": 3.4713,
+          "p99": 15.783179999999996,
+          "max": 24.364
+        },
+        "raw_prepare_EDA": {
+          "count": 677,
+          "p50": 0.144,
+          "p95": 0.33219999999999994,
+          "p99": 0.6005200000000002,
+          "max": 4.844
+        },
+        "raw_queue_age_EDA": {
+          "count": 677,
+          "p50": 0.307,
+          "p95": 0.5343999999999999,
+          "p99": 1.9513200000000008,
+          "max": 5.788
+        },
+        "raw_backend_EDA": {
+          "count": 677,
+          "p50": 0.365,
+          "p95": 0.5035999999999998,
+          "p99": 0.7340800000000006,
+          "max": 20.722
+        },
+        "raw_warmup_EDA": {
+          "count": 1,
+          "p50": 12.111,
+          "p95": 12.111,
+          "p99": 12.111,
+          "max": 12.111
+        },
+        "raw_prepare_PPG": {
+          "count": 676,
+          "p50": 0.145,
+          "p95": 0.346,
+          "p99": 1.2115,
+          "max": 9.143
+        },
+        "raw_queue_age_PPG": {
+          "count": 676,
+          "p50": 0.3005,
+          "p95": 0.5305,
+          "p99": 2.715,
+          "max": 5.41
+        },
+        "raw_backend_PPG": {
+          "count": 676,
+          "p50": 0.3885,
+          "p95": 0.542,
+          "p99": 1.15625,
+          "max": 11.507
+        },
+        "raw_prepare_EEG": {
+          "count": 676,
+          "p50": 0.175,
+          "p95": 0.338,
+          "p99": 1.14675,
+          "max": 14.233
+        },
+        "raw_queue_age_EEG": {
+          "count": 676,
+          "p50": 0.2665,
+          "p95": 0.513,
+          "p99": 2.21925,
+          "max": 4.988
+        },
+        "raw_backend_EEG": {
+          "count": 676,
+          "p50": 2.3804999999999996,
+          "p95": 3.30975,
+          "p99": 8.450750000000001,
+          "max": 148.992
+        },
+        "raw_warmup_EEG": {
+          "count": 8,
+          "p50": 15.0145,
+          "p95": 16.0225,
+          "p99": 16.0253,
+          "max": 16.026
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 2,
+        "raw_stale_PPG": 2,
+        "raw_stale_EEG": 2,
+        "raw_ready_EDA": 677,
+        "raw_ready_PPG": 676,
+        "raw_ready_EEG": 676
+      },
+      "ring_cpu_bytes": {
+        "EEG": 3276800,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-no-eeg-both",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 0,
+      "reducer": "both",
+      "eeg_active": false,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 0,
+      "errors": [],
+      "streams": {
+        "EDA": {
+          "draws": 544,
+          "draw_interval_ms": {
+            "count": 543,
+            "p50": 32.89519999816548,
+            "p95": 36.05488000321202,
+            "p99": 39.478675998980194,
+            "max": 146.8007000075886
+          },
+          "data_advancing_draws": 528,
+          "data_advance_interval_ms": {
+            "count": 527,
+            "p50": 33.03259999665897,
+            "p95": 36.48821999959182,
+            "p99": 66.50482999626547,
+            "max": 146.8007000075886
+          },
+          "drawn_sample_age_ms": {
+            "count": 544,
+            "p50": 401.7290999836405,
+            "p95": 427.3412599861331,
+            "p99": 434.9184100040293,
+            "max": 516.3582999957725
+          },
+          "cursor_lead_ms": {
+            "count": 544,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.608250001387205,
+            "p95": 6.585614995128709,
+            "p99": 9.809362004743889,
+            "max": 122.0612000033725
+          },
+          "request_age_at_draw_ms": {
+            "count": 544,
+            "p50": 6.0071000043535605,
+            "p95": 6.972655007848516,
+            "p99": 10.242187999538148,
+            "max": 122.3961999930907
+          }
+        },
+        "PPG": {
+          "draws": 544,
+          "draw_interval_ms": {
+            "count": 543,
+            "p50": 32.76220000407193,
+            "p95": 36.52938000159338,
+            "p99": 41.104186001175556,
+            "max": 127.71809998957906
+          },
+          "data_advancing_draws": 543,
+          "data_advance_interval_ms": {
+            "count": 542,
+            "p50": 32.76529999857303,
+            "p95": 36.531840001407545,
+            "p99": 41.10605300127646,
+            "max": 127.71809998957906
+          },
+          "drawn_sample_age_ms": {
+            "count": 544,
+            "p50": 282.42244998546084,
+            "p95": 296.9366999925114,
+            "p99": 314.4490520034742,
+            "max": 321.3240000040969
+          },
+          "cursor_lead_ms": {
+            "count": 544,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.505700006324332,
+            "p95": 6.724520001444035,
+            "p99": 10.90354900035891,
+            "max": 14.598800000385381
+          },
+          "request_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.863200000021607,
+            "p95": 7.073589993524365,
+            "p99": 12.137707004294503,
+            "max": 22.599499992793426
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.3797000099439174,
+          "first_new_timebase_draw_ms": {
+            "EDA": 28.74220001103822,
+            "PPG": 30.79750000324566
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.4017000028397888,
+          "first_new_timebase_draw_ms": {
+            "EDA": 33.52230000018608,
+            "PPG": 35.28290000394918
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.3766000008909032,
+          "first_new_timebase_draw_ms": {
+            "EDA": 15.994000001228414,
+            "PPG": 17.61379999516066
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.42640000174287707,
+          "first_new_timebase_draw_ms": {
+            "EDA": 27.009700002963655,
+            "PPG": 30.23449999454897
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 800,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1295.0
+        },
+        "ingress_gui": {
+          "count": 800,
+          "p50": 0.005,
+          "p95": 0.14604999999999996,
+          "p99": 0.1810999999999999,
+          "max": 0.284
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 19.8305,
+          "p95": 22.326649999999997,
+          "p99": 22.54853,
+          "max": 22.604
+        },
+        "gui_timer_total": {
+          "count": 800,
+          "p50": 0.1835,
+          "p95": 0.4110499999999999,
+          "p99": 0.5401799999999999,
+          "max": 24.243
+        },
+        "raw_prepare_EDA": {
+          "count": 680,
+          "p50": 0.127,
+          "p95": 0.16604999999999998,
+          "p99": 0.3692600000000002,
+          "max": 7.331
+        },
+        "raw_queue_age_EDA": {
+          "count": 680,
+          "p50": 0.232,
+          "p95": 0.30704999999999993,
+          "p99": 0.4298300000000008,
+          "max": 4.297
+        },
+        "raw_backend_EDA": {
+          "count": 680,
+          "p50": 0.353,
+          "p95": 0.439,
+          "p99": 0.9382100000000038,
+          "max": 161.747
+        },
+        "raw_prepare_PPG": {
+          "count": 680,
+          "p50": 0.125,
+          "p95": 0.165,
+          "p99": 0.3699700000000021,
+          "max": 8.102
+        },
+        "raw_queue_age_PPG": {
+          "count": 680,
+          "p50": 0.069,
+          "p95": 0.298,
+          "p99": 0.4918900000000003,
+          "max": 6.848
+        },
+        "raw_backend_PPG": {
+          "count": 680,
+          "p50": 0.385,
+          "p95": 0.49204999999999993,
+          "p99": 1.081300000000001,
+          "max": 12.758
+        },
+        "raw_warmup_EDA": {
+          "count": 1,
+          "p50": 12.002,
+          "p95": 12.002,
+          "p99": 12.002,
+          "max": 12.002
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_ready_EDA": 680,
+        "raw_ready_PPG": 680
+      },
+      "ring_cpu_bytes": {
+        "EEG": 0,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-no-eeg-eda",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 0,
+      "reducer": "eda",
+      "eeg_active": false,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 0,
+      "errors": [],
+      "streams": {
+        "EDA": {
+          "draws": 544,
+          "draw_interval_ms": {
+            "count": 543,
+            "p50": 33.02149999944959,
+            "p95": 35.72486998891691,
+            "p99": 39.63363999879221,
+            "max": 78.53410000097938
+          },
+          "data_advancing_draws": 527,
+          "data_advance_interval_ms": {
+            "count": 526,
+            "p50": 33.15850000217324,
+            "p95": 37.30672499295906,
+            "p99": 67.28989999828627,
+            "max": 78.53410000097938
+          },
+          "drawn_sample_age_ms": {
+            "count": 544,
+            "p50": 406.5677000035066,
+            "p95": 428.3034175001376,
+            "p99": 433.0708594947646,
+            "max": 445.0033000030089
+          },
+          "cursor_lead_ms": {
+            "count": 544,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.6059499984257855,
+            "p95": 6.575560004421278,
+            "p99": 10.278022998390956,
+            "max": 13.925100007327273
+          },
+          "request_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.990599995129742,
+            "p95": 7.0099550030136015,
+            "p99": 11.0886990062136,
+            "max": 18.47109998925589
+          }
+        },
+        "PPG": {
+          "draws": 544,
+          "draw_interval_ms": {
+            "count": 543,
+            "p50": 33.02879999682773,
+            "p95": 35.892949998378754,
+            "p99": 38.12371800129771,
+            "max": 78.83810000203084
+          },
+          "data_advancing_draws": 543,
+          "data_advance_interval_ms": {
+            "count": 542,
+            "p50": 33.03839999716729,
+            "p95": 35.89427499828162,
+            "p99": 38.13223900127926,
+            "max": 78.83810000203084
+          },
+          "drawn_sample_age_ms": {
+            "count": 544,
+            "p50": 257.415324995236,
+            "p95": 269.9808149962337,
+            "p99": 276.33386900619377,
+            "max": 278.80940001341514
+          },
+          "cursor_lead_ms": {
+            "count": 544,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.608749997918494,
+            "p95": 6.860225001582877,
+            "p99": 9.930917006568059,
+            "max": 13.54189999983646
+          },
+          "request_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.993199993099552,
+            "p95": 7.427250001637732,
+            "p99": 11.194882005511388,
+            "max": 19.96109999890905
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.39339999784715474,
+          "first_new_timebase_draw_ms": {
+            "EDA": 15.016399993328378,
+            "PPG": 16.596500005107373
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.39039998955558985,
+          "first_new_timebase_draw_ms": {
+            "EDA": 49.3170999980066,
+            "PPG": 50.892899991595186
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.4358000005595386,
+          "first_new_timebase_draw_ms": {
+            "EDA": 29.154599993489683,
+            "PPG": 30.72049999900628
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.37480000173673034,
+          "first_new_timebase_draw_ms": {
+            "EDA": 37.790400005178526,
+            "PPG": 39.28130000713281
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 804,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1280.0
+        },
+        "ingress_gui": {
+          "count": 804,
+          "p50": 0.006,
+          "p95": 0.145,
+          "p99": 0.19985000000000014,
+          "max": 0.273
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 18.5835,
+          "p95": 21.934649999999998,
+          "p99": 22.232529999999997,
+          "max": 22.307
+        },
+        "gui_timer_total": {
+          "count": 804,
+          "p50": 0.18,
+          "p95": 0.3908499999999999,
+          "p99": 0.5109400000000001,
+          "max": 33.514
+        },
+        "raw_prepare_EDA": {
+          "count": 679,
+          "p50": 0.128,
+          "p95": 0.16920000000000004,
+          "p99": 0.391,
+          "max": 6.601
+        },
+        "raw_queue_age_EDA": {
+          "count": 679,
+          "p50": 0.219,
+          "p95": 0.31620000000000004,
+          "p99": 0.5397800000000068,
+          "max": 4.229
+        },
+        "raw_backend_EDA": {
+          "count": 679,
+          "p50": 0.368,
+          "p95": 0.49910000000000004,
+          "p99": 0.9889200000000009,
+          "max": 175.496
+        },
+        "raw_warmup_EDA": {
+          "count": 1,
+          "p50": 12.782,
+          "p95": 12.782,
+          "p99": 12.782,
+          "max": 12.782
+        },
+        "raw_prepare_PPG": {
+          "count": 679,
+          "p50": 0.127,
+          "p95": 0.17720000000000002,
+          "p99": 0.6714000000000183,
+          "max": 8.501
+        },
+        "raw_queue_age_PPG": {
+          "count": 679,
+          "p50": 0.088,
+          "p95": 0.33410000000000006,
+          "p99": 0.6606000000000009,
+          "max": 6.095
+        },
+        "raw_backend_PPG": {
+          "count": 679,
+          "p50": 0.387,
+          "p95": 0.5161,
+          "p99": 1.0261800000000005,
+          "max": 11.672
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 2,
+        "raw_stale_PPG": 2,
+        "raw_ready_EDA": 679,
+        "raw_ready_PPG": 679
+      },
+      "ring_cpu_bytes": {
+        "EEG": 0,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-no-eeg-off",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 0,
+      "reducer": "off",
+      "eeg_active": false,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 0,
+      "errors": [],
+      "streams": {
+        "EDA": {
+          "draws": 544,
+          "draw_interval_ms": {
+            "count": 543,
+            "p50": 32.98390000418294,
+            "p95": 35.778489998483565,
+            "p99": 37.51906800083818,
+            "max": 125.8702000050107
+          },
+          "data_advancing_draws": 529,
+          "data_advance_interval_ms": {
+            "count": 528,
+            "p50": 33.04940000089118,
+            "p95": 36.38943499681773,
+            "p99": 66.45061500748854,
+            "max": 125.8702000050107
+          },
+          "drawn_sample_age_ms": {
+            "count": 544,
+            "p50": 310.9633000130998,
+            "p95": 333.86190999808605,
+            "p99": 346.9285309917177,
+            "max": 349.1546500008553
+          },
+          "cursor_lead_ms": {
+            "count": 544,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.584999998973217,
+            "p95": 6.422355000540847,
+            "p99": 8.605351004371206,
+            "max": 22.80609999434091
+          },
+          "request_age_at_draw_ms": {
+            "count": 544,
+            "p50": 6.025949995091651,
+            "p95": 6.8778600099904,
+            "p99": 9.969493001699515,
+            "max": 28.600499994354323
+          }
+        },
+        "PPG": {
+          "draws": 544,
+          "draw_interval_ms": {
+            "count": 543,
+            "p50": 33.05800000089221,
+            "p95": 35.64072000590386,
+            "p99": 38.581032005895395,
+            "max": 126.27390000852756
+          },
+          "data_advancing_draws": 543,
+          "data_advance_interval_ms": {
+            "count": 542,
+            "p50": 33.04940000089118,
+            "p95": 35.64156000575167,
+            "p99": 38.58153600580408,
+            "max": 126.27390000852756
+          },
+          "drawn_sample_age_ms": {
+            "count": 544,
+            "p50": 256.7427750036586,
+            "p95": 271.95803252325277,
+            "p99": 291.97608200905967,
+            "max": 299.1309000062756
+          },
+          "cursor_lead_ms": {
+            "count": 544,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.470350006362423,
+            "p95": 6.505464995279909,
+            "p99": 8.620254002744337,
+            "max": 17.523699993034825
+          },
+          "request_age_at_draw_ms": {
+            "count": 544,
+            "p50": 5.8759000021382235,
+            "p95": 6.954009996843524,
+            "p99": 9.28321099563619,
+            "max": 30.557499994756654
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.4760000010719523,
+          "first_new_timebase_draw_ms": {
+            "EDA": 15.257699997164309,
+            "PPG": 16.798800003016368
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.41510000301059335,
+          "first_new_timebase_draw_ms": {
+            "EDA": 51.550000003771856,
+            "PPG": 53.52169999969192
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.4295999970054254,
+          "first_new_timebase_draw_ms": {
+            "EDA": 25.39029999752529,
+            "PPG": 26.768600000650622
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.4301000008126721,
+          "first_new_timebase_draw_ms": {
+            "EDA": 22.882200006279163,
+            "PPG": 24.332000000867993
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 804,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1280.0
+        },
+        "ingress_gui": {
+          "count": 804,
+          "p50": 0.006,
+          "p95": 0.1558499999999999,
+          "p99": 0.22340000000000054,
+          "max": 0.263
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 19.628999999999998,
+          "p95": 23.480999999999998,
+          "p99": 23.8234,
+          "max": 23.909
+        },
+        "gui_timer_total": {
+          "count": 804,
+          "p50": 0.199,
+          "p95": 0.3486999999999998,
+          "p99": 0.4328800000000001,
+          "max": 25.415
+        },
+        "raw_prepare_EDA": {
+          "count": 681,
+          "p50": 0.144,
+          "p95": 0.186,
+          "p99": 0.37520000000000026,
+          "max": 5.724
+        },
+        "raw_queue_age_EDA": {
+          "count": 681,
+          "p50": 0.109,
+          "p95": 0.321,
+          "p99": 0.39980000000000177,
+          "max": 4.12
+        },
+        "raw_backend_EDA": {
+          "count": 681,
+          "p50": 0.438,
+          "p95": 0.489,
+          "p99": 0.7116000000000023,
+          "max": 171.135
+        },
+        "raw_warmup_EDA": {
+          "count": 1,
+          "p50": 12.289,
+          "p95": 12.289,
+          "p99": 12.289,
+          "max": 12.289
+        },
+        "raw_prepare_PPG": {
+          "count": 680,
+          "p50": 0.145,
+          "p95": 0.19204999999999997,
+          "p99": 0.4772600000000039,
+          "max": 12.85
+        },
+        "raw_queue_age_PPG": {
+          "count": 680,
+          "p50": 0.097,
+          "p95": 0.31704999999999994,
+          "p99": 0.39573000000000047,
+          "max": 1.912
+        },
+        "raw_backend_PPG": {
+          "count": 680,
+          "p50": 0.4635,
+          "p95": 0.53105,
+          "p99": 0.947920000000002,
+          "max": 11.702
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_ready_EDA": 681,
+        "raw_ready_PPG": 680
+      },
+      "ring_cpu_bytes": {
+        "EEG": 0,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    {
+      "label": "refactor-no-eeg-ppg",
+      "repo": "19a909ae91c071c8e9a776331f4b62966835b9df",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 8,
+      "channels_displayed": 0,
+      "reducer": "ppg",
+      "eeg_active": false,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 0,
+      "errors": [],
+      "streams": {
+        "EDA": {
+          "draws": 546,
+          "draw_interval_ms": {
+            "count": 545,
+            "p50": 33.033900006557815,
+            "p95": 36.09335999644827,
+            "p99": 39.29088399512693,
+            "max": 47.650599997723475
+          },
+          "data_advancing_draws": 528,
+          "data_advance_interval_ms": {
+            "count": 527,
+            "p50": 33.11450000910554,
+            "p95": 37.48951000452507,
+            "p99": 65.34588999842526,
+            "max": 67.4876000121003
+          },
+          "drawn_sample_age_ms": {
+            "count": 546,
+            "p50": 306.57525000424357,
+            "p95": 332.5019874937425,
+            "p99": 339.74839499787777,
+            "max": 355.24819999409374
+          },
+          "cursor_lead_ms": {
+            "count": 546,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 546,
+            "p50": 5.263000006380025,
+            "p95": 6.84727499174187,
+            "p99": 10.452874999464257,
+            "max": 14.271699998062104
+          },
+          "request_age_at_draw_ms": {
+            "count": 546,
+            "p50": 5.517900004633702,
+            "p95": 7.326499999180669,
+            "p99": 11.70952499742269,
+            "max": 19.06030000827741
+          }
+        },
+        "PPG": {
+          "draws": 546,
+          "draw_interval_ms": {
+            "count": 545,
+            "p50": 32.965099991997704,
+            "p95": 36.08942000428215,
+            "p99": 39.5498519972898,
+            "max": 60.975399988819845
+          },
+          "data_advancing_draws": 545,
+          "data_advance_interval_ms": {
+            "count": 544,
+            "p50": 32.96414999931585,
+            "p95": 36.0894650046248,
+            "p99": 39.55119399732212,
+            "max": 60.975399988819845
+          },
+          "drawn_sample_age_ms": {
+            "count": 546,
+            "p50": 280.3260750006302,
+            "p95": 294.00326250470243,
+            "p99": 298.5186575075204,
+            "max": 305.52095000166446
+          },
+          "cursor_lead_ms": {
+            "count": 546,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 546,
+            "p50": 5.699199995433446,
+            "p95": 6.939050002984004,
+            "p99": 10.720429998036677,
+            "max": 24.860899997293018
+          },
+          "request_age_at_draw_ms": {
+            "count": 546,
+            "p50": 6.096600001910701,
+            "p95": 7.448049989761785,
+            "p99": 11.621010005183045,
+            "max": 33.80049999395851
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.40529998659621924,
+          "first_new_timebase_draw_ms": {
+            "EDA": 25.379699989571236,
+            "PPG": 26.975999993737787
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.3819999983534217,
+          "first_new_timebase_draw_ms": {
+            "EDA": 26.77179999591317,
+            "PPG": 28.287599998293445
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.374399998690933,
+          "first_new_timebase_draw_ms": {
+            "EDA": 19.3713999906322,
+            "PPG": 38.9695999911055
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.37199999496806413,
+          "first_new_timebase_draw_ms": {
+            "EDA": 19.833500002278015,
+            "PPG": 23.718600001302548
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 804,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 14.0,
+          "max": 1280.0
+        },
+        "ingress_gui": {
+          "count": 804,
+          "p50": 0.006,
+          "p95": 0.1488499999999999,
+          "p99": 0.1978800000000001,
+          "max": 0.251
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 19.890500000000003,
+          "p95": 22.55405,
+          "p99": 22.79081,
+          "max": 22.85
+        },
+        "gui_timer_total": {
+          "count": 804,
+          "p50": 0.186,
+          "p95": 0.406,
+          "p99": 0.5676100000000003,
+          "max": 24.355
+        },
+        "raw_prepare_EDA": {
+          "count": 681,
+          "p50": 0.124,
+          "p95": 0.179,
+          "p99": 0.3562,
+          "max": 8.49
+        },
+        "raw_queue_age_EDA": {
+          "count": 681,
+          "p50": 0.084,
+          "p95": 0.317,
+          "p99": 0.636200000000003,
+          "max": 6.365
+        },
+        "raw_backend_EDA": {
+          "count": 681,
+          "p50": 0.373,
+          "p95": 0.516,
+          "p99": 1.144000000000004,
+          "max": 172.408
+        },
+        "raw_prepare_PPG": {
+          "count": 681,
+          "p50": 0.127,
+          "p95": 0.183,
+          "p99": 0.7390000000000045,
+          "max": 8.636
+        },
+        "raw_queue_age_PPG": {
+          "count": 681,
+          "p50": 0.231,
+          "p95": 0.348,
+          "p99": 0.44520000000000004,
+          "max": 6.427
+        },
+        "raw_backend_PPG": {
+          "count": 681,
+          "p50": 0.391,
+          "p95": 0.513,
+          "p99": 1.0004000000000024,
+          "max": 12.296
+        },
+        "raw_warmup_EDA": {
+          "count": 1,
+          "p50": 11.947,
+          "p95": 11.947,
+          "p99": 11.947,
+          "max": 11.947
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_ready_EDA": 681,
+        "raw_ready_PPG": 681
+      },
+      "ring_cpu_bytes": {
+        "EEG": 0,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    }
+  ],
+  "replay_upload_investigation_before": {
+    "baseline": {
+      "label": "baseline-32-off",
+      "repo": "bcd8d35",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 32,
+      "channels_displayed": 32,
+      "reducer": "off",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5850,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 529,
+          "draw_interval_ms": {
+            "count": 528,
+            "p50": 32.17605000099866,
+            "p95": 42.654634999053066,
+            "p99": 73.36718399630627,
+            "max": 85.88130000862293
+          },
+          "data_advancing_draws": 525,
+          "data_advance_interval_ms": {
+            "count": 524,
+            "p50": 32.17854999820702,
+            "p95": 43.64101500032118,
+            "p99": 73.37801599613158,
+            "max": 85.88130000862293
+          },
+          "drawn_sample_age_ms": {
+            "count": 529,
+            "p50": 276.00204999907874,
+            "p95": 295.582099998137,
+            "p99": 309.49707800115,
+            "max": 342.95264999673236
+          },
+          "cursor_lead_ms": {
+            "count": 529,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "EDA": {
+          "draws": 529,
+          "draw_interval_ms": {
+            "count": 528,
+            "p50": 32.20120000332827,
+            "p95": 41.25401500423322,
+            "p99": 74.75097399379595,
+            "max": 85.24380000017118
+          },
+          "data_advancing_draws": 509,
+          "data_advance_interval_ms": {
+            "count": 508,
+            "p50": 32.301200000802055,
+            "p95": 58.44649000355275,
+            "p99": 75.53164899189142,
+            "max": 94.11379999073688
+          },
+          "drawn_sample_age_ms": {
+            "count": 529,
+            "p50": 334.0295499947388,
+            "p95": 365.0191999913659,
+            "p99": 374.41725800337736,
+            "max": 377.9365500085987
+          },
+          "cursor_lead_ms": {
+            "count": 529,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        },
+        "PPG": {
+          "draws": 529,
+          "draw_interval_ms": {
+            "count": 528,
+            "p50": 32.19444999558618,
+            "p95": 40.792280001915046,
+            "p99": 75.16803899852678,
+            "max": 85.67539999785367
+          },
+          "data_advancing_draws": 526,
+          "data_advance_interval_ms": {
+            "count": 525,
+            "p50": 32.197399996221066,
+            "p95": 41.76793999795334,
+            "p99": 75.2236679982161,
+            "max": 85.67539999785367
+          },
+          "drawn_sample_age_ms": {
+            "count": 529,
+            "p50": 279.5410999970045,
+            "p95": 301.9854400015902,
+            "p99": 322.49767200148204,
+            "max": 345.310700009577
+          },
+          "cursor_lead_ms": {
+            "count": 529,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          },
+          "request_age_at_draw_ms": {
+            "count": 0,
+            "max": null
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.381799996830523,
+          "first_new_timebase_draw_ms": {
+            "EEG": 80.76720000826754,
+            "EDA": 77.01079999969807,
+            "PPG": 79.15420000790618
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.38500000664498657,
+          "first_new_timebase_draw_ms": {
+            "EEG": 90.40820000518579,
+            "EDA": 87.01089999522083,
+            "PPG": 88.85770000051707
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.375300005543977,
+          "first_new_timebase_draw_ms": {
+            "EEG": 59.890300006372854,
+            "EDA": 56.62099999608472,
+            "PPG": 58.26730000262614
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.41360000614076853,
+          "first_new_timebase_draw_ms": {
+            "EEG": 72.95110000995919,
+            "EDA": 69.44690000091214,
+            "PPG": 71.3848000013968
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 790,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 30.0,
+          "max": 1373.0
+        },
+        "ingress_gui": {
+          "count": 790,
+          "p50": 0.006,
+          "p95": 1.6448499999999997,
+          "p99": 1.73754,
+          "max": 2.34
+        },
+        "raw_gpu_warmup_PPG": {
+          "count": 1,
+          "p50": 16.144,
+          "p95": 16.144,
+          "p99": 16.144,
+          "max": 16.144
+        },
+        "gui_timer_total": {
+          "count": 790,
+          "p50": 1.713,
+          "p95": 3.3518499999999998,
+          "p99": 3.59543,
+          "max": 16.682
+        },
+        "raw_prepare": {
+          "count": 663,
+          "p50": 0.224,
+          "p95": 0.5064999999999996,
+          "p99": 1.7277799999999988,
+          "max": 131.6
+        },
+        "raw_worker_roundtrip": {
+          "count": 663,
+          "p50": 3.496,
+          "p95": 13.8196,
+          "p99": 22.262099999999997,
+          "max": 138.251
+        },
+        "raw_gpu_warmup_EDA": {
+          "count": 1,
+          "p50": 11.553,
+          "p95": 11.553,
+          "p99": 11.553,
+          "max": 11.553
+        },
+        "raw_gpu_frame_EEG": {
+          "count": 662,
+          "p50": 9.25,
+          "p95": 12.82335,
+          "p99": 25.57834999999999,
+          "max": 235.735
+        },
+        "raw_tab_to_first_frame": {
+          "count": 1,
+          "p50": 1666.129,
+          "p95": 1666.129,
+          "p99": 1666.129,
+          "max": 1666.129
+        },
+        "raw_gpu_frame_EDA": {
+          "count": 662,
+          "p50": 0.358,
+          "p95": 0.4288499999999998,
+          "p99": 0.7448099999999989,
+          "max": 11.967
+        },
+        "raw_gpu_frame_PPG": {
+          "count": 662,
+          "p50": 0.356,
+          "p95": 0.4805999999999994,
+          "p99": 1.0178999999999998,
+          "max": 15.093
+        },
+        "raw_qt_paint": {
+          "count": 662,
+          "p50": 10.14,
+          "p95": 13.884849999999997,
+          "p99": 32.59931999999983,
+          "max": 236.829
+        }
+      },
+      "outcomes": {},
+      "ring_cpu_bytes": {
+        "EEG": 2457600,
+        "PPG": 76800,
+        "EDA": 38400
+      }
+    },
+    "refactor": {
+      "label": "refactor-32-off",
+      "repo": "8870b5c",
+      "platform": "Windows-11-10.0.22631-SP0",
+      "processor": "AMD64 Family 25 Model 8 Stepping 2, AuthenticAMD",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "channels_requested": 32,
+      "channels_displayed": 32,
+      "reducer": "off",
+      "eeg_active": true,
+      "seconds": 23.0,
+      "independent_producer": true,
+      "presentation_buffer_seconds": 0.25,
+      "ASR_processed_samples": 5867,
+      "errors": [],
+      "streams": {
+        "EEG": {
+          "draws": 488,
+          "draw_interval_ms": {
+            "count": 487,
+            "p50": 32.721900002798066,
+            "p95": 44.274640001822256,
+            "p99": 148.17315199528784,
+            "max": 420.2908000006573
+          },
+          "data_advancing_draws": 487,
+          "data_advance_interval_ms": {
+            "count": 486,
+            "p50": 32.723650001571514,
+            "p95": 44.292400001722854,
+            "p99": 148.43976999545643,
+            "max": 420.2908000006573
+          },
+          "drawn_sample_age_ms": {
+            "count": 488,
+            "p50": 276.44357500685146,
+            "p95": 428.4461175113392,
+            "p99": 625.9987360185187,
+            "max": 676.6627000179142
+          },
+          "cursor_lead_ms": {
+            "count": 488,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 488,
+            "p50": 19.769099992117845,
+            "p95": 32.62935499660671,
+            "p99": 50.610930002294396,
+            "max": 383.65459999477025
+          },
+          "request_age_at_draw_ms": {
+            "count": 488,
+            "p50": 20.498799996857997,
+            "p95": 33.85323499751394,
+            "p99": 51.68940700736121,
+            "max": 407.01979999721516
+          }
+        },
+        "EDA": {
+          "draws": 488,
+          "draw_interval_ms": {
+            "count": 487,
+            "p50": 32.72109999670647,
+            "p95": 46.03282999451035,
+            "p99": 151.91129200917163,
+            "max": 413.95750000083353
+          },
+          "data_advancing_draws": 459,
+          "data_advance_interval_ms": {
+            "count": 458,
+            "p50": 32.87319999799365,
+            "p95": 61.45288999323383,
+            "p99": 160.23655400815207,
+            "max": 413.95750000083353
+          },
+          "drawn_sample_age_ms": {
+            "count": 488,
+            "p50": 336.26475000346545,
+            "p95": 465.59214000808424,
+            "p99": 671.6986699918924,
+            "max": 723.3847499883268
+          },
+          "cursor_lead_ms": {
+            "count": 488,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 488,
+            "p50": 18.22264999645995,
+            "p95": 31.48914000339573,
+            "p99": 49.82800400728585,
+            "max": 389.8341000021901
+          },
+          "request_age_at_draw_ms": {
+            "count": 488,
+            "p50": 18.776999997498933,
+            "p95": 32.271714996750234,
+            "p99": 50.19819900116992,
+            "max": 399.32699999189936
+          }
+        },
+        "PPG": {
+          "draws": 488,
+          "draw_interval_ms": {
+            "count": 487,
+            "p50": 32.67440000490751,
+            "p95": 44.92343000165419,
+            "p99": 150.2019579976328,
+            "max": 418.7485000002198
+          },
+          "data_advancing_draws": 487,
+          "data_advance_interval_ms": {
+            "count": 486,
+            "p50": 32.675500006007496,
+            "p95": 44.96267500144313,
+            "p99": 150.45605499762985,
+            "max": 418.7485000002198
+          },
+          "drawn_sample_age_ms": {
+            "count": 488,
+            "p50": 276.83725001406856,
+            "p95": 430.3375925148429,
+            "p99": 632.4169100065774,
+            "max": 683.0899500055239
+          },
+          "cursor_lead_ms": {
+            "count": 488,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0
+          },
+          "prepared_frame_age_at_draw_ms": {
+            "count": 488,
+            "p50": 18.213950002973434,
+            "p95": 31.091144998936212,
+            "p99": 47.42800199936022,
+            "max": 392.95860000129323
+          },
+          "request_age_at_draw_ms": {
+            "count": 488,
+            "p50": 18.770600006973837,
+            "p95": 32.00471000309335,
+            "p99": 47.620863008924005,
+            "max": 402.6430999947479
+          }
+        }
+      },
+      "transitions": [
+        {
+          "duration": 10.0,
+          "command_ms": 0.417199989897199,
+          "first_new_timebase_draw_ms": {
+            "EEG": 187.00520000129472,
+            "EDA": 180.64769999182317,
+            "PPG": 183.44900000374764
+          }
+        },
+        {
+          "duration": 30.0,
+          "command_ms": 0.41360000614076853,
+          "first_new_timebase_draw_ms": {
+            "EEG": 409.5143000013195,
+            "EDA": 401.8196999968495,
+            "PPG": 405.1368999935221
+          }
+        },
+        {
+          "duration": 5.0,
+          "command_ms": 0.3995000006398186,
+          "first_new_timebase_draw_ms": {
+            "EEG": 125.22000000171829,
+            "EDA": 120.60130000463687,
+            "PPG": 122.42220000189263
+          }
+        },
+        {
+          "duration": 15.0,
+          "command_ms": 0.378700002329424,
+          "first_new_timebase_draw_ms": {
+            "EEG": 299.84379999223165,
+            "EDA": 292.99029998946935,
+            "PPG": 296.0421000025235
+          }
+        }
+      ],
+      "timings_ms": {
+        "tick_delay": {
+          "count": 726,
+          "p50": 0.0,
+          "p95": 14.0,
+          "p99": 123.0,
+          "max": 1357.0
+        },
+        "ingress_gui": {
+          "count": 726,
+          "p50": 0.007,
+          "p95": 1.75125,
+          "p99": 1.9215,
+          "max": 2.401
+        },
+        "raw_warmup_EDA": {
+          "count": 2,
+          "p50": 20.1385,
+          "p95": 21.70945,
+          "p99": 21.84909,
+          "max": 21.884
+        },
+        "gui_timer_total": {
+          "count": 726,
+          "p50": 1.809,
+          "p95": 4.83075,
+          "p99": 29.085,
+          "max": 136.793
+        },
+        "raw_warmup_PPG": {
+          "count": 2,
+          "p50": 59.091,
+          "p95": 102.0723,
+          "p99": 105.89286,
+          "max": 106.848
+        },
+        "raw_prepare_EDA": {
+          "count": 614,
+          "p50": 0.125,
+          "p95": 0.4564000000000005,
+          "p99": 1.1421100000000002,
+          "max": 9.418
+        },
+        "raw_queue_age_EDA": {
+          "count": 614,
+          "p50": 0.1515,
+          "p95": 0.9031500000000002,
+          "p99": 6.909860000000001,
+          "max": 97.794
+        },
+        "raw_backend_EDA": {
+          "count": 614,
+          "p50": 0.4,
+          "p95": 0.49635,
+          "p99": 0.7357500000000001,
+          "max": 12.817
+        },
+        "raw_prepare_PPG": {
+          "count": 613,
+          "p50": 0.129,
+          "p95": 0.338,
+          "p99": 0.7724399999999991,
+          "max": 9.555
+        },
+        "raw_queue_age_PPG": {
+          "count": 613,
+          "p50": 0.252,
+          "p95": 1.3183999999999927,
+          "p99": 6.48876,
+          "max": 98.991
+        },
+        "raw_backend_PPG": {
+          "count": 613,
+          "p50": 0.415,
+          "p95": 0.5494,
+          "p99": 0.9438,
+          "max": 20.558
+        },
+        "raw_prepare_EEG": {
+          "count": 611,
+          "p50": 0.381,
+          "p95": 1.211,
+          "p99": 6.613499999999998,
+          "max": 100.065
+        },
+        "raw_queue_age_EEG": {
+          "count": 611,
+          "p50": 0.429,
+          "p95": 1.3325,
+          "p99": 6.783099999999994,
+          "max": 98.804
+        },
+        "raw_backend_EEG": {
+          "count": 611,
+          "p50": 9.401,
+          "p95": 14.633,
+          "p99": 30.657499999999878,
+          "max": 372.24
+        },
+        "raw_warmup_EEG": {
+          "count": 32,
+          "p50": 24.794,
+          "p95": 32.804899999999996,
+          "p99": 103.47095000000013,
+          "max": 135.046
+        }
+      },
+      "outcomes": {
+        "raw_stale_EDA": 1,
+        "raw_stale_PPG": 1,
+        "raw_stale_EEG": 1,
+        "raw_ready_EDA": 614,
+        "raw_ready_PPG": 613,
+        "raw_ready_EEG": 611
+      },
+      "ring_cpu_bytes": {
+        "EEG": 13107200,
+        "EDA": 51200,
+        "PPG": 204800
+      }
+    },
+    "regression_upload_calls_before": 427,
+    "regression_upload_calls_after": 1
+  },
+  "limitations": [
+    "One 23-second trial per workload; percentiles are descriptive, not confidence intervals.",
+    "Native canvas draw callbacks do not measure physical monitor scanout.",
+    "Independent synthetic LSL is not real-device evidence.",
+    "Finite repeated five-minute-window transitions do not establish an hours-long memory plateau.",
+    "No product feature work should resume until remaining performance/device acceptance is resolved."
+  ],
+  "performance_commit": "19a909ae91c071c8e9a776331f4b62966835b9df",
+  "core_gui_suite_commit": "19a909ae91c071c8e9a776331f4b62966835b9df",
+  "native_transitions_before_caption_fix": {
+    "transitions": [
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 12.225200000102632
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 10,
+        "settle_ms": 83.14519999839831
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 30,
+        "settle_ms": 91.5087999892421
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 37.464399996679276
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 15,
+        "settle_ms": 55.72800000663847
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 320.87979999778327
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 10,
+        "settle_ms": 454.00119999249
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 30,
+        "settle_ms": 237.97050000575837
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 62.5591000134591
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 15,
+        "settle_ms": 85.80719999736175
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 59.6466999995755
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 10,
+        "settle_ms": 72.01640000857878
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 30,
+        "settle_ms": 99.65570000349544
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 99.73700001137331
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 8,
+        "seconds": 15,
+        "settle_ms": 100.29889999714214
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 78.34870000078809
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 10,
+        "settle_ms": 86.96879999479279
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 30,
+        "settle_ms": 173.97350000101142
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 32.23859998979606
+      },
+      {
+        "backend": "pyqtgraph",
+        "channels": 32,
+        "seconds": 15,
+        "settle_ms": 93.05039999890141
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 52.41869999736082
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 10,
+        "settle_ms": 37.31739999784622
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 30,
+        "settle_ms": 40.694700001040474
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 5,
+        "settle_ms": 49.30320000858046
+      },
+      {
+        "backend": "vispy",
+        "channels": 8,
+        "seconds": 15,
+        "settle_ms": 30.381400007172488
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 54.023200005758554
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 10,
+        "settle_ms": 76.77590000093915
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 30,
+        "settle_ms": 99.00570000172593
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 5,
+        "settle_ms": 68.77800000074785
+      },
+      {
+        "backend": "vispy",
+        "channels": 32,
+        "seconds": 15,
+        "settle_ms": 107.18339998857118
+      }
+    ],
+    "memory": [
+      {
+        "seconds": 300,
+        "working_set_bytes": 827199488,
+        "private_commit_bytes": 2400235520,
+        "ring_cpu_bytes": 210470400,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 796393472,
+        "private_commit_bytes": 2370396160,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 944476160,
+        "private_commit_bytes": 2518638592,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 809504768,
+        "private_commit_bytes": 2383007744,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 963616768,
+        "private_commit_bytes": 2537275392,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 815562752,
+        "private_commit_bytes": 2389028864,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 973336576,
+        "private_commit_bytes": 2546958336,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 815546368,
+        "private_commit_bytes": 2388963328,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 973365248,
+        "private_commit_bytes": 2546958336,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 815570944,
+        "private_commit_bytes": 2388979712,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 973377536,
+        "private_commit_bytes": 2546946048,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 814952448,
+        "private_commit_bytes": 2388348928,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 973373440,
+        "private_commit_bytes": 2546941952,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 815570944,
+        "private_commit_bytes": 2388955136,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 973393920,
+        "private_commit_bytes": 2546954240,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 819781632,
+        "private_commit_bytes": 2393174016,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 976986112,
+        "private_commit_bytes": 2550542336,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 819830784,
+        "private_commit_bytes": 2393219072,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 977039360,
+        "private_commit_bytes": 2550591488,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 5,
+        "working_set_bytes": 819888128,
+        "private_commit_bytes": 2393284608,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      },
+      {
+        "seconds": 300,
+        "working_set_bytes": 976465920,
+        "private_commit_bytes": 2550018048,
+        "ring_cpu_bytes": 203788800,
+        "resource_bank_layers": 136
+      }
+    ],
+    "errors": [],
+    "draw_events": {
+      "EEG": 119,
+      "PPG": 125,
+      "EDA": 122
+    },
+    "passed": true,
+    "close_ms": 121.9381999981124
+  },
+  "final_targeted_native_regressions": {
+    "tests": 12,
+    "seconds": 6.083,
+    "commit": "403355a7c1b42f8e1172b24f9b39932b95eaf953",
+    "result": "OK"
+  }
+}

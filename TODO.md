@@ -1,10 +1,17 @@
-# PhysioViewerRT handoff — 26 October 2026
+# PhysioViewerRT handoff — 27 October 2026
 
 
 ## Rendering implementation — 27 October 2026
 
 The audit at `bcd8d35` now has an implementation on `refactor/rendering-ownership`.
 See [implementation, validation and next steps](docs/RENDERING_REFACTOR.md).
+Checkpoints: `8870b5c` ownership/lifecycle, `19a909a` measured GPU replay batching,
+`403355a` native-verified fallback caption. Core: 230 passed; GUI: 136 run with
+three native-only skips and no failures; final targeted native suite: 12 passed.
+The 16-case independent-producer matrix and 21 memory transitions are recorded
+in [the results JSON](docs/RENDERING_REFACTOR_RESULTS.json). The original Desktop
+checkout stays on `main`; continue in the retained `rendering-refactor` worktree
+or fetch/check out the refactor branch on another PC.
 Personal calibration files and the original checkout remain untouched.
 **Keep new product features frozen until the remaining performance/device checks
 are resolved.** The 250 ms presentation buffer and processing mathematics remain.
@@ -23,9 +30,14 @@ are resolved.** The 250 ms presentation buffer and processing mathematics remain
 - [x] Latch startup references once from a fixed sample count independent of packets.
 - [x] Independent reviewer follow-ups: empty frames never exhaust retries,
       missing sources never repeatedly allocate retained GPU buffers, paused
-      Metrics mouse zoom updates frozen bounds.
+      Metrics mouse zoom updates frozen bounds, and view durations cannot exceed
+      retained history even through mouse zoom or programmatic commands.
 - [x] Add native backend/command validation and an independent-producer matrix
       for EEG 8/32 displayed, EEG inactive and all four peripheral reducer modes.
+- [x] Profile fragmented replay uploads; reduce 427 driver calls per channel to
+      one copied geometry upload without changing samples, gaps or the buffer.
+      Final 32-channel Off p99 is 79.0 ms versus 148.2 ms before batching, but
+      the matched baseline remains faster at 66.7 ms. Keep this difference visible.
 - [ ] Establish agreed p95/p99 acceptance budgets and complete sustained memory
       and real-device playback confirmation; short synthetic trials are insufficient.
 - [ ] Continue deferred denoiser/product work only after that gate is cleared.
