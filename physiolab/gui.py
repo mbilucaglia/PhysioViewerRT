@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 from .worker import Receiver
 from .processing import validate_preprocessing
+from .peripheral_reduction import require_reduction_backend
 from .channel_selection import validated_indices
 from .lsl_tasks import LSLTask
 from .metric_display import metric_amplitude_label
@@ -1199,8 +1200,32 @@ class MainWindow(QMainWindow):
         return ((requested.model_id if requested is not None else None)
                 == (active.model_id if active is not None else None))
 
+    def source_backend_available(self, kind):
+        """Reject an unavailable processing choice before stopping reception."""
+        choice = self.artifact_choices.get(kind)
+        if choice is None:
+            return True
+        try:
+            require_reduction_backend(choice.currentData())
+        except RuntimeError as exc:
+            worker = self.workers.get(kind)
+            if worker is not None:
+                previous = worker.preprocessing.get('artifact_reduction', 'off')
+                blocked = choice.blockSignals(True)
+                choice.setCurrentIndex(choice.findData(previous))
+                choice.blockSignals(blocked)
+            else:
+                self.pending_source_changes.discard(kind)
+                self.source_change_timers[kind].stop()
+                set_action(self.stream_buttons[kind], 'Play', 'play-white')
+            self.statusBar().showMessage(f'{modality_label(kind)}: {exc}')
+            return False
+        return True
+
     def schedule_source_change(self, kind):
         """Replace an active source asynchronously; coalesce rapid selections."""
+        if not self.source_backend_available(kind):
+            return
         worker = self.workers.get(kind)
         info = self.selectors[kind].currentData()
         was_pending = kind in self.pending_source_changes
@@ -1299,7 +1324,8 @@ class MainWindow(QMainWindow):
             self.apply_pending_source_change(kind)
             return
         if worker.active:
-            self.statusBar().showMessage(f'{modality_label(kind)} receiver ended unexpectedly')
+            self.statusBar().showMessage(getattr(worker, 'last_error', None)
+                                        or f'{modality_label(kind)} receiver ended unexpectedly')
         else:
             self.statusBar().showMessage(f'{modality_label(kind)} reception stopped')
 
@@ -1311,6 +1337,8 @@ class MainWindow(QMainWindow):
         info = self.selectors[kind].currentData()
         if info is None:
             self.statusBar().showMessage(f'No {modality_label(kind)} stream selected')
+            return
+        if not self.source_backend_available(kind):
             return
         try:
             indices = validated_indices(

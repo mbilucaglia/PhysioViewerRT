@@ -8,6 +8,7 @@ SC use is a general robust-filter application, not a claim of SC validation.
 See docs/PERIPHERAL_REDUCTION_EVIDENCE.md for all adapter choices/departures.
 """
 from fractions import Fraction
+import importlib
 import math
 import numpy as np
 from scipy.signal import resample_poly
@@ -20,6 +21,18 @@ HOP_SECONDS = 1.
 HAMPEL_RADIUS = 3
 HAMPEL_SIGMA = 3.
 SC_ARTIFACT_PROPORTION = .10
+
+
+def require_reduction_backend(method):
+    """Fail before changing reception or buffering if Wavelet cannot import."""
+    if method != 'wavelet':
+        return
+    try:
+        importlib.import_module('pywt')
+    except (ImportError, OSError, ValueError) as exc:
+        raise RuntimeError(
+            f'Wavelet unavailable: {exc}. Run setup_windows.cmd in the project '
+            'folder to install its required PyWavelets dependency.') from exc
 
 
 def sure_threshold(coefficients, sigma):
@@ -131,6 +144,7 @@ class PeripheralReducer:
             raise ValueError('Unsupported peripheral artifact reduction method')
         if not math.isfinite(fs) or fs < 4 or channels < 1:
             raise ValueError('Artifact reduction requires regular sampling of at least 4 Hz')
+        require_reduction_backend(method)
         self.kind,self.fs,self.channels,self.method = kind,float(fs),channels,method
         self.window = round(WINDOW_SECONDS*fs)
         self.hop = max(1,round(HOP_SECONDS*fs))

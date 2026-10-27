@@ -28,6 +28,7 @@ class Receiver(QThread):
             raise ValueError('Channel label count differs from the source count')
         self.selected_names = [str(selected_names[i]) for i in self.selected_indices]
         self.active = True
+        self.last_error = None
         self.iaf_hz = 10.0
         self.preprocessing = dict(preprocessing or {})
         self.conversion = conversion or SourceConversion()
@@ -184,7 +185,8 @@ class Receiver(QThread):
                     names, metric, float(fs), timestamps, computed_at,
                 ))
         except Exception as exc:
-            self.failure.emit(f'{self.kind}: {exc}')
+            self.last_error = f'{self.kind}: {exc}'
+            self.failure.emit(self.last_error)
         finally:
             if self.inlet is not None:
                 try:

@@ -57,6 +57,15 @@ adaptations with synthetic/LSL tests; real-hardware efficacy remains unverified.
 See [method sources, parameters and limits](docs/PERIPHERAL_REDUCTION_EVIDENCE.md).
 After pulling, rerun `setup_windows.cmd` to install pinned PyWavelets.
 
+If Wavelet reports that `pywt` is missing on another PC, install it into that
+checkout's environment with
+`.\.venv\Scripts\python.exe -m pip install "PyWavelets==1.10.0"`, then restart the
+app. Git pull updates source files, not installed packages. The app checks this
+dependency before changing a running source: an unavailable Wavelet backend
+keeps its current receiver and processing choice, with installation guidance.
+With the package installed, Wavelet still intentionally buffers its first eight
+seconds and produces new processed samples once per second.
+
 See [WINDOWS_SETUP.md](WINDOWS_SETUP.md) for calibration and detailed controls.
 
 For continuation on another PC, see the setup steps and prioritized tasks in [TODO.md](TODO.md).

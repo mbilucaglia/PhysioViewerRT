@@ -1,5 +1,25 @@
 # PhysioViewerRT handoff — 27 October 2026
 
+## Wavelet dependency failure on another PC — 27 October 2026
+
+- [x] Confirm the reported permanent PPG/SC stop: the affected environment raised
+      `ModuleNotFoundError: No module named 'pywt'`. The import previously happened
+      after the first eight-second window and terminated the receiver.
+- [x] Check Wavelet availability before stopping/replacing a healthy receiver or
+      starting a new one; preserve its current processing selection on rejection.
+      Direct reducer construction also checks before buffering. Keep terminal
+      receiver errors visible instead of replacing them with a generic message.
+- [x] Establish five failing regressions before the fix; all now pass.
+- [x] With PyWavelets installed, verify actual Off/Wavelet/Off UI switching using
+      independent LSL producers, sustained PPG/SC draw-tip progression, continued
+      EEG drawing and responsive Stop. Run `tools/validate_wavelet_switches.py`.
+- [x] Full regression validation: 230 core tests passed (17.998 s); GUI ran 141
+      tests (146.485 s), three skipped, no failures. Native Stop commands took
+      0.7823 ms. See the follow-up in `docs/PERIPHERAL_REDUCTION_EVIDENCE.md`.
+- [ ] Confirm the other PC after installing its existing pinned requirement:
+      `.\.venv\Scripts\python.exe -m pip install "PyWavelets==1.10.0"` and restarting.
+      The eight-second startup and one-second Wavelet update cadence are unchanged.
+
 
 ## Rendering implementation — 27 October 2026
 

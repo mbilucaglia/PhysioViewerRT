@@ -164,3 +164,46 @@ Hampel checks its three-local-scale outlier threshold; wavelet processes every
 window using coefficient thresholds and can modify clean physiology on every
 update. Therefore a frequently green wavelet indicator is possible without a
 large artifact. This is not the same trigger mechanism as trained EEG ASR.
+
+## Missing Wavelet dependency recovery — 27 October 2026
+
+The affected remote PC confirmed `ModuleNotFoundError: No module named 'pywt'`.
+Previously the first eight-second Wavelet window triggered this import inside
+the receiver, terminating acquisition. Receiver completion then replaced the
+useful error with a generic message. `requirements.txt` already pins
+`PyWavelets==1.10.0`; pulling Git changes does not install dependencies.
+
+Processing now owns a dependency check used both by reducer construction and
+the GUI before requesting a source replacement. An unavailable selection
+preserves the running receiver and restores its processing selection. A new
+start is rejected before creating a receiver, with setup instructions. The
+receiver retains its terminal error for the completion handler. Numerical
+algorithms, eight-second startup, one-second updates and the 250 ms presentation
+buffer are unchanged.
+
+Five new regression tests failed before this fix and passed afterward (0.552 s).
+The full core suite passed 230 tests in 17.998 s. The GUI suite ran 141 tests in
+146.485 s, with three skips and no failures.
+
+`tools/validate_wavelet_switches.py` exercises native Qt/VisPy using its own
+independent LSL producer: 32 EEG channels acquired, eight displayed, ASR off;
+PPG 128 Hz and SC 32 Hz. It selects both Wavelet modes at four seconds, then
+returns PPG to Off at 22 seconds and SC at 25 seconds. The 29-second local run
+reported no receiver errors. Between 15 and 21 seconds each canvas recorded
+181 draw events; data-tip spans were EEG 5.9766 s, PPG 5.8906 s and SC 6.0313 s.
+After returning to Off, PPG/SC tips advanced 2.9844/3.1563 s in the 26–29 s
+observation interval. All Stop command calls together took 0.7823 ms; this is
+command dispatch time, not receiver shutdown latency.
+
+An independent review requested explicit assertions for recovery to Off and
+continued EEG progression. The final probe includes both and passed a second
+native run with no receiver errors and 0.7969 ms Stop command dispatch.
+
+Hardware was the same Windows 11 / Ryzen Threadripper PRO 5975WX / GeForce
+GT 730 / Python 3.12.10 host recorded in `RENDERING_REFACTOR_RESULTS.json`.
+Suites and the native probe ran concurrently: this is behavioral evidence,
+not an isolated latency benchmark or a new p95/p99 baseline comparison.
+Missing-package coverage used an unavailable-module fixture; the native run
+used installed PyWavelets. The other PC still needs dependency installation,
+application restart and retesting. Real-device smoothness and the remaining
+rendering performance acceptance gates remain unverified.
