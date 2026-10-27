@@ -241,7 +241,7 @@ def _incremental_visual_class():
                 (self.capacity*self.vertices_per_slot, 2), -10., dtype=np.float32))
             self.update()
 
-        def patch(self, updates):
+        def patch(self, updates, positions=None):
             if not updates:
                 return
             # Merge consecutive ring slots into a single partial GPU write.
@@ -250,6 +250,14 @@ def _incremental_visual_class():
             order = np.argsort(slots)
             slots, vertices = slots[order], vertices[order]
             boundaries = np.r_[0, np.flatnonzero(np.diff(slots) != 1) + 1, len(slots)]
+            if positions is not None and len(boundaries)-1>8:
+                # An extrema replay has irregular original sample slots. Avoid
+                # hundreds of tiny driver commands per channel: upload the
+                # existing geometry once, including unchanged/empty slots.
+                # Copy because GL may consume the command after the ring mutates.
+                self._buffer.set_subdata(positions.reshape(-1,2).copy(),offset=0)
+                self.update()
+                return
             for first, end in zip(boundaries[:-1], boundaries[1:]):
                 data = vertices[first:end].reshape(-1, 2)
                 self._buffer.set_subdata(
@@ -293,7 +301,10 @@ class IncrementalSweepLayer:
                  else np.array([[-10., -10.]], dtype=np.float32))
                 for slot, _ in updates
             ]
-        self.visual.patch(updates)
+        if self.mode == 'lines':
+            self.visual.patch(updates,positions=self.ring.positions)
+        else:
+            self.visual.patch(updates)
         return len(updates)
 
     def expire_points(self, head):

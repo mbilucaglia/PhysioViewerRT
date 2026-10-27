@@ -90,9 +90,9 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
             if reference is not None and np.shape(reference[1]) == (n,):
                 scales = np.maximum(scales, reference[1])
     elif reference is None:
-        # A waveform needs only two samples. Never impose a 0.75-second
-        # holdoff before the first visible trace. Scale is latched by
-        # the GUI after this first frame and reused thereafter.
+        # Explicit Center (or standalone numerical callers) computes a new
+        # transform from the selected history. Acquisition startup references
+        # are latched separately by SignalHistory before normal frame requests.
         if len(x) < 2:
             return None
         anchor = y if center_trace == 'filtered' else x

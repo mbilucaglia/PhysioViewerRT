@@ -1,6 +1,6 @@
 """Native draw/sample-age matrix with an independent LSL publisher process.
 
-Default runs audit checkout and current worktree under matching 8-channel
+Default runs audit checkout and current worktree under matching 8/32-channel
 Off/both-Hampel loads, then current 8/32-channel and EEG-inactive reducer cases.
 No personal files are read or written. Only children created here are stopped.
 Use --case to run one case, or --seconds for a shorter diagnostic (not comparison).
@@ -156,7 +156,7 @@ def main():
     parser.add_argument('--seconds',type=float,default=23.)
     args=parser.parse_args()
     if args.case: return trial(args)
-    cases=[('baseline-8-'+r,args.baseline,8,r,False) for r in ('off','both')]
+    cases=[(f'baseline-{n}-{r}',args.baseline,n,r,False) for n in (8,32) for r in ('off','both')]
     cases += [(f'refactor-{n}-{r}',str(HERE),n,r,False) for n in (8,32) for r in ('off','ppg','eda','both')]
     cases += [('refactor-no-eeg-'+r,str(HERE),8,r,True) for r in ('off','ppg','eda','both')]
     folder=HERE/'.test-tmp/rendering-matrix'; folder.mkdir(parents=True,exist_ok=True)

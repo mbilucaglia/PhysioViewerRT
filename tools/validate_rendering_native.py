@@ -94,13 +94,18 @@ def main():
                     references[kind]=centers
                 window.grab().save(str(output/f'{mode}-{count}.png'))
         # The maximum supported timebase exercises both GPU resource banks.
-        for duration in (300,5,300,5,300):
+        for index in range(21):
+            duration=300 if index%2==0 else 5
             window.raw_time_window.setCurrentIndex(window.raw_time_window.findData(duration)); pump(settled)
             memory_report={'seconds':duration,**memory()}
             memory_report['ring_cpu_bytes']=sum(sum(getattr(layer.ring,name).nbytes for name in
                 ('positions','stamps','values','identities')) for plot in window.raw_vispy_plots.values()
                 for group in plot._layer_pool.values() for layer in group)
+            memory_report['resource_bank_layers']=sum(len(group)
+                for plot in window.raw_vispy_plots.values() for group in plot._layer_pool.values())
             report['memory'].append(memory_report)
+        assert len({item['ring_cpu_bytes'] for item in report['memory'][1:]})==1
+        assert len({item['resource_bank_layers'] for item in report['memory']})==1
         # Live history can expire while the frozen source snapshot remains usable.
         frozen=window.raw_display.visible_history('EEG')
         for kind,fs,count in (('EEG',256.,32),('PPG',128.,1),('EDA',32.,1)):

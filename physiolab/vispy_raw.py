@@ -254,11 +254,9 @@ class VisPyRawPlot:
         n = raw.shape[1]
         if not len(times) or not n:
             return
-        # The preparation worker uses fixed-clock decimation. Capture the
-        # effective sample rate once per duration and preserve its bin phase.
+        # Preserve original sample slots for irregular extrema selections.
+        # A reduced display rate would silently discard narrow peaks again.
         if nominal_fs is not None and nominal_fs > 0:
-            # Match the worker's fixed-clock decimation; never infer GPU
-            # capacity from a short first frame or fallback grid samples.
             rate = float(nominal_fs)
         elif self._configuration and self._configuration[:2] == (n, duration):
             rate = self._configuration[2]

@@ -21,6 +21,26 @@ def pump(predicate, timeout=3.):
 
 
 class RenderingRegressions(unittest.TestCase):
+    def test_fragmented_peak_replay_bounds_gpu_upload_calls_without_changing_geometry(self):
+        from unittest.mock import Mock
+        from physiolab.incremental_sweep import IncrementalSweepLayer
+        layer=IncrementalSweepLayer(None,5.,256.,'#000000')
+        original=layer.visual._buffer
+        layer.visual._buffer=Mock()
+        try:
+            times=np.arange(0,1280,3)/256.
+            values=np.sin(times)
+            connect=np.ones(len(times),dtype=bool); connect[0]=False
+            layer.append(times,values,connect)
+            calls=layer.visual._buffer.set_subdata.call_args_list
+            self.assertLessEqual(len(calls),8)
+            self.assertEqual(len(calls),1)
+            self.assertEqual(calls[0].kwargs['offset'],0)
+            np.testing.assert_array_equal(calls[0].args[0],layer.ring.positions.reshape(-1,2))
+        finally:
+            layer.visual._buffer=original
+            layer.close()
+
     def test_manual_and_command_windows_are_bounded_before_backend_allocation(self):
         from unittest.mock import Mock
         from physiolab.plot_controller import PlotController
