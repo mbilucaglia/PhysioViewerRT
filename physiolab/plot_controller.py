@@ -43,7 +43,7 @@ class PlotController(QObject):
         self.presented_timing={}
 
     def register_plot(self,kind,plot):
-        self.backends['pyqtgraph'][kind]=PyQtGraphRawPlot(kind,plot)
+        self.backends['pyqtgraph'][kind]=PyQtGraphRawPlot(kind,plot,self.state.settings.history_seconds)
 
     def change(self,*,replay=False):
         self.scheduler.cancel()

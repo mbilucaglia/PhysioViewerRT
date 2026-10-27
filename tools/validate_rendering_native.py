@@ -79,7 +79,9 @@ def main():
                         plot=window.raw_vispy_plots['EEG']
                         assert plot.channel_count==count and len(plot.layers['raw'])==count
                         assert all(np.any(layer.ring.positions!=-10.) for layer in plot.layers['raw'])
-                    else: assert len(window.curves['EEG'])==2*count
+                    else:
+                        assert len(window.curves['EEG'])==2*count
+                        assert f'{duration:g} s view' in window.plots['EEG'].getPlotItem().titleLabel.text
                     report['transitions'].append({'backend':mode,'channels':count,'seconds':duration,
                                                    'settle_ms':(time.perf_counter()-start)*1000.})
                 for raw,clean in ((True,False),(False,True),(True,True),(False,False),(True,True)):

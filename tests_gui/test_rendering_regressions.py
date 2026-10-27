@@ -92,6 +92,7 @@ class RenderingRegressions(unittest.TestCase):
             np.testing.assert_allclose(w.plots['PPG'].viewRange()[0],[100.,105.])
             w.raw_time_window.setCurrentIndex(w.raw_time_window.findData(10))
             self.assertTrue(pump(lambda:abs(np.diff(w.plots['PPG'].viewRange()[0])[0]-10)<1e-6))
+            self.assertIn('10 s view',w.plots['PPG'].getPlotItem().titleLabel.text)
         finally: w.close(); app.processEvents()
 
     def test_paused_metric_timebase_replays_frozen_series(self):

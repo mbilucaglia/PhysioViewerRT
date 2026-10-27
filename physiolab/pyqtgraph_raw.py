@@ -3,20 +3,27 @@ import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Qt
 from .render_policy import RAW_DISPLAY_POLICY
+from .modality_labels import modality_label
 
 
 class PyQtGraphRawPlot:
-    def __init__(self,kind,plot):
+    def __init__(self,kind,plot,history_seconds):
         self.kind,self.plot=kind,plot
         self.widget=plot
         self.curves=[]
         self.latest_sample_time=-np.inf
         self.channel_count=0
+        self.history_seconds=history_seconds
+        self._caption_duration=None
 
     def history_needs_replay(self,count,duration): return True
     def invalidate_history(self): pass  # Full-window backend; active drawing stays visible.
 
     def present(self,frame,view,fs):
+        if view.duration!=self._caption_duration:
+            self.plot.setTitle(f'{modality_label(self.kind)} — {view.duration:g} s view, '
+                               f'{self.history_seconds/60:g} min history')
+            self._caption_duration=view.duration
         if frame is None:
             self.reset()
             self.plot.setXRange(view.left,view.right,padding=0)
