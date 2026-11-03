@@ -596,3 +596,20 @@ The measures, statistical assumptions and presentation still need discussion.
 - [x] Remove editable vertical-gain values from Raw Data plot headers. Keep
       minus/Fit/plus buttons and bounded internal gain state; source-conversion
       gain/offset controls remain acquisition settings, independent of this view.
+## Local checkout handoff — 3 November 2026
+
+- **Launch from `PhysioViewerRT`**, the canonical local checkout. Its `main`
+  includes the rendering refactor through `52dc335` and the playback clock
+  correction `4417f7f`. These commits have not been pushed to GitHub `main`.
+- The startup clock correction passed 20 timing and display-state tests.
+  Confirm first EEG Play and the first 32-channel transition on the target PC;
+  if either still stutters, measure first-draw time and subsequent frame cadence.
+- The repository reorganization, file-by-file repository guide, and Metrics
+  availability fix are preserved together on local branch
+  `codex/organised-work-backup` (`bbcbc2b`). They are **not** integrated into
+  `main`; port the Metrics fix and reconcile the package moves with the rendering
+  refactor before merging that work. The guide is available via
+  `git show codex/organised-work-backup:docs/REPOSITORY_GUIDE.md`.
+- See [rendering refactor validation and remaining checks](docs/RENDERING_REFACTOR.md).
+  Close any app running from `PhysioViewerRT-refactor` before removing that
+  duplicate checkout. Local calibration recordings remain in their original paths.
