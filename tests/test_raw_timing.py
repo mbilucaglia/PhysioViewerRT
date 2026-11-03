@@ -1,7 +1,7 @@
 """Regression tests for monotonic raw waveform time axes."""
 import unittest
 import numpy as np
-from physiolab.raw_timing import clean_lsl_chunk, visible_chunk, SmoothViewportClock
+from physiolab.acquisition.raw_timing import clean_lsl_chunk, visible_chunk, SmoothViewportClock
 
 
 class RawTimingTests(unittest.TestCase):
@@ -68,6 +68,16 @@ class RawTimingTests(unittest.TestCase):
         heads = [clock.advance(1. + i/30.) for i in range(250)]
         self.assertTrue(np.all(np.diff(heads) >= 0.))
         self.assertLessEqual(heads[-1], 50.08 + 1e-10)
+
+    def test_long_first_draw_does_not_add_persistent_playback_lag(self):
+        clock = SmoothViewportClock(presentation_delay=.25)
+        clock.observe(100., 10.)
+        clock.advance(10.)
+        # Acquisition continues during a cold draw or channel rebuild.
+        clock.observe(101.2, 11.2)
+        self.assertAlmostEqual(clock.advance(11.2), 100.95)
+        clock.observe(101.24, 11.24)
+        self.assertAlmostEqual(clock.advance(11.24), 100.99)
 
     def test_misaligned_sample_count_is_rejected(self):
         with self.assertRaises(ValueError):

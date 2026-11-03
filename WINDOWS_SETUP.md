@@ -219,7 +219,7 @@ not change calibration, samples, filters, numerical algorithms, or recordings.
 
 ## Shared VisPy engine and GPU sweep behavior
 
-Raw Data and Metrics now reuse `physiolab/vispy_plot_engine.py` for the
+Raw Data and Metrics now reuse `physiolab/rendering/vispy_plot_engine.py` for the
 white OpenGL background, viewport, axes, grid, scene and lifecycle.
 The raw waveform renderer adds a **left-to-right sweep**: a completed pass
 stays on the display while the following pass replaces it progressively.
@@ -276,7 +276,7 @@ renderer; they do not alter the historical pyqtgraph presentation.
 ## Incremental GPU sweep architecture — Raw Data and Metrics
 
 Branch `experiment/incremental-gpu-sweep` contains a shared
-`physiolab/incremental_sweep.py` implementation for **all** VisPy plots.
+`physiolab/rendering/incremental_sweep.py` implementation for **all** VisPy plots.
 Each waveform channel (both raw and filtered) and each metric
 (AWI, BAR, SCL, HR, EI, plus measured-point markers) has a persistent,
 fixed-capacity sweep ring backed by a VisPy OpenGL vertex buffer.
@@ -320,7 +320,7 @@ The running application loads `designer/PhysioViewerRT_ClinicalLayout.ui`
 on every launch, via PySide6 `QUiLoader`. Unlike the earlier mockup,
 **this file is now the authoritative source of widget placement, top-level
 tab order, plot hosts, main toolbar controls, font and stylesheet**.
-The Python controller `physiolab/gui.py` finds widgets by `objectName`
+The Python controller `physiolab/ui/gui.py` finds widgets by `objectName`
 and attaches the existing LSL receivers, metric processors and VisPy
 incremental GPU canvases at runtime.
 

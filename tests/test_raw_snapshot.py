@@ -1,7 +1,7 @@
 """Pure RAW viewport selection tests, no Qt dependencies."""
 import unittest
 import numpy as np
-from physiolab.raw_snapshot import build_raw_source
+from physiolab.rendering.raw_snapshot import build_raw_source
 
 
 class RawSnapshotTests(unittest.TestCase):
@@ -51,7 +51,7 @@ class RawSnapshotTests(unittest.TestCase):
 class FixedPeripheralSnapshotTests(unittest.TestCase):
     def test_latched_peripheral_reference_uses_new_tail_not_full_window(self):
         import numpy as np
-        from physiolab.raw_snapshot import build_raw_source
+        from physiolab.rendering.raw_snapshot import build_raw_source
         times=np.arange(1000)/100.
         values=np.ones((1000,1))
         chunks=((times,values,values,['PPG'],100.),)

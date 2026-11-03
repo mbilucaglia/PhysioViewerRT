@@ -6,7 +6,7 @@ Synthetic data exercise UI/processing and are not a physiological validation.
 import argparse
 import time
 from pylsl import StreamInfo, StreamOutlet, local_clock
-from physiolab.synthetic import SPECS, SyntheticPhysiology
+from physiolab.signals.synthetic import SPECS, SyntheticPhysiology
 
 
 def start_outlets():

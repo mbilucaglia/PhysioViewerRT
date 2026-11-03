@@ -1,6 +1,6 @@
 """Amplitude changes must not discard existing GPU sweep history."""
 import unittest
-from physiolab.vispy_raw import VisPyRawPlot
+from physiolab.rendering.vispy_raw import VisPyRawPlot
 
 
 class FakeLayer:

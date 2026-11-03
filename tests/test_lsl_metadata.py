@@ -3,7 +3,7 @@ import sys
 import types
 import unittest
 from unittest.mock import patch
-from physiolab.channel_selection import full_channel_labels, channel_labels
+from physiolab.acquisition.channel_selection import full_channel_labels, channel_labels
 
 
 class FakeNode:

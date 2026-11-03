@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from physiolab.sc_decomposition import (
+from physiolab.signals.sc_decomposition import (
     SCDecompositionSettings, TonicSCProcessor, decompose_baseline,
 )
 

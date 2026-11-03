@@ -3,7 +3,7 @@ import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import unittest
 from PySide6.QtWidgets import QApplication
-from physiolab.asr_training_dialog import ASRTrainingDialog
+from physiolab.ui.asr_training_dialog import ASRTrainingDialog
 
 class ASRTrainingDialogTests(unittest.TestCase):
     @classmethod
@@ -35,9 +35,9 @@ class AdaptiveTrainingLifecycleTests(unittest.TestCase):
     def make_window(self):
         from unittest.mock import patch
         from types import SimpleNamespace
-        from physiolab.gui import MainWindow
-        from physiolab.source_conversion import SourceConversion
-        from physiolab.metric_observation import source_configuration
+        from physiolab.ui.gui import MainWindow
+        from physiolab.acquisition.source_conversion import SourceConversion
+        from physiolab.metrics.metric_observation import source_configuration
         with patch.object(MainWindow, 'refresh', lambda self:None):
             window = MainWindow()
         window.timer.stop()
@@ -73,8 +73,8 @@ class AdaptiveTrainingLifecycleTests(unittest.TestCase):
         from unittest.mock import patch
         from PySide6.QtCore import QTimer
         import numpy as np
-        from physiolab.processing import Processor
-        from physiolab.asr_tasks import fit_training_asr
+        from physiolab.signals.processing import Processor
+        from physiolab.asr.asr_tasks import fit_training_asr
         window, worker = self.make_window()
         rng = np.random.default_rng(2026)
         times = np.arange(160*128)/128.
@@ -108,7 +108,7 @@ class AdaptiveTrainingLifecycleTests(unittest.TestCase):
                 timer.stop()
         try:
             with patch.object(ASRTrainingDialog,'exec',run), \
-                 patch('physiolab.asr_tasks.fit_training_asr',side_effect=fit), \
+                 patch('physiolab.asr.asr_tasks.fit_training_asr',side_effect=fit), \
                  patch.object(window,'set_eeg_asr_enabled') as enabled, \
                  patch.object(window,'show_asr_training_report'):
                 window.train_eeg_asr()

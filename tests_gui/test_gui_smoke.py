@@ -12,10 +12,10 @@ from unittest.mock import patch
 import numpy as np
 from PySide6.QtWidgets import QApplication
 
-from physiolab.gui import MainWindow
-from physiolab.ingress import ChunkMailbox
-from physiolab.acquisition_contracts import AcquisitionChunk
-from physiolab.render_contracts import RawFrameResult
+from physiolab.ui.gui import MainWindow
+from physiolab.acquisition.ingress import ChunkMailbox
+from physiolab.acquisition.acquisition_contracts import AcquisitionChunk
+from physiolab.rendering.render_contracts import RawFrameResult
 
 
 class FakeInfo:
@@ -173,7 +173,7 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.source_change_timers['EEG'].stop()
         new = MagicMock(active=True)
         new.isRunning.return_value = True
-        with patch('physiolab.gui.Receiver', return_value=new):
+        with patch('physiolab.ui.gui.Receiver', return_value=new):
             self.window.receiver_finished('EEG', old)
         self.assertIs(self.window.workers['EEG'], new)
         button = self.window.stream_buttons['EEG']
@@ -317,7 +317,7 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertTrue(all(grid.rowStretch(row)==0 for row in range(last_row,grid.rowCount())))
 
     def test_conversion_editor_keeps_settings_per_source_and_compact_numbers(self):
-        from physiolab.source_conversion_widgets import SourceConversionControls
+        from physiolab.ui.source_conversion_widgets import SourceConversionControls
         controls = SourceConversionControls()
         self.addCleanup(controls.close)
         controls.set_source('sensor-a')
@@ -342,7 +342,7 @@ class GuiSmokeTests(unittest.TestCase):
         # Backend-switch tests start from the fallback on every Qt platform;
         # native startup and real GPU paths are covered by the LSL integration.
         with patch.object(MainWindow, 'refresh', lambda window: None), \
-                patch('physiolab.gui.importlib.util.find_spec', return_value=None):
+                patch('physiolab.ui.gui.importlib.util.find_spec', return_value=None):
             self.window = MainWindow()
         self.window.resize(1100, 660)
         self.window.show()
@@ -382,7 +382,7 @@ class GuiSmokeTests(unittest.TestCase):
             time.sleep(.3)
             return ['EDA'], ''
         combo = self.window.selectors['EDA']
-        with patch('physiolab.lsl_tasks.full_channel_labels', slow_lookup):
+        with patch('physiolab.acquisition.lsl_tasks.full_channel_labels', slow_lookup):
             started = time.perf_counter()
             combo.addItem('Synthetic EDA', FakeInfo('synthetic-eda'))
             elapsed = time.perf_counter()-started
@@ -437,7 +437,7 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertEqual(channels.selected_indices(), [2])
 
     def test_additional_metrics_build_controls_histories_and_readouts(self):
-        from physiolab.metric_catalog import DEFAULT_METRICS, MetricDefinition
+        from physiolab.metrics.metric_catalog import DEFAULT_METRICS, MetricDefinition
         extra = (MetricDefinition('EEG', 'THETA'), MetricDefinition('EDA', 'SCR'))
         with patch.object(MainWindow, 'refresh', lambda window: None):
             window = MainWindow(metric_definitions=DEFAULT_METRICS + extra)
@@ -479,8 +479,8 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertAlmostEqual(self.window.raw_display.bounds[1], 9.75)
 
     def test_sources_tab_keeps_later_started_and_restarted_streams_in_first_view(self):
-        from physiolab.raw_snapshot import build_raw_source
-        from physiolab.raw_render import prepare_raw_window
+        from physiolab.rendering.raw_snapshot import build_raw_source
+        from physiolab.rendering.raw_render import prepare_raw_window
         self.window.timer.stop()
         self.window.tabs.setCurrentWidget(self.window.sources_page)
         state = self.window.raw_display
@@ -495,7 +495,7 @@ class GuiSmokeTests(unittest.TestCase):
                     continue
                 values = np.array([[np.sin(now)]])
                 state.append(kind, values, values, [kind], 30., [100.+now], received_at=now)
-            with patch('physiolab.gui.time.monotonic', return_value=now):
+            with patch('physiolab.ui.gui.time.monotonic', return_value=now):
                 self.window.render_frame()
         self.assertGreater(state.bounds[1], 4.6)
         for kind, chunks in state.history.items():
@@ -564,7 +564,7 @@ class GuiSmokeTests(unittest.TestCase):
 
         old_metrics = self.window.metric_state.history
         old_receivers = self.window.workers
-        with patch('physiolab.gui.VisPyRawPlot', FakeGpuPlot):
+        with patch('physiolab.ui.gui.VisPyRawPlot', FakeGpuPlot):
             self.window.raw_renderer_choice.setCurrentIndex(1)
             self.assertEqual(self.window.raw_renderer_mode, 'vispy')
             self.assertEqual(len(self.window.raw_vispy_plots), 3)
@@ -612,7 +612,7 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.metric_state.history[key].extend([
             (current - 1., .2), (current - .5, .4), (current, .6)
         ])
-        with patch('physiolab.gui.VisPyMetricPlot', FakeMetricGpu):
+        with patch('physiolab.ui.gui.VisPyMetricPlot', FakeMetricGpu):
             self.window.metric_renderer_choice.setCurrentIndex(1)
             self.assertEqual(self.window.metric_renderer_mode, 'vispy')
             self.assertEqual(self.window.metric_plot_stack.currentIndex(), 1)

@@ -63,6 +63,11 @@ For continuation on another PC, see the setup steps and prioritized tasks in [TO
 
 ## Extending and maintaining the app
 
+Start with the [repository guide](docs/REPOSITORY_GUIDE.md) for the application
+packages, test suites, and developer tools. The Windows launch scripts remain at
+the repository root. See [developer tools](tools/README.md) for benchmark and
+validation commands.
+
 See [Application boundaries and extension guide](docs/ARCHITECTURE.md) for state
 ownership, shared settings, and adding metrics. See
 [Rendering behavior and validation](docs/RENDERING.md) for sweep, amplitude and

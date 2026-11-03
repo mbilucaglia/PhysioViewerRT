@@ -2,7 +2,7 @@
 import unittest
 import numpy as np
 
-from physiolab.synthetic import SyntheticPhysiology, SPECS, EEG_LABELS
+from physiolab.signals.synthetic import SyntheticPhysiology, SPECS, EEG_LABELS
 
 
 class SyntheticPhysiologyTests(unittest.TestCase):

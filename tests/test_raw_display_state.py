@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from physiolab.raw_display_state import RawDisplayState
+from physiolab.rendering.raw_display_state import RawDisplayState
 from physiolab.settings import ViewerSettings
 
 

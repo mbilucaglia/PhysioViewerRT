@@ -2,13 +2,13 @@
 import unittest
 import numpy as np
 
-from physiolab.calibration import analyze_bsl, normalize
-from physiolab.metric_catalog import DEFAULT_METRICS
-from physiolab.metric_observation import MetricObservation
-from physiolab.metric_state import MetricState
-from physiolab.processing import Processor
-from physiolab.sc_decomposition import TonicSCProcessor, sc_pipeline_metadata
-from physiolab.source_conversion import SourceConversion
+from physiolab.calibrations.calibration import analyze_bsl, normalize
+from physiolab.metrics.metric_catalog import DEFAULT_METRICS
+from physiolab.metrics.metric_observation import MetricObservation
+from physiolab.metrics.metric_state import MetricState
+from physiolab.signals.processing import Processor
+from physiolab.signals.sc_decomposition import TonicSCProcessor, sc_pipeline_metadata
+from physiolab.acquisition.source_conversion import SourceConversion
 
 
 class AffectPipelineTests(unittest.TestCase):
@@ -78,7 +78,7 @@ class AffectPipelineTests(unittest.TestCase):
         self.assertIsNone(state.latest['EI']['EI'])
 
     def test_ei_uses_latest_inputs_without_time_alignment_or_age_gates(self):
-        from physiolab.emotion import emotional_index_from_bsl
+        from physiolab.metrics.emotion import emotional_index_from_bsl
         state = MetricState(DEFAULT_METRICS)
         hr_ref, scl_ref = {'mu': 60., 'sigma': 10.}, {'mu': 4., 'sigma': 2.}
         state.ei.set_references(hr_ref, scl_ref)

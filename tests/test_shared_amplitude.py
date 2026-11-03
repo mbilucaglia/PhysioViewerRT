@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
-from physiolab.display_units import eeg_display_scale, source_display_unit
-from physiolab.raw_render import prepare_raw_window
+from physiolab.acquisition.display_units import eeg_display_scale, source_display_unit
+from physiolab.rendering.raw_render import prepare_raw_window
 
 
 class SharedAmplitudeTests(unittest.TestCase):

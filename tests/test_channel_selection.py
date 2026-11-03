@@ -1,7 +1,7 @@
 """Check EEG multi-select and single-channel EDA/PPG source slicing."""
 import unittest
 import numpy as np
-from physiolab.channel_selection import validated_indices, select_chunk
+from physiolab.acquisition.channel_selection import validated_indices, select_chunk
 
 
 class StreamChannelSelectionTests(unittest.TestCase):

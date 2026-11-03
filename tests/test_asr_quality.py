@@ -1,6 +1,6 @@
 import unittest
 from types import SimpleNamespace
-from physiolab.asr_quality import training_report
+from physiolab.asr.asr_quality import training_report
 
 
 class TrainingReportTests(unittest.TestCase):

@@ -1,8 +1,8 @@
 """Metric display processing tests (no Qt or LSL required)."""
 import unittest
 import numpy as np
-from physiolab.metric_display import prepare_metric_curve, monotonic_display_samples, metric_amplitude_label
-from physiolab.metric_catalog import DEFAULT_METRICS, MetricDefinition
+from physiolab.metrics.metric_display import prepare_metric_curve, monotonic_display_samples, metric_amplitude_label
+from physiolab.metrics.metric_catalog import DEFAULT_METRICS, MetricDefinition
 
 
 class MetricDisplayTests(unittest.TestCase):

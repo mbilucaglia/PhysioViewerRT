@@ -1,7 +1,7 @@
 """GPU sweep allocations are bounded per GUI frame."""
 import unittest
 from unittest.mock import patch
-from physiolab.vispy_raw import VisPyRawPlot
+from physiolab.rendering.vispy_raw import VisPyRawPlot
 
 
 class FakeVisual:
@@ -35,7 +35,7 @@ class ProgressiveLayerTests(unittest.TestCase):
         plot._latest = float('-inf')
         plot.vertical_gain = 1.
         plot.raw_line = plot.filtered_line = None
-        with patch('physiolab.incremental_sweep.IncrementalSweepLayer', FakeLayer):
+        with patch('physiolab.rendering.incremental_sweep.IncrementalSweepLayer', FakeLayer):
             plot._ensure_layers(32, 5., 100.)
             self.assertEqual(FakeLayer.created, 8)
             self.assertEqual(len(plot._pending_layers['raw']), 4)

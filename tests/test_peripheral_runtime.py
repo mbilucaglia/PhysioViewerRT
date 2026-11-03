@@ -1,8 +1,8 @@
 import unittest
 from types import SimpleNamespace
 import numpy as np
-from physiolab.peripheral_runtime import peripheral_runtime_state
-from physiolab.processing import Processor
+from physiolab.signals.peripheral_runtime import peripheral_runtime_state
+from physiolab.signals.processing import Processor
 
 class PeripheralRuntimeTests(unittest.TestCase):
     def test_real_state_pulse_expiry_stale_and_pending(self):

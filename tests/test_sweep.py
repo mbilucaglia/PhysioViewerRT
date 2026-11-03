@@ -1,7 +1,7 @@
 """Stable previous-cycle sweep geometry, independent of OpenGL."""
 import unittest
 import numpy as np
-from physiolab.vispy_raw import sweep_segments
+from physiolab.rendering.vispy_raw import sweep_segments
 
 
 class SweepTests(unittest.TestCase):

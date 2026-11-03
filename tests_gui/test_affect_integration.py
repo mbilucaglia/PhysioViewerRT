@@ -11,11 +11,11 @@ import numpy as np
 from PySide6.QtWidgets import QApplication
 from pylsl import StreamInfo, StreamOutlet, local_clock
 
-from physiolab.calibration import analyze_bsl, analyze_eyc
-from physiolab.gui import MainWindow
-from physiolab.synthetic import SPECS, SyntheticPhysiology
-from physiolab.source_conversion import SourceConversion
-from physiolab.sc_decomposition import TonicSCProcessor
+from physiolab.calibrations.calibration import analyze_bsl, analyze_eyc
+from physiolab.ui.gui import MainWindow
+from physiolab.signals.synthetic import SPECS, SyntheticPhysiology
+from physiolab.acquisition.source_conversion import SourceConversion
+from physiolab.signals.sc_decomposition import TonicSCProcessor
 
 
 class AffectIntegrationTests(unittest.TestCase):

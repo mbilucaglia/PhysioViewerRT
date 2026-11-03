@@ -7,7 +7,7 @@ import unittest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
-from physiolab.scale_rulers import ScaleRuler, scale_bar
+from physiolab.ui.scale_rulers import ScaleRuler, scale_bar
 
 
 class ScaleRulerTests(unittest.TestCase):

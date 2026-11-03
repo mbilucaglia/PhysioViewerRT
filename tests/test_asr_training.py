@@ -1,7 +1,7 @@
 """Adaptive quality screening and accepted-data progress without wall-clock waits."""
 import unittest
 import numpy as np
-from physiolab.asr_training import ASRTrainingAccumulator
+from physiolab.asr.asr_training import ASRTrainingAccumulator
 
 class ASRTrainingTests(unittest.TestCase):
     def setUp(self):

@@ -4,8 +4,8 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
-from physiolab.render_policy import RAW_DISPLAY_POLICY, RawDisplayPolicy
-from physiolab.vispy_raw import VisPyRawPlot
+from physiolab.rendering.render_policy import RAW_DISPLAY_POLICY, RawDisplayPolicy
+from physiolab.rendering.vispy_raw import VisPyRawPlot
 
 
 class RawDisplayPolicyTests(unittest.TestCase):

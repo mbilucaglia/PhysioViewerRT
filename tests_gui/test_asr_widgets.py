@@ -8,7 +8,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtUiTools import QUiLoader
 from PySide6 import QtSvg
 from PySide6.QtWidgets import QApplication, QFrame, QPushButton, QToolButton, QWidget
-from physiolab.asr_widgets import ASRControls
+from physiolab.ui.asr_widgets import ASRControls
 
 
 class ASRWidgetTests(unittest.TestCase):
@@ -86,7 +86,7 @@ class ASRWidgetTests(unittest.TestCase):
 
     def test_channel_checkboxes_stay_open_and_preserve_selection_rules(self):
         from PySide6.QtCore import Qt, QPoint
-        from physiolab.desktop_widgets import CheckChannelDropdown
+        from physiolab.ui.desktop_widgets import CheckChannelDropdown
         for kind in ('EEG', 'PPG', 'EDA'):
             picker = CheckChannelDropdown(kind)
             try:

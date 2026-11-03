@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import numpy as np
 
-from physiolab.eeg_asr import ASRError, ASRModel, ASRSettings, StreamingASR, fit_asr
-from physiolab.metric_observation import source_configuration
-from physiolab.processing import Processor
+from physiolab.asr.eeg_asr import ASRError, ASRModel, ASRSettings, StreamingASR, fit_asr
+from physiolab.metrics.metric_observation import source_configuration
+from physiolab.signals.processing import Processor
 
 
 class EEGASRTests(unittest.TestCase):
@@ -98,7 +98,7 @@ class EEGASRTests(unittest.TestCase):
         self.assertFalse(processor.last_chunk_corrected)
 
     def test_selected_training_uses_continuously_prefiltered_windows(self):
-        from physiolab.asr_tasks import fit_training_asr
+        from physiolab.asr.asr_tasks import fit_training_asr
         eeg = {'data': self.raw, 'fs': self.fs, 'channels': self.names,
                'timestamps': np.arange(len(self.raw))/self.fs,
                'preprocessed_data': self.filtered,
@@ -115,7 +115,7 @@ class EEGASRTests(unittest.TestCase):
     def test_cutoff_update_matches_refit_without_relearning_or_changing_calibration(self):
         for cutoff in (5., 25.):
             expected = fit_asr(self.filtered, self.fs, self.names, self.config, ASRSettings(cutoff=cutoff))
-            with patch('physiolab.eeg_asr._backend', side_effect=AssertionError('No fitting permitted')):
+            with patch('physiolab.asr.eeg_asr._backend', side_effect=AssertionError('No fitting permitted')):
                 updated = self.model.with_cutoff(cutoff)
             np.testing.assert_allclose(updated.T, expected.T, rtol=1e-10, atol=1e-12)
             for name in ('M', 'A', 'B', 'threshold_center', 'threshold_spread', 'threshold_basis'):
@@ -152,8 +152,8 @@ class EEGASRTests(unittest.TestCase):
         np.testing.assert_array_equal(transformed.raw, plain.raw)
 
     def test_baselines_and_live_metrics_share_channel_preserving_correction(self):
-        from physiolab.calibration import analyze_bsl, analyze_eyc
-        from physiolab.asr_tasks import eeg_reference_analysis
+        from physiolab.calibrations.calibration import analyze_bsl, analyze_eyc
+        from physiolab.asr.asr_tasks import eeg_reference_analysis
         eeg = {'data': self.raw, 'fs': self.fs, 'channels': self.names,
                'timestamps': np.arange(len(self.raw))/self.fs, 'units': ['uV']*4}
         cleaned = analyze_bsl({'EEG': eeg}, 10., self.model)
@@ -168,7 +168,7 @@ class EEGASRTests(unittest.TestCase):
         self.assertEqual(eeg['data'].shape, self.raw.shape)
 
     def test_baseline_lifecycle_preserves_independent_training_model(self):
-        from physiolab.asr_session import ASRSession
+        from physiolab.asr.asr_session import ASRSession
         session = ASRSession()
         session.set_training({'data': self.raw, 'fs': self.fs, 'channels': self.names})
         session.install_fit(self.model)

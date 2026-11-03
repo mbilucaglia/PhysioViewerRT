@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 from scipy.signal import sosfreqz
 
-from physiolab.processing import Processor
+from physiolab.signals.processing import Processor
 
 
 class NotchFilterTests(unittest.TestCase):

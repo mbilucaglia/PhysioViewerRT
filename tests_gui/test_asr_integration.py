@@ -12,12 +12,12 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from pylsl import StreamInfo, StreamOutlet, local_clock, resolve_byprop
 
-from physiolab.asr_tasks import fit_training_asr
-from physiolab.gui import MainWindow
-from physiolab.worker import Receiver
-from physiolab.calibration import analyze_bsl
-from physiolab.synthetic import SyntheticPhysiology, SPECS
-from physiolab.physiological_metrics import eeg_metrics
+from physiolab.asr.asr_tasks import fit_training_asr
+from physiolab.ui.gui import MainWindow
+from physiolab.acquisition.worker import Receiver
+from physiolab.calibrations.calibration import analyze_bsl
+from physiolab.signals.synthetic import SyntheticPhysiology, SPECS
+from physiolab.metrics.physiological_metrics import eeg_metrics
 
 
 class ASRIntegrationTests(unittest.TestCase):
@@ -78,7 +78,7 @@ class ASRIntegrationTests(unittest.TestCase):
                 self.assertEqual(window.asr_session.model.model_id, model_id)
                 window.asr_view.cutoff.setValue(25.)
                 old_training = window.asr_session.training
-                with patch('physiolab.gui.ASRFitTask', side_effect=AssertionError('Threshold must not retrain')):
+                with patch('physiolab.ui.gui.ASRFitTask', side_effect=AssertionError('Threshold must not retrain')):
                     self.assertTrue(self.pump(lambda: window.asr_session.model.settings.cutoff == 25.))
                 self.assertIs(window.asr_session.training, old_training)
                 self.assertFalse(window.asr_session.busy)

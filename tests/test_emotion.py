@@ -3,11 +3,11 @@ import unittest
 import math
 import numpy as np
 
-from physiolab.emotion import (
+from physiolab.metrics.emotion import (
     BaselineEmotionalIndex, emotional_index_from_bsl, emotional_index_z,
     baseline_ei, standardize_pair, ei_matrix, ei_epochs,
 )
-from physiolab.calibration import normalize, summarize_metric
+from physiolab.calibrations.calibration import normalize, summarize_metric
 
 
 class EmotionalIndexRegressionTests(unittest.TestCase):

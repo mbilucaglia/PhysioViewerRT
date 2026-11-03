@@ -1,7 +1,7 @@
 """VisPy rendering geometry tests, without requiring VisPy or an OpenGL context."""
 import unittest
 import numpy as np
-from physiolab.vispy_raw import trace_segments
+from physiolab.rendering.vispy_raw import trace_segments
 
 
 class VisPyGeometryTests(unittest.TestCase):

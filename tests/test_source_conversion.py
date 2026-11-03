@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 
-from physiolab.source_conversion import SourceConversion
+from physiolab.acquisition.source_conversion import SourceConversion
 
 
 class SourceConversionTests(unittest.TestCase):
@@ -27,7 +27,7 @@ class SourceConversionTests(unittest.TestCase):
 
     def test_receiver_delivers_converted_samples_and_calculates_metrics_from_them(self):
         from pylsl import StreamInfo
-        from physiolab.worker import Receiver
+        from physiolab.acquisition.worker import Receiver
         info = StreamInfo('conversion-test', 'EDA', 1, 32., 'float32', 'conversion-test')
         info.desc().append_child('channels').append_child('channel').append_child_value('unit', 'µV')
         conversion = SourceConversion(.01, 3., 'µS')
@@ -41,7 +41,7 @@ class SourceConversionTests(unittest.TestCase):
         inlet.pull_chunk.side_effect = pull
         failures = []
         receiver.failure.connect(failures.append)
-        with patch('physiolab.worker.StreamInlet', return_value=inlet) as constructor:
+        with patch('physiolab.acquisition.worker.StreamInlet', return_value=inlet) as constructor:
             receiver.run()
         from pylsl import proc_clocksync
         constructor.assert_called_once_with(info, max_buflen=30, processing_flags=proc_clocksync)

@@ -4,8 +4,8 @@ os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 import unittest
 from unittest.mock import patch
 from PySide6.QtWidgets import QApplication,QPushButton,QToolButton,QComboBox
-from physiolab.gui import MainWindow
-from physiolab.ui_icons import action_icon
+from physiolab.ui.gui import MainWindow
+from physiolab.ui.ui_icons import action_icon
 
 
 class UiConsistencyTests(unittest.TestCase):

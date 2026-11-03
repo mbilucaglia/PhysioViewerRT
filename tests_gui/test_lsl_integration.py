@@ -10,9 +10,9 @@ import numpy as np
 from PySide6.QtWidgets import QApplication
 from pylsl import StreamInfo, StreamOutlet, local_clock
 
-from physiolab.gui import MainWindow
-from physiolab.synthetic import SPECS, SyntheticPhysiology
-from physiolab.calibration import analyze_eyc, analyze_bsl
+from physiolab.ui.gui import MainWindow
+from physiolab.signals.synthetic import SPECS, SyntheticPhysiology
+from physiolab.calibrations.calibration import analyze_eyc, analyze_bsl
 
 
 class LocalLSLIntegrationTests(unittest.TestCase):
@@ -191,8 +191,8 @@ class LocalLSLIntegrationTests(unittest.TestCase):
                 # Reconfigure receivers from Sources while the other signals
                 # continue. First Raw Data frames must use current live time,
                 # including the restarted stream, rather than an old tab clock.
-                from physiolab.raw_snapshot import build_raw_source
-                from physiolab.raw_render import prepare_raw_window
+                from physiolab.rendering.raw_snapshot import build_raw_source
+                from physiolab.rendering.raw_render import prepare_raw_window
                 for kind in SPECS:
                     window.tabs.setCurrentWidget(window.sources_page)
                     window.stop_stream(kind)

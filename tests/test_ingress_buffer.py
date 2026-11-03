@@ -6,10 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
-from physiolab.ingress import ChunkMailbox
-from physiolab.signal_buffer import SampleRing
-from physiolab.performance import PerformanceMonitor
-from physiolab.processing import Processor
+from physiolab.acquisition.ingress import ChunkMailbox
+from physiolab.acquisition.signal_buffer import SampleRing
+from physiolab.rendering.performance import PerformanceMonitor
+from physiolab.signals.processing import Processor
 
 
 class SampleRingTests(unittest.TestCase):

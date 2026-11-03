@@ -4,7 +4,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import unittest
 from PySide6.QtCore import QRect
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QGridLayout
-from physiolab.flow_layout import install_flow
+from physiolab.ui.flow_layout import install_flow
 
 
 class FlowLayoutTests(unittest.TestCase):
@@ -52,7 +52,7 @@ class FlowLayoutTests(unittest.TestCase):
     def test_plot_preferred_height_does_not_force_scrolling_when_it_can_fit(self):
         from PySide6.QtCore import QSize
         from PySide6.QtWidgets import QScrollArea, QVBoxLayout
-        from physiolab.flow_layout import fit_scroll_page
+        from physiolab.ui.flow_layout import fit_scroll_page
 
         class Plot(QWidget):
             def sizeHint(self):
@@ -92,7 +92,7 @@ class FlowLayoutTests(unittest.TestCase):
     def test_raw_workspace_switches_orientation_without_replacing_panels(self):
         from PySide6.QtCore import Qt
         from PySide6.QtWidgets import QSplitter
-        from physiolab.flow_layout import AdaptiveRawWorkspace
+        from physiolab.ui.flow_layout import AdaptiveRawWorkspace
         viewport = QWidget()
         splitter = QSplitter(Qt.Orientation.Vertical)
         panels = [QWidget(), QWidget()]

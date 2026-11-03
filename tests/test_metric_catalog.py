@@ -3,7 +3,7 @@ import re
 import unittest
 from dataclasses import FrozenInstanceError
 
-from physiolab.metric_catalog import (
+from physiolab.metrics.metric_catalog import (
     DEFAULT_METRICS, METRIC_PALETTE, MetricDefinition, metric_color,
     validate_metrics,
 )

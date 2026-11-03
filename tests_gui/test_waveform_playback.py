@@ -3,7 +3,7 @@ import os,time,unittest
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 import numpy as np
 from PySide6.QtWidgets import QApplication
-from physiolab.vispy_raw import VisPyRawPlot
+from physiolab.rendering.vispy_raw import VisPyRawPlot
 
 class WaveformPlaybackTests(unittest.TestCase):
     @classmethod

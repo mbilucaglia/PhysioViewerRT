@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from physiolab.raw_render import prepare_raw_window
+from physiolab.rendering.raw_render import prepare_raw_window
 
 
 class RawRenderTests(unittest.TestCase):

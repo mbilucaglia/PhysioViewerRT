@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 from PySide6.QtWidgets import QApplication
-from physiolab.vispy_metrics import VisPyMetricPlot
+from physiolab.rendering.vispy_metrics import VisPyMetricPlot
 
 
 class MetricReconfigurationTests(unittest.TestCase):

@@ -4,7 +4,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import unittest
 
 from PySide6.QtWidgets import QApplication, QLabel
-from physiolab.vispy_plot_engine import VisPyPlotEngine
+from physiolab.rendering.vispy_plot_engine import VisPyPlotEngine
 
 
 class TextResourceTests(unittest.TestCase):

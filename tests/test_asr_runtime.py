@@ -1,7 +1,7 @@
 """Runtime ASR feedback must report execution, not checkbox intent."""
 import unittest
 from types import SimpleNamespace
-from physiolab.asr_runtime import asr_runtime_state
+from physiolab.asr.asr_runtime import asr_runtime_state
 
 class ASRRuntimeTests(unittest.TestCase):
     def test_off_pending_bypass_waiting_active_and_stale(self):

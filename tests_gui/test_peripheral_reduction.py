@@ -8,8 +8,8 @@ from unittest.mock import patch
 import numpy as np
 from PySide6.QtWidgets import QApplication,QComboBox,QWidget
 from pylsl import StreamInfo,StreamOutlet,resolve_byprop,local_clock
-from physiolab.gui import MainWindow
-from physiolab.worker import Receiver
+from physiolab.ui.gui import MainWindow
+from physiolab.acquisition.worker import Receiver
 
 class PeripheralReductionGuiTests(unittest.TestCase):
     @classmethod

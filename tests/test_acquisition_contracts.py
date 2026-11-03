@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from physiolab.acquisition_contracts import AcquisitionChunk
+from physiolab.acquisition.acquisition_contracts import AcquisitionChunk
 
 
 class AcquisitionChunkTests(unittest.TestCase):

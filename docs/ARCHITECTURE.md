@@ -6,6 +6,9 @@ they must not change the samples passed to physiological processing.
 
 ## Current modules
 
+The [repository guide](REPOSITORY_GUIDE.md) maps the packages and individual
+files. The table below describes their ownership and interfaces.
+
 | Responsibility | Modules | Contract |
 | --- | --- | --- |
 | LSL discovery and stream reception | `lsl_tasks.py`, `worker.py` | Blocking LSL work runs outside the GUI thread. |
@@ -230,7 +233,7 @@ other genuine geometry resets request a full history replay once. Sweep rings
 retain initial sample-bin phase anchoring, so half-bin timestamp jitter does
 not create false gaps. Actual gaps and sweep-cycle boundaries remain separate.
 
-Use tools/benchmark_three_stream_playback.py for native EEG-ASR plus PPG/SC-Hampel
+Use tools/benchmarks/benchmark_three_stream_playback.py for native EEG-ASR plus PPG/SC-Hampel
 LSL playback. It records actual canvas draw events, data-tip advances and cursor
 lead over each drawn tip. A local 16-second run with 32 EEG channels acquired,
 eight displayed, reported 298–299 draws per panel, about 33/66 ms median/p95 draw

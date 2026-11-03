@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from physiolab.calibration_session import CalibrationSession
+from physiolab.calibrations.calibration_session import CalibrationSession
 
 
 class CalibrationSessionTests(unittest.TestCase):

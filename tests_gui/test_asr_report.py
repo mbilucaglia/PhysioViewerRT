@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 from PySide6.QtWidgets import QApplication, QLabel
-from physiolab.gui import MainWindow
+from physiolab.ui.gui import MainWindow
 
 
 class TrainingReportGuiTests(unittest.TestCase):

@@ -1,7 +1,7 @@
 """Per-signal preprocessing presets preserve the previous default path."""
 import unittest
 import numpy as np
-from physiolab.processing import Processor, validate_preprocessing
+from physiolab.signals.processing import Processor, validate_preprocessing
 
 
 class FilterPresetTests(unittest.TestCase):

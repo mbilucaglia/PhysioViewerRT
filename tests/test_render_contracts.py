@@ -2,7 +2,7 @@
 import unittest
 from dataclasses import FrozenInstanceError
 
-from physiolab.render_contracts import RawFrameRequest, RawSourceRequest
+from physiolab.rendering.render_contracts import RawFrameRequest, RawSourceRequest
 
 
 class RenderContractTests(unittest.TestCase):

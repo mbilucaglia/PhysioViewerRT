@@ -1,7 +1,7 @@
 """Synthetic checks for EEG AWI/BAR 1-second metrics."""
 import unittest
 import numpy as np
-from physiolab.processing import Processor
+from physiolab.signals.processing import Processor
 
 
 class EEGMetricTests(unittest.TestCase):

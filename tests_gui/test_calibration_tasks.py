@@ -8,8 +8,8 @@ import numpy as np
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
-from physiolab.gui import MainWindow
-from physiolab.metric_observation import source_configuration
+from physiolab.ui.gui import MainWindow
+from physiolab.metrics.metric_observation import source_configuration
 
 
 class CalibrationTaskTests(unittest.TestCase):
@@ -26,8 +26,8 @@ class CalibrationTaskTests(unittest.TestCase):
         window.workers['EEG'] = worker
         analysis = {'metrics':{'EEG':{'AWI':{'mu':0.,'sigma':1.}}}, 'iaf_hz_used':10.}
         try:
-            with patch('physiolab.gui.CalibrationScreen') as screen, \
-                    patch('physiolab.gui.CalibrationSession') as session, \
+            with patch('physiolab.ui.gui.CalibrationScreen') as screen, \
+                    patch('physiolab.ui.gui.CalibrationSession') as session, \
                     patch.object(QMessageBox,'information'), \
                     patch.object(QMessageBox,'question',return_value=QMessageBox.StandardButton.No), \
                     patch.object(window,'analyze_calibration_background',return_value=analysis), \

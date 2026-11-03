@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from physiolab.calibration import (
+from physiolab.calibrations.calibration import (
     analyze_eyc, analyze_bsl, normalize, save_calibration, load_calibration,
     samples_after_timestamp,
 )
@@ -17,7 +17,7 @@ class CalibrationTests(unittest.TestCase):
     def test_bsl_has_no_predecomposition_scl_or_ei_fallback(self):
         fs = 32.
         t = np.arange(int(fs * 60)) / fs
-        with patch('physiolab.sc_decomposition.decompose_baseline', return_value=[]):
+        with patch('physiolab.signals.sc_decomposition.decompose_baseline', return_value=[]):
             result = analyze_bsl({'EDA': {
                 'fs': fs, 'channels': ['SC'], 'data': (4 + np.sin(t))[:, None],
                 'timestamps': 100. + t}})
@@ -26,8 +26,8 @@ class CalibrationTests(unittest.TestCase):
         self.assertIsNone(result['tonic_sc'])
 
     def test_bsl_ei_uses_same_tonic_reference_factors_and_source_pairing_as_live(self):
-        from physiolab.emotion import emotional_index_z
-        from physiolab.processing import Processor
+        from physiolab.metrics.emotion import emotional_index_z
+        from physiolab.signals.processing import Processor
         fs = 32.
         t = np.arange(int(fs * 60)) / fs
         times = t + 100.
@@ -40,7 +40,7 @@ class CalibrationTests(unittest.TestCase):
             'EDA': {'fs': fs, 'channels': ['SC'], 'data': sc, 'timestamps': times},
             'PPG': {'fs': fs, 'channels': ['Pulse'], 'data': pulse, 'timestamps': times},
         }
-        with patch('physiolab.sc_decomposition.decompose_baseline', return_value=tonic):
+        with patch('physiolab.signals.sc_decomposition.decompose_baseline', return_value=tonic):
             result = analyze_bsl(streams)
         hr_ref = result['metrics']['PPG']['HR']
         scl_ref = result['metrics']['EDA']['SCL']

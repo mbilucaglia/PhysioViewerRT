@@ -9,9 +9,9 @@ import unittest
 
 import numpy as np
 from PySide6.QtWidgets import QApplication
-from physiolab.vispy_metrics import VisPyMetricPlot
-from physiolab.vispy_raw import VisPyRawPlot
-from physiolab.vispy_plot_engine import VisPyPlotEngine
+from physiolab.rendering.vispy_metrics import VisPyMetricPlot
+from physiolab.rendering.vispy_raw import VisPyRawPlot
+from physiolab.rendering.vispy_plot_engine import VisPyPlotEngine
 
 
 class RealVisPyMetricsConstructionTests(unittest.TestCase):

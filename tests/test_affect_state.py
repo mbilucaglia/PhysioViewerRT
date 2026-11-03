@@ -1,6 +1,6 @@
 import unittest
 
-from physiolab.affect_state import AffectState
+from physiolab.metrics.affect_state import AffectState
 
 
 def references():

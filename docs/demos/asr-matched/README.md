@@ -3,7 +3,7 @@
 Run from the repository root after installing requirements.txt:
 
 ```powershell
-.venv\Scripts\python.exe tools/asr_comparison.py --output .test-tmp/asr-comparison
+.venv\Scripts\python.exe tools/validation/asr_comparison.py --output .test-tmp/asr-comparison
 ```
 
 The tool saves a reproducible NPZ recording (including training and clean ground

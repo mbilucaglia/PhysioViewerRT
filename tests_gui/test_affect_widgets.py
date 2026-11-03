@@ -6,8 +6,8 @@ import unittest
 from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication
 
-from physiolab.affect_state import AffectPoint, AffectResponse, AffectSnapshot
-from physiolab.affect_widgets import AffectView, trajectory_geometry
+from physiolab.metrics.affect_state import AffectPoint, AffectResponse, AffectSnapshot
+from physiolab.ui.affect_widgets import AffectView, trajectory_geometry
 
 
 def response(points=(), current=None, key='central'):

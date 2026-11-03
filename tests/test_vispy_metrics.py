@@ -3,8 +3,8 @@ import unittest
 
 import numpy as np
 
-from physiolab.metric_display import prepare_metric_curve
-from physiolab.vispy_metrics import (
+from physiolab.metrics.metric_display import prepare_metric_curve
+from physiolab.rendering.vispy_metrics import (
     metric_segments, metric_points, metric_y_limits,
     metric_sweep_segments, metric_sweep_points,
 )

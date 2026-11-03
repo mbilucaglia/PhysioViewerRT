@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from physiolab.amplitude_display import visible_gain
+from physiolab.rendering.amplitude_display import visible_gain
 
 
 class AutoscaleTests(unittest.TestCase):

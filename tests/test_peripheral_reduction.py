@@ -3,11 +3,11 @@ import unittest
 from unittest.mock import patch
 import numpy as np
 from scipy.stats import laplace
-from physiolab.peripheral_reduction import (PeripheralReducer,hampel_block,
+from physiolab.signals.peripheral_reduction import (PeripheralReducer,hampel_block,
     laplace_limit,sure_threshold,ppg_wavelet_block,sc_wavelet_block)
-from physiolab.processing import Processor
-from physiolab.processing_filters import validate_preprocessing
-from physiolab.metric_observation import source_configuration
+from physiolab.signals.processing import Processor
+from physiolab.signals.processing_filters import validate_preprocessing
+from physiolab.metrics.metric_observation import source_configuration
 
 class PeripheralReductionTests(unittest.TestCase):
     def test_sure_matches_direct_risk_minimization_and_scaling(self):
@@ -124,11 +124,11 @@ class PeripheralReductionTests(unittest.TestCase):
         np.testing.assert_allclose(out,3.2,atol=1e-12)
 
     def test_bsl_passes_only_emitted_waveform_timestamps_to_decomposition(self):
-        from physiolab.calibration import analyze_bsl
+        from physiolab.calibrations.calibration import analyze_bsl
         times,_,data = self.fixture('EDA',32.,seconds=16.5)
         for method in ('hampel','wavelet'):
             expected = PeripheralReducer('EDA',32.,1,method).push(data,times)
-            with patch('physiolab.sc_decomposition.decompose_baseline',return_value=[]) as decomposition:
+            with patch('physiolab.signals.sc_decomposition.decompose_baseline',return_value=[]) as decomposition:
                 analyze_bsl({'EDA':{'data':data,'timestamps':times,'fs':32.,'channels':['SC'],
                     'preprocessing':{'notch':False,'artifact_reduction':method}}})
             actual,timestamps,fs = decomposition.call_args.args

@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 
-from physiolab.metric_catalog import DEFAULT_METRICS, MetricDefinition
-from physiolab.metric_state import MetricState
+from physiolab.metrics.metric_catalog import DEFAULT_METRICS, MetricDefinition
+from physiolab.metrics.metric_state import MetricState
 
 
 class MetricStateTests(unittest.TestCase):

@@ -108,7 +108,7 @@ cannot overwrite the newly requested one.
 
 ## Reproduce first-use and channel-growth measurements
 
-Run `tools/benchmark_raw_transitions.py --cold` and then the same command without
+Run `tools/benchmarks/benchmark_raw_transitions.py --cold` and then the same command without
 `--cold`, in separate processes on Windows. The latter simulates channel warmup
 that the application normally spreads over Sources ticks. Both report upload,
 synchronous GPU draw and preparation-round counts for 8 then 32 EEG channels.

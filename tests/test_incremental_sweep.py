@@ -1,7 +1,7 @@
 """Time-stable sweep rings: no full redrawing of historical samples."""
 import unittest
 import numpy as np
-from physiolab.incremental_sweep import SweepRing
+from physiolab.rendering.incremental_sweep import SweepRing
 
 
 class SweepRingTests(unittest.TestCase):
@@ -100,8 +100,8 @@ class SweepRingTests(unittest.TestCase):
 class SparseMarkerTests(unittest.TestCase):
     def test_jittered_sparse_markers_expire_after_cursor_passes_old_cycle(self):
         from unittest.mock import patch
-        from physiolab.incremental_sweep import IncrementalSweepLayer
-        from physiolab.vispy_metrics import metric_sweep_points
+        from physiolab.rendering.incremental_sweep import IncrementalSweepLayer
+        from physiolab.rendering.vispy_metrics import metric_sweep_points
 
         class Visual:
             def __init__(self, capacity, color, mode, parent):
@@ -111,7 +111,7 @@ class SparseMarkerTests(unittest.TestCase):
                 for index, vertices in updates:
                     self.positions[index] = vertices[0]
 
-        with patch('physiolab.incremental_sweep._incremental_visual_class', return_value=Visual):
+        with patch('physiolab.rendering.incremental_sweep._incremental_visual_class', return_value=Visual):
             layer = IncrementalSweepLayer(None, 1., 20., '#000000', mode='points')
         times, values = [], []
         for cycle in range(5):

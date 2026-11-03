@@ -6,8 +6,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 from PySide6.QtWidgets import QApplication
-from physiolab.gui import MainWindow
-from physiolab.emotion import emotional_index_z
+from physiolab.ui.gui import MainWindow
+from physiolab.metrics.emotion import emotional_index_z
 
 class LiveFeedbackTests(unittest.TestCase):
     @classmethod
@@ -15,7 +15,7 @@ class LiveFeedbackTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def test_ei_follows_each_views_selected_normalization_independently(self):
-        from physiolab.calibration import normalize
+        from physiolab.calibrations.calibration import normalize
         with patch.object(MainWindow, 'refresh', lambda self: None):
             w = MainWindow()
         try:
@@ -125,7 +125,7 @@ class LiveFeedbackTests(unittest.TestCase):
 
     def test_center_is_explicit_and_fit_does_not_change_it_for_any_modality(self):
         import numpy as np
-        from physiolab.raw_render import prepare_raw_window
+        from physiolab.rendering.raw_render import prepare_raw_window
         with patch.object(MainWindow,'refresh',lambda self:None):
             w=MainWindow()
         w.timer.stop()

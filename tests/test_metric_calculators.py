@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import numpy as np
 
-from physiolab.physiological_metrics import MetricCalculator, METRIC_CALCULATORS
-from physiolab.processing import Processor
+from physiolab.metrics.physiological_metrics import MetricCalculator, METRIC_CALCULATORS
+from physiolab.signals.processing import Processor
 
 
 class MetricCalculatorTests(unittest.TestCase):
