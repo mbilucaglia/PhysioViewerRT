@@ -600,7 +600,7 @@ The measures, statistical assumptions and presentation still need discussion.
 
 - **Launch from `PhysioViewerRT`**, the canonical local checkout. Its `main`
   includes the rendering refactor through `52dc335` and the playback clock
-  correction `4417f7f`. These commits have not been pushed to GitHub `main`.
+  correction `4417f7f`. Pull these changes from GitHub `main`.
 - The startup clock correction passed 20 timing and display-state tests.
   Confirm first EEG Play and the first 32-channel transition on the target PC;
   if either still stutters, measure first-draw time and subsequent frame cadence.
