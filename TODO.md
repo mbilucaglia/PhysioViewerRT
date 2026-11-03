@@ -11,6 +11,9 @@
       offscreen MainWindow construction, and all 231 core tests passed.
 - [x] Remove the machine-specific baseline path from the rendering benchmark;
       require --baseline explicitly for a comparison matrix.
+- [x] Fast-forward the canonical local checkout to include the published rendering
+      fixes and portable setup. Repeat setup/doctor there: all 14 checks passed.
+      Both existing calibration files retained their exact SHA-256 hashes.
 - [ ] On the other PC, pull the setup commit on the correct working branch and
       run setup_windows.cmd --non-interactive, then project.cmd doctor --gui.
       Open this repository as the primary Codex project folder. This PC was not

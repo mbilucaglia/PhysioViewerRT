@@ -7,21 +7,41 @@
   "thread_id": "01a1a235-43a3-75a0-bdbd-4160e5d85fc1",
   "branch": "codex/portable-environment",
   "head_at_start": "cef93061e1fa62c74164e2758510f4938fde771f",
-  "updated_at": "2026-11-03T17:16:21+00:00",
-  "status": "open",
+  "updated_at": "2026-11-03T17:51:47+00:00",
+  "status": "completed",
   "summary": "Configurazione portabile degli ambienti e raccolta delle dipendenze Windows.",
-  "intervals": [{
-    "id": "01a1a25f-e6c5-7d61-9a11-c4930f8c7b10",
-    "started_at": "2026-11-03T17:05:56+00:00",
-    "ended_at": null,
-    "kind": "mixed",
-    "basis": "observed",
-    "description": "Audit ambiente, setup ripetibile, diagnostica e istruzioni multi-PC.",
-    "evidence": ["Timestamp iniziale del turno Codex e verifiche locali"],
-    "source_event_id": "01a1a25f-e6c5-7d61-9a11-c4930f8c7b10"
-  }],
-  "results": [],
-  "commits": [],
-  "open_items": ["Configurare e verificare l'altro PC quando accessibile"],
-  "limitations": ["Solo questo PC risulta accessibile dagli strumenti della sessione"]
+  "intervals": [
+    {
+      "id": "01a1a25f-e6c5-7d61-9a11-c4930f8c7b10",
+      "started_at": "2026-11-03T17:05:56+00:00",
+      "ended_at": "2026-11-03T17:51:47+00:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Audit ambiente, setup ripetibile, diagnostica e istruzioni multi-PC.",
+      "evidence": [
+        "Timestamp iniziale del turno Codex e verifiche locali"
+      ],
+      "source_event_id": "01a1a25f-e6c5-7d61-9a11-c4930f8c7b10"
+    }
+  ],
+  "results": [
+    "Installazione pulita Windows/Python 3.12.10 da lock completata.",
+    "12 import, pip check e costruzione MainWindow offscreen superati.",
+    "231 test core superati.",
+    "Setup applicato al checkout principale; 14 controlli diagnostici superati.",
+    "File di calibrazione preservati con SHA-256 invariato."
+  ],
+  "commits": [
+    "9281b25"
+  ],
+  "open_items": [
+    "Eseguire il setup sull'altro PC quando accessibile.",
+    "Impostare la repository come cartella principale del progetto Codex nell'app.",
+    "Confermare GPU nativa, rete LSL e hardware su ciascun PC."
+  ],
+  "limitations": [
+    "Solo questo PC accessibile; secondo PC non configurato da remoto.",
+    "Manifest Codex Windows predisposto; comandi multipiattaforma disponibili ma non verificati su macOS/Linux.",
+    "Fine intervallo al completamento della configurazione e delle verifiche locali; pubblicazione Git successiva."
+  ]
 }
