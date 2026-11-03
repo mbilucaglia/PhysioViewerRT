@@ -77,7 +77,7 @@ class SmoothViewportClock:
         if self.head is None:
             return None
         now = float(now)
-        dt = max(0., min(now - self.frame_at, .1))
+        dt = max(0., now - self.frame_at)
         self.frame_at = now
         # Consume each source's own real presentation buffer between arrivals.
         # The target controls speed, not a hard stop after a late-block phase
@@ -85,6 +85,11 @@ class SmoothViewportClock:
         target = min(self.latest_sample,
                      self.latest_sample-self.presentation_delay
                      +max(now-self.received_at,0.))
+        if dt > .1:
+            # After a blocked draw, resume at the buffered live position.
+            # Do not spend subsequent frames replaying the missed GUI ticks.
+            self.head = max(self.head, target)
+            return self.head
         distance = target-self.head
         speed = max(0.,min(1.5,1.+distance*3.))
         self.head = min(self.latest_sample,self.head+dt*speed)

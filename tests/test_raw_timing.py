@@ -69,6 +69,18 @@ class RawTimingTests(unittest.TestCase):
         self.assertTrue(np.all(np.diff(heads) >= 0.))
         self.assertLessEqual(heads[-1], 50.08 + 1e-10)
 
+    def test_cold_draw_does_not_leave_clock_behind_live_buffer(self):
+        clock = SmoothViewportClock(presentation_delay=.25)
+        clock.observe(100., 10.)
+        clock.advance(10.)
+        # An 800 ms GUI stall is shorter than the source discontinuity limit.
+        clock.observe(100.8, 10.8)
+        self.assertAlmostEqual(clock.advance(10.8), 100.55)
+        clock.observe(100.84, 10.84)
+        head = clock.advance(10.84)
+        self.assertGreaterEqual(head, 100.59 - 1e-9)
+        self.assertLessEqual(head, 100.61)
+
     def test_misaligned_sample_count_is_rejected(self):
         with self.assertRaises(ValueError):
             clean_lsl_chunk([1., 2.], np.zeros((3, 1)), np.zeros((3, 1)))
