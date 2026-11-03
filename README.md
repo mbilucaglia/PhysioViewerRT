@@ -8,6 +8,11 @@ as a compatibility fallback. This repository is not a validated medical device.
 
 ## Run on Windows
 
+For setup on multiple PCs, reproducible Windows dependencies and environment
+diagnostics, see [Portable setup](docs/PORTABLE_SETUP.md). Run
+`setup_windows.cmd --non-interactive` for unattended installation, then
+`project.cmd doctor --gui` to verify the local environment.
+
 Run `setup_windows.cmd` once, `simulate_windows.cmd` for demonstration streams,
 then `start_windows.cmd`. In Sources, refresh LSL, select the source and channels
 for each modality, and press Play. Raw Data shows the live waveforms; gain,

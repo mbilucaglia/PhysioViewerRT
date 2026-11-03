@@ -149,13 +149,15 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--case')
     parser.add_argument('--repo',default=str(HERE))
-    parser.add_argument('--baseline',default=r'C:\Users\brainlab.ext1\Desktop\GitHub Marco\PhysioViewerRT')
+    parser.add_argument('--baseline', help='Explicit path to a separate baseline checkout')
     parser.add_argument('--channels',type=int,default=8)
     parser.add_argument('--reducer',choices=['off','ppg','eda','both'],default='off')
     parser.add_argument('--no-eeg',action='store_true')
     parser.add_argument('--seconds',type=float,default=23.)
     args=parser.parse_args()
     if args.case: return trial(args)
+    if not args.baseline:
+        parser.error('--baseline is required for the comparison matrix; select a baseline checkout explicitly')
     cases=[(f'baseline-{n}-{r}',args.baseline,n,r,False) for n in (8,32) for r in ('off','both')]
     cases += [(f'refactor-{n}-{r}',str(HERE),n,r,False) for n in (8,32) for r in ('off','ppg','eda','both')]
     cases += [('refactor-no-eeg-'+r,str(HERE),8,r,True) for r in ('off','ppg','eda','both')]

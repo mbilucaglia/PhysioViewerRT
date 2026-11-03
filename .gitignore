@@ -9,3 +9,9 @@ build/
 .idea/
 .vscode/
 .codex-remote-attachments/
+.local/
+.env
+.env.*
+!.env.example
+/bsl_calibration.npz
+/eyc_calibration.npz

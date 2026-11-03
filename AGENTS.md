@@ -15,6 +15,14 @@ Le istruzioni si applicano anche ai compiti senza modifiche al codice.
 
 ## All'inizio di ogni sessione di lavoro
 
+Per installazione e passaggio fra PC seguire `docs/PORTABLE_SETUP.md`.
+Usare `project.cmd` su Windows o `python3 tools/project_env.py` sugli altri OS.
+Questi comandi trovano la radice e la `.venv` locale senza percorsi utente fissi.
+Non copiare `.venv` fra PC e non pubblicare report `.local/` o calibrazioni locali.
+Se cambiano le dipendenze aggiornare consapevolmente anche il lock Windows/Python
+3.12, verificandolo in un ambiente pulito. Per il benchmark di confronto indicare
+sempre `--baseline` con il checkout effettivo della macchina corrente.
+
 1. Leggere questo file e le istruzioni più specifiche applicabili. Conservare
    modifiche locali, ramo corrente e lavoro dell'utente.
 2. Controllare stato Git, ramo/upstream e registri già presenti. Quando la

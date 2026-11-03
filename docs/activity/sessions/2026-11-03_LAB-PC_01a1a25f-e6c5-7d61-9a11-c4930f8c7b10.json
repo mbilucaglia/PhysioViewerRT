@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "session_id": "01a1a25f-e6c5-7d61-9a11-c4930f8c7b10",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": "01a1a235-43a3-75a0-bdbd-4160e5d85fc1",
+  "branch": "codex/portable-environment",
+  "head_at_start": "cef93061e1fa62c74164e2758510f4938fde771f",
+  "updated_at": "2026-11-03T17:16:21+00:00",
+  "status": "open",
+  "summary": "Configurazione portabile degli ambienti e raccolta delle dipendenze Windows.",
+  "intervals": [{
+    "id": "01a1a25f-e6c5-7d61-9a11-c4930f8c7b10",
+    "started_at": "2026-11-03T17:05:56+00:00",
+    "ended_at": null,
+    "kind": "mixed",
+    "basis": "observed",
+    "description": "Audit ambiente, setup ripetibile, diagnostica e istruzioni multi-PC.",
+    "evidence": ["Timestamp iniziale del turno Codex e verifiche locali"],
+    "source_event_id": "01a1a25f-e6c5-7d61-9a11-c4930f8c7b10"
+  }],
+  "results": [],
+  "commits": [],
+  "open_items": ["Configurare e verificare l'altro PC quando accessibile"],
+  "limitations": ["Solo questo PC risulta accessibile dagli strumenti della sessione"]
+}

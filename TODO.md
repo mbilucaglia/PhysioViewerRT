@@ -1,4 +1,23 @@
-# PhysioViewerRT handoff — 27 October 2026
+# PhysioViewerRT handoff — 3 November 2026
+
+## Portable environments — 3 November 2026
+
+- [x] Add repository-relative setup/doctor/run/simulate/test commands and a
+      Windows/Python 3.12 dependency snapshot. Keep the general requirements for
+      other supported Python/OS combinations.
+- [x] Add the shared Codex Windows local environment and multi-PC setup guide
+      in docs/PORTABLE_SETUP.md. Record sessions through AGENTS.md.
+- [x] Verify a fresh Python 3.12.10 x64 environment: 12 backend imports, pip check,
+      offscreen MainWindow construction, and all 231 core tests passed.
+- [x] Remove the machine-specific baseline path from the rendering benchmark;
+      require --baseline explicitly for a comparison matrix.
+- [ ] On the other PC, pull the setup commit on the correct working branch and
+      run setup_windows.cmd --non-interactive, then project.cmd doctor --gui.
+      Open this repository as the primary Codex project folder. This PC was not
+      accessible during preparation; do not describe it as configured or tested.
+- [ ] Confirm native GPU rendering, LSL networking and real-device playback on
+      each PC. Offscreen checks do not certify these hardware-specific paths.
+
 
 ## Wavelet dependency failure on another PC — 27 October 2026
 

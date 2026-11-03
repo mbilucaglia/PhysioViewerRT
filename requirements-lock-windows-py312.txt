@@ -1,0 +1,43 @@
+# Reference environment: Windows x64, CPython 3.12.10, 2026-11-03.
+# Full installed snapshot. Other OS/Python versions use requirements.txt.
+# Refresh deliberately after testing; never regenerate from an unrelated venv.
+array-api-compat==1.15.0
+array-api-extra==0.11.4
+cloudpickle==3.1.2
+colorama==0.4.6
+contourpy==1.4.0
+cvxeda==1.1.0
+cvxopt==1.3.3
+cycler==0.12.1
+fonttools==4.67.0
+freetype-py==2.5.1
+hsluv==5.0.5
+joblib==1.6.0
+kiwisolver==1.5.1
+matplotlib==3.11.2
+meegkit @ https://github.com/nbara/python-meegkit/archive/7f1b3e0cdce57d7e987106a42f505d13064c3339.zip#sha256=627800968c4e2a36d44c76c6236e00891fa918e901066214e9c2363c0b28d2f4
+narwhals==2.27.1
+numpy==2.3.5
+packaging==26.3
+pandas==3.1.0
+pillow==13.0.0
+pylsl==1.18.6
+PyOpenGL==3.1.10
+pyparsing==3.3.3
+pyqtgraph==0.14.0
+pyriemann==0.12
+PySide6==6.12.0
+PySide6_Addons==6.12.0
+PySide6_Essentials==6.12.0
+PySide6_Pdf==6.12.0.140
+PySide6_WebEngine==6.12.0.140
+python-dateutil==3.0.0
+PyWavelets==1.10.0
+scikit-learn==1.9.1
+scipy==1.18.1
+shiboken6==6.12.0
+six==1.17.0
+threadpoolctl==3.7.0
+tqdm==4.70.1
+tzdata==2026.5
+vispy==0.17.0

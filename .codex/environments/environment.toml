@@ -1,0 +1,26 @@
+# Shared Windows environment; all paths are relative to the repository root.
+version = 1
+name = "PhysioViewerRT - Windows"
+
+[setup]
+script = "cmd /c setup_windows.cmd --non-interactive"
+
+[[actions]]
+name = "Run"
+icon = "run"
+command = "cmd /c project.cmd run"
+
+[[actions]]
+name = "Environment check"
+icon = "run"
+command = "cmd /c project.cmd doctor --gui"
+
+[[actions]]
+name = "Simulator"
+icon = "run"
+command = "cmd /c project.cmd simulate"
+
+[[actions]]
+name = "Core tests"
+icon = "run"
+command = "cmd /c project.cmd test"
