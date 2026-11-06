@@ -18,6 +18,18 @@ then `start_windows.cmd`. In Sources, refresh LSL, select the source and channel
 for each modality, and press Play. Raw Data shows the live waveforms; gain,
 channel count, sweep duration, and plot pause change the display only.
 
+The fourth Raw Data panel is **EEG topoplot**, with unfiltered signed voltage or
+Delta/Theta/Alpha/Beta/Gamma power. **… (Topoplot settings)** selects raw/processed input,
+analysis window, overlap, calibrated IAF for Alpha, and unfiltered persistence.
+The map uses the full standard 10-5 template (343 labels, including 10-10/10-20) and
+follows RAW pause and history navigation. See [EEG topoplot](docs/EEG_TOPOGRAPHY.md)
+for controls, channel coverage and calculation details.
+Spherical-spline full-scalp extrapolation is enabled by default. Available channels
+are shown as circles without text labels; hover for names. Areas beyond electrode
+coverage are estimated. Uncheck **Full scalp** to show interpolation only.
+**Colour − / Fit / + / Auto** adjusts contrast and freezes or automatically fits
+the colour range, including while paused. These controls change presentation only.
+
 Raw Data centers each signal once when acquisition starts. **Center** in each
 EEG/PPG/SC panel explicitly recenters the visible data; **Fit** adjusts amplitude
 only. Drift, trace toggles and channel-display changes do not automatically

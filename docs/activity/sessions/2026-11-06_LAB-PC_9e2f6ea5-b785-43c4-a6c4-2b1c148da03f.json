@@ -1,0 +1,49 @@
+{
+  "commits": [],
+  "summary": "Implemented default full-scalp IDW extrapolation with a Designer-owned checkbox, explicit hatch overlay beyond coverage and interpolation-only alternative.",
+  "session_id": "9e2f6ea5-b785-43c4-a6c4-2b1c148da03f",
+  "project": "PhysioViewerRT",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-06T21:30:36.0871975+01:00",
+  "limitations": [
+    "Initial inspection preceded first logged timestamp.",
+    "Extrapolated values are spatial display estimates, not recovered channel measurements.",
+    "Validation used synthetic data and offscreen Qt."
+  ],
+  "thread_id": null,
+  "open_items": [
+    "Native real-source validation on target workstation."
+  ],
+  "status": "completed",
+  "schema_version": 1,
+  "reporting_timezone": "Europe/Rome",
+  "branch": "codex/portable-environment",
+  "results": [
+    "58 tests passed: 7 numerical topography, 4 montage, 5 topography GUI and 42 GUI smoke tests.",
+    "Verified full scalp mask, estimated-region mask, extrema bounds, constant fields, unchanged inside-hull values and unchanged source samples.",
+    "Designer topographyExtrapolate checkbox defaults checked and recomputes frozen history; overlay clears on disable/reset.",
+    "Offscreen preview verified checkbox and hatched full-scalp image in 3x3 layout: 922 px primary / 461 px side, no scrolling at 1450x940.",
+    "Changes remain local and uncommitted on codex/portable-environment; no push."
+  ],
+  "machine": "LAB-PC",
+  "intervals": [
+    {
+      "description": "Qt project change and validation",
+      "id": "b01d1f86-f20b-45c5-be80-89e8ee958e5a",
+      "started_at": "2026-11-06T21:26:54.1445298+01:00",
+      "source_event_id": null,
+      "kind": "mixed",
+      "evidence": [
+        "designer/PhysioViewerRT_ClinicalLayout.ui",
+        "physiolab/topography.py",
+        "physiolab/topography_widgets.py",
+        "tests/test_topography.py",
+        "tests_gui/test_topography.py",
+        ".local/topography-extrapolation-smoke.log",
+        ".local/topography-3x3-wide.png"
+      ],
+      "basis": "observed",
+      "ended_at": "2026-11-06T21:30:36.0871975+01:00"
+    }
+  ]
+}

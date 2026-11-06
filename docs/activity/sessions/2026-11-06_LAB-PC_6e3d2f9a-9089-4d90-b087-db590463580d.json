@@ -1,0 +1,47 @@
+{
+  "summary": "Added Designer-owned topoplot Colour minus/Fit/plus/Auto controls, stable manual colour ranges across frames/pause/history, and source/quantity-aware reseeding.",
+  "open_items": [
+    "Native real-source validation on target workstation."
+  ],
+  "updated_at": "2026-11-06T21:47:58.7222210+01:00",
+  "reporting_timezone": "Europe/Rome",
+  "schema_version": 1,
+  "project": "PhysioViewerRT",
+  "limitations": [
+    "Initial inspection preceded first logged timestamp.",
+    "Validation used synthetic data and offscreen Qt. Narrowed manual ranges may saturate displayed colours; numerical data are unchanged."
+  ],
+  "session_id": "6e3d2f9a-9089-4d90-b087-db590463580d",
+  "commits": [],
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "branch": "codex/portable-environment",
+  "intervals": [
+    {
+      "source_event_id": null,
+      "ended_at": "2026-11-06T21:47:58.7222210+01:00",
+      "kind": "mixed",
+      "evidence": [
+        "designer/PhysioViewerRT_ClinicalLayout.ui",
+        "physiolab/gui.py",
+        "physiolab/topography_widgets.py",
+        "tests_gui/test_topography.py",
+        ".local/topography-colours-smoke.log",
+        ".local/topography-spline-wide.png"
+      ],
+      "started_at": "2026-11-06T21:43:16.7934859+01:00",
+      "id": "46ac8bde-f6fd-4c85-9311-73735c6bd6ee",
+      "basis": "observed",
+      "description": "Colour-range controls implementation and validation"
+    }
+  ],
+  "thread_id": null,
+  "status": "completed",
+  "machine": "LAB-PC",
+  "results": [
+    "50 GUI tests passed: 8 topography tests and 42 existing GUI smoke tests.",
+    "Verified buttons immediately recolour paused maps without modifying data or restarting numerical computation; minus/plus use the waveform gain step.",
+    "Verified manual limits persist across frames and pause; Fit fits once, Auto follows new maps, voltage limits stay symmetric and new quantities/sources seed fresh ranges.",
+    "Offscreen preview inspected: compact colour controls fit the existing footer, 3x3 922/461 px arrangement retained and no scrolling at 1450x940.",
+    "Changes remain local, uncommitted and unpushed on codex/portable-environment."
+  ]
+}

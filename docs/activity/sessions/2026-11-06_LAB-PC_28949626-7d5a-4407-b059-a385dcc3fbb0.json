@@ -1,0 +1,49 @@
+{
+  "reporting_timezone": "Europe/Rome",
+  "open_items": [
+    "Validate real cap labels and native rendering on intended workstation."
+  ],
+  "machine": "LAB-PC",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "status": "completed",
+  "intervals": [
+    {
+      "description": "Montage research, implementation and validation",
+      "basis": "observed",
+      "ended_at": "2026-11-06T21:18:20.2674969+01:00",
+      "evidence": [
+        "assets/montages/README.md",
+        "assets/montages/standard_1005.elc",
+        "assets/montages/MNE-LICENSE.txt",
+        "physiolab/eeg_montage.py",
+        "tests/test_eeg_montage.py",
+        "tests/test_topography.py",
+        "tests_gui/test_topography.py"
+      ],
+      "kind": "mixed",
+      "started_at": "2026-11-06T21:13:57.8082681+01:00",
+      "id": "e5b5c30e-06e6-4d1e-9010-5c1ef4ae5646",
+      "source_event_id": null
+    }
+  ],
+  "limitations": [
+    "Initial inspection preceded first logged timestamp.",
+    "Standard template coordinates are not participant-specific digitized positions.",
+    "13 targeted tests rerun for this follow-up; previous full-suite results are recorded in the preceding activity session."
+  ],
+  "summary": "Replaced schematic topography positions with the bundled complete MNE v1.10.2 standard 10-5 template (343 labels), fixed fiducial-aligned projection, provenance/license, and dense-cap graphics reuse.",
+  "branch": "codex/portable-environment",
+  "project": "PhysioViewerRT",
+  "thread_id": null,
+  "results": [
+    "4 montage tests, 5 numerical topography tests and 4 offscreen GUI topography tests passed (13 total).",
+    "Checked pinned dataset SHA-256, 343 labels, intermediate h sites, orientation, fixed subset positioning, legacy alias duplicates and dense-cap rendering.",
+    "Preserved source data and license bytes via .gitattributes; no runtime dependency added.",
+    "Bounded interpolation cache to four float32 tables and reused electrode labels between frames.",
+    "Changes remain local and uncommitted on codex/portable-environment. No push or desktop main checkout changes."
+  ],
+  "session_id": "28949626-7d5a-4407-b059-a385dcc3fbb0",
+  "commits": [],
+  "schema_version": 1,
+  "updated_at": "2026-11-06T21:18:20.2674969+01:00"
+}

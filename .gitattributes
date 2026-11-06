@@ -1,0 +1,3 @@
+# Preserve the pinned upstream montage bytes/checksum on Windows and Unix.
+assets/montages/standard_1005.elc -text
+assets/montages/MNE-LICENSE.txt -text

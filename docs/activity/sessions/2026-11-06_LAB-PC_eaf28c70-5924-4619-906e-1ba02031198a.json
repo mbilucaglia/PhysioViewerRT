@@ -1,0 +1,50 @@
+{
+  "summary": "Implemented 3x3-style RAW layout: EEG spans first two columns and all rows, with topoplot/PPG/SC stacked in final column; preserved panel swaps, expand/restore and narrow-layout fallback.",
+  "branch": "codex/portable-environment",
+  "machine": "LAB-PC",
+  "schema_version": 1,
+  "updated_at": "2026-11-06T21:25:34.6490632+01:00",
+  "thread_id": null,
+  "status": "completed",
+  "results": [
+    "42 existing GUI smoke tests and 4 topography GUI tests passed after final code changes (46 total).",
+    "Verified all 24 panel permutations and focus/restore behavior.",
+    "1450x940 offscreen preview: primary width 922 px, side width 461 px, no scrollbars; side row heights 209/208/209 px.",
+    "1024x700 preview stacks panels vertically with scrolling. Forced full repaint for final offscreen screenshot.",
+    "Deferred initial divider sizing until Qt layout completes, and Restore default layout resets proportions.",
+    "Changes remain local and uncommitted on codex/portable-environment; no push."
+  ],
+  "reporting_timezone": "Europe/Rome",
+  "commits": [],
+  "open_items": [
+    "Native display and real-source validation on target workstation."
+  ],
+  "project": "PhysioViewerRT",
+  "limitations": [
+    "Initial inspection preceded first logged timestamp.",
+    "Interpreted first two columns as one primary panel spanning all three rows; this assumption was stated at turn start.",
+    "Validation uses offscreen Qt with Segoe UI explicitly loaded for preview."
+  ],
+  "session_id": "eaf28c70-5924-4619-906e-1ba02031198a",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "intervals": [
+    {
+      "evidence": [
+        "designer/PhysioViewerRT_ClinicalLayout.ui",
+        "physiolab/gui.py",
+        "physiolab/flow_layout.py",
+        "tests_gui/test_gui_smoke.py",
+        ".local/topography-3x3-smoke.log",
+        ".local/topography-3x3-wide.png",
+        ".local/topography-3x3-small.png"
+      ],
+      "ended_at": "2026-11-06T21:25:34.6490632+01:00",
+      "kind": "mixed",
+      "source_event_id": null,
+      "id": "185ae261-0096-40ae-8b13-1ec51b97c283",
+      "started_at": "2026-11-06T21:19:03.9836058+01:00",
+      "description": "Layout implementation and validation",
+      "basis": "observed"
+    }
+  ]
+}

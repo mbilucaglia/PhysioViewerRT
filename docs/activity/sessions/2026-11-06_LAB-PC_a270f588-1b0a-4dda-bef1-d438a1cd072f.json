@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "open_items": [
+    "Validate native rendering and real EEG source labels on target hardware."
+  ],
+  "branch": "codex/portable-environment",
+  "results": [
+    "236 core tests passed via project.cmd test (18.768 s).",
+    "144 GUI tests run via project.cmd test --gui: 141 passed, 3 native checks skipped (156.059 s).",
+    "New tests cover spectral power and units, IAF/source selection, persistence, timestamp gaps, electrode mapping, pause/history and stale source results. All 24 panel arrangements covered.",
+    "Offscreen preview with explicitly loaded Segoe UI: 1450x940 four-panel layout has no scrolling; 1024x700 stacks panels with vertical scrolling.",
+    "No dependency changes. Work remains uncommitted and local on codex/portable-environment; desktop main checkout was not modified."
+  ],
+  "intervals": [
+    {
+      "evidence": [
+        "physiolab/topography.py",
+        "physiolab/topography_widgets.py",
+        "tests/test_topography.py",
+        "tests_gui/test_topography.py",
+        ".local/topography-core-tests.log",
+        ".local/topography-gui-tests.log",
+        ".local/topography-wide.png",
+        ".local/topography-small.png"
+      ],
+      "source_event_id": null,
+      "kind": "mixed",
+      "ended_at": "2026-11-06T21:13:28.1562139+01:00",
+      "description": "Implementation and validation",
+      "id": "aa8a882a-cd55-405b-92cb-4e703267d79d",
+      "basis": "observed",
+      "started_at": "2026-11-06T20:58:25.6904463+01:00"
+    }
+  ],
+  "machine": "LAB-PC",
+  "thread_id": null,
+  "summary": "Implemented fourth RAW EEG topography panel, canonical band power and calibrated IAF Alpha, configurable window/overlap and unfiltered voltage persistence; validated locally.",
+  "project": "PhysioViewerRT",
+  "reporting_timezone": "Europe/Rome",
+  "session_id": "a270f588-1b0a-4dda-bef1-d438a1cd072f",
+  "commits": [],
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "status": "completed",
+  "limitations": [
+    "Initial repository inspection preceded the first recorded timestamp.",
+    "Sensor positions are schematic 10-20/10-10; no digitized montage import.",
+    "Native OpenGL/device validation was not performed; three platform-specific tests were skipped.",
+    "Offscreen preview initially lacked system fonts; loading Segoe UI explicitly resolved preview glyphs and size hints."
+  ],
+  "updated_at": "2026-11-06T21:13:28.1562139+01:00"
+}

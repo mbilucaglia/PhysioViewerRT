@@ -34,6 +34,7 @@ gated on the outstanding performance/device validation described in the handoff.
 | Metric presentation metadata and controls | `metric_catalog.py`, `metric_widgets.py` | Qualified `(modality, name)` keys identify metrics across histories and controls. |
 | Shared policy | `settings.py`, `render_policy.py` | Centralize viewer timing/history/gain limits and raw geometry/sample budgets. Rulers, labels, autoscale and both renderers use the same geometry. |
 | Desktop widgets | `desktop_widgets.py`, `metric_widgets.py`, `scale_rulers.py` | Reusable Qt views do not own acquisition or processing session state. |
+| EEG sensor topography | `topography.py`, `spherical_spline.py`, `eeg_montage.py`, `topography_widgets.py` | Pure band-power/persistence and 3D spherical-spline calculations on immutable EEG history; one bounded worker, generation/settings invalidation, RAW pause/history alignment and GUI-owned graphics. |
 | Application composition | `gui.py` | Connect Designer controls, asynchronous stream lifecycles, session models and calibration dialogs; forward plot commands to controllers. |
 | Diagnostics and test sources | `performance.py`, `synthetic.py` | Optional timing summaries and reproducible demonstration inputs. |
 

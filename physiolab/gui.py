@@ -57,6 +57,7 @@ from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
 from .desktop_widgets import CheckChannelDropdown, CalibrationScreen, ResponsiveSources
 from .source_conversion_widgets import SourceConversionControls
+from .topography_widgets import TopographyView
 
 from .calibration import (
     analyze_eyc, analyze_bsl, save_calibration, load_calibration,
@@ -724,14 +725,15 @@ class MainWindow(QMainWindow):
         self.raw_plot_splitter = self._required_ui('rawPlotSplitter', QSplitter)
         self.raw_plot_splitter.setChildrenCollapsible(False)
         self.raw_plot_splitter.setHandleWidth(9)
-        self.raw_plot_splitter.setStretchFactor(0, 4)
+        self.raw_plot_splitter.setStretchFactor(0, 2)
         self.raw_plot_splitter.setStretchFactor(1, 1)
         self.raw_peripheral_splitter = self._required_ui('rawPeripheralSplitter', QSplitter)
         self.raw_peripheral_splitter.setChildrenCollapsible(False)
         self.raw_peripheral_splitter.setHandleWidth(9)
         self.raw_peripheral_splitter.setStretchFactor(0, 1)
         self.raw_peripheral_splitter.setStretchFactor(1, 1)
-        self.raw_panel_order = ('EEG', 'PPG', 'EDA')
+        self.raw_peripheral_splitter.setStretchFactor(2, 1)
+        self.raw_panel_order = ('EEG', 'TOPO', 'PPG', 'EDA')
         self.raw_center_buttons = {}
         self.raw_move_menus = {}
         self.raw_focus_buttons = {}
@@ -798,8 +800,25 @@ class MainWindow(QMainWindow):
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/self.settings.gain_step))
             self._required_ui(f'{kind}AmplitudePlus', QPushButton).clicked.connect(
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, self.settings.gain_step))
-        self.raw_plot_splitter.setSizes([720, 360])
-        self.raw_peripheral_splitter.setSizes([240, 240])
+        host = self._required_ui('TOPOPlotPanel', QWidget)
+        self.topography = TopographyView(
+            host, self._required_ui('topographyExtrapolate', QCheckBox),
+            colour_controls={
+                'minus': self._required_ui('topographyColourMinus', QToolButton),
+                'fit': self._required_ui('topographyColourFit', QToolButton),
+                'plus': self._required_ui('topographyColourPlus', QToolButton),
+                'auto': self._required_ui('topographyColourAuto', QCheckBox)},
+            colour_step=self.settings.gain_step)
+        host.layout().insertWidget(0, self.topography, 1)
+        self.raw_focus_buttons['TOPO'] = self.topography.expand
+        self.topography.expand.toggled.connect(lambda checked: self.set_raw_focus('TOPO', checked))
+        menu = QMenu(self.topography.move)
+        self.topography.move.setMenu(menu)
+        self.topography.move.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        menu.aboutToShow.connect(lambda: self.update_raw_move_menu('TOPO'))
+        self.raw_move_menus['TOPO'] = menu
+        self.raw_plot_splitter.setSizes([960, 480])
+        self.raw_peripheral_splitter.setSizes([240, 240, 240])
         # No scroll area: the splitter shares the available screen height.
         self.raw_scroll = QScrollArea(self)
         self.raw_scroll.hide()  # Compatibility event source; not part of the layout.
@@ -1004,7 +1023,12 @@ class MainWindow(QMainWindow):
                 action.triggered.connect(lambda checked=False, a=kind, b=other: self.swap_raw_panels(a, b))
         menu.addSeparator()
         menu.addAction('Restore default layout').triggered.connect(
-            lambda: self.set_raw_panel_order(('EEG', 'PPG', 'EDA')))
+            self.restore_raw_layout)
+
+    def restore_raw_layout(self):
+        self.set_raw_panel_order(('EEG', 'TOPO', 'PPG', 'EDA'))
+        self._raw_workspace.reset_proportions()
+        self.raw_peripheral_splitter.setSizes([240, 240, 240])
 
     def swap_raw_panels(self, first, second):
         order = list(self.raw_panel_order)
@@ -1014,8 +1038,8 @@ class MainWindow(QMainWindow):
 
     def set_raw_panel_order(self, order):
         order = tuple(order)
-        if len(order) != 3 or set(order) != {'EEG', 'PPG', 'EDA'}:
-            raise ValueError('Raw layout must include EEG, PPG and SC exactly once')
+        if len(order) != 4 or set(order) != {'EEG', 'PPG', 'EDA', 'TOPO'}:
+            raise ValueError('Raw layout must include EEG, PPG, SC and topoplot exactly once')
         if self.focused_raw_kind is not None:
             self.set_raw_focus(self.focused_raw_kind, False)
         if order == self.raw_panel_order:
@@ -1051,7 +1075,8 @@ class MainWindow(QMainWindow):
             set_panel_expanded(button, selected)
             self._required_ui(f'{modality}PlotPanel', QWidget).setVisible(
                 self.focused_raw_kind is None or selected)
-        self.raw_peripheral_splitter.setVisible(self.focused_raw_kind != self.raw_panel_order[0])
+        self.raw_peripheral_splitter.setVisible(
+            self.focused_raw_kind is None or self.focused_raw_kind in self.raw_panel_order[1:])
         if not focused and hasattr(self, '_raw_splitter_sizes'):
             self.raw_plot_splitter.setSizes(self._raw_splitter_sizes)
         self.raw_controller.change()
@@ -1279,6 +1304,8 @@ class MainWindow(QMainWindow):
 
     def reset_stream_display(self, kind):
         self.raw_controller.reset(kind)
+        if kind == 'EEG':
+            self.topography.reset()
         self.metric_state.reset(kind)
         self.metric_controller.reset(kind)
         self.affect_state.reset(kind)
@@ -1744,6 +1771,13 @@ class MainWindow(QMainWindow):
         if not self._closing and QApplication.activePopupWidget() is None:
             self.poll_receivers()
             self.update_raw_xranges()
+            if self.tabs.currentWidget() is self.raw_page:
+                calibrated_iaf = None
+                if self.loaded_eyc is not None:
+                    candidate = (self.loaded_eyc.get('analysis') or {}).get('iaf_hz')
+                    if candidate is not None and np.isfinite(candidate) and 6. <= candidate <= 16.:
+                        calibrated_iaf = float(candidate)
+                self.topography.tick(self.raw_display, calibrated_iaf)
             if self.tabs.currentWidget() is self.metrics_page and (not self.metric_plot_paused or self.metric_dirty):
                 self.update_metric_xrange()
                 if self.metric_dirty: self.refresh_metric_plot()
@@ -2002,6 +2036,7 @@ class MainWindow(QMainWindow):
         for task in list(self.lsl_tasks.values()):
             task.wait(3000)
         self.raw_controller.close()
+        self.topography.shutdown()
         self.metric_controller.close()
         self.affect_view.close()
         for worker in self.workers.values():

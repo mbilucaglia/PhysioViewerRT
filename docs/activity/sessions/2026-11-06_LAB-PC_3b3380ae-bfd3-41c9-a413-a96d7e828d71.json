@@ -1,0 +1,56 @@
+{
+  "intervals": [
+    {
+      "basis": "observed",
+      "evidence": [
+        "physiolab/spherical_spline.py",
+        "physiolab/eeg_montage.py",
+        "physiolab/topography.py",
+        "physiolab/topography_widgets.py",
+        "designer/PhysioViewerRT_ClinicalLayout.ui",
+        "tests/test_spherical_spline.py",
+        "tests/test_eeg_montage.py",
+        "tests/test_topography.py",
+        "tests_gui/test_topography.py",
+        ".local/topography-spline-wide.png",
+        ".local/topography-spline-expanded.png",
+        ".local/topography-spline-small.png"
+      ],
+      "started_at": "2026-11-06T21:32:00.1020129+01:00",
+      "source_event_id": null,
+      "ended_at": "2026-11-06T21:41:56.7985998+01:00",
+      "id": "c19390b0-1256-4332-81ac-523f1baf1516",
+      "kind": "mixed",
+      "description": "Spherical-spline implementation, Qt presentation refinement and validation"
+    }
+  ],
+  "thread_id": null,
+  "project": "PhysioViewerRT",
+  "schema_version": 1,
+  "updated_at": "2026-11-06T21:41:56.7985998+01:00",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "status": "completed",
+  "summary": "Implemented regularized Perrin spherical splines on a fitted full-template 3D sphere, positive log-power mapping, smooth 128x128 Qt rendering, compact toolbar and available-channel circles without text labels or hatching.",
+  "commits": [],
+  "results": [
+    "22 tests passed: 4 spherical-spline, 5 montage, 8 numerical topography and 5 Qt topography GUI tests.",
+    "Spline validation: exact unregularized sensor reconstruction, constant preservation, independent degree-one spherical field, rotational/order invariance and invalid-coordinate handling.",
+    "Verified shared source/target sphere origin and exact projection inverse, positive log-power maps, voltage unit scaling, frozen-state controls and marker-only dense cap rendering.",
+    "Inspected wide, expanded and small-window offscreen previews. 1450x940 retains 922/461 px main/side widths and no scrolling.",
+    "Removed permanent electrode text and hatching, kept circles with channel names on hover; changed Designer checkbox wording to spherical-spline extrapolation.",
+    "No new runtime dependencies. Changes remain local, uncommitted and unpushed on codex/portable-environment."
+  ],
+  "open_items": [
+    "Native real-source validation on target workstation."
+  ],
+  "machine": "LAB-PC",
+  "limitations": [
+    "Initial inspection preceded first logged timestamp.",
+    "Full scalp beyond electrode coverage remains estimated; spherical splines may overshoot observed extrema, and color limits include the displayed field.",
+    "Band power is spatially interpolated in log space and displayed in original squared units.",
+    "Validation used synthetic data and offscreen Qt."
+  ],
+  "branch": "codex/portable-environment",
+  "reporting_timezone": "Europe/Rome",
+  "session_id": "3b3380ae-bfd3-41c9-a413-a96d7e828d71"
+}

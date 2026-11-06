@@ -39,7 +39,7 @@ QLabel#EEGPlotTitle, QLabel#PPGPlotTitle, QLabel#EDAPlotTitle { font-size: 11pt;
 QLabel#EEGPlotTitle, QLabel#PPGPlotTitle, QLabel#EDAPlotTitle { color: #35335b; background: transparent; }
 QLabel#rawRenderingStatus, QLabel#baselineSummary, QLabel#EYCStatus, QLabel#BSLStatus { color: #77768f; }
 QLabel#sourcesIntro, QLabel#rawIntro, QLabel#metricsIntro { color: #686887; padding: 0 0 4px; }
-QWidget#EEGPlotPanel, QWidget#PPGPlotPanel, QWidget#EDAPlotPanel { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 8px; }
+QWidget#EEGPlotPanel, QWidget#PPGPlotPanel, QWidget#EDAPlotPanel, QWidget#TOPOPlotPanel { background: #ffffff; border: 1px solid #dfe1ef; border-radius: 8px; }
 QFrame#EEGPlotHost, QFrame#PPGPlotHost, QFrame#EDAPlotHost, QFrame#metricsPlotHost { background: #ffffff; border: none; border-radius: 6px; }
 QSplitter::handle { background: #f1f2f9; height: 8px; }
 QSplitter::handle:hover { background: #c9c3e5; }
@@ -1953,6 +1953,64 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                <property name="orientation">
                 <enum>Qt::Vertical</enum>
                </property>
+               <widget class="QWidget" name="TOPOPlotPanel">
+                <layout class="QVBoxLayout" name="topographyHostLayout">
+                 <property name="leftMargin"><number>0</number></property>
+                 <property name="topMargin"><number>0</number></property>
+                 <property name="rightMargin"><number>0</number></property>
+                 <property name="bottomMargin"><number>0</number></property>
+                 <item>
+                  <widget class="QWidget" name="topographyColourControls">
+                   <layout class="QHBoxLayout" name="topographyColourLayout">
+                    <property name="leftMargin"><number>8</number></property>
+                    <property name="topMargin"><number>0</number></property>
+                    <property name="rightMargin"><number>8</number></property>
+                    <property name="bottomMargin"><number>4</number></property>
+                    <property name="spacing"><number>4</number></property>
+                    <item>
+                     <widget class="QCheckBox" name="topographyExtrapolate">
+                      <property name="text"><string>Full scalp</string></property>
+                      <property name="checked"><bool>true</bool></property>
+                      <property name="toolTip"><string>Extend the smooth spherical-spline field to the head boundary. Areas beyond available electrode circles are estimated. Uncheck to show only the area enclosed by electrodes.</string></property>
+                     </widget>
+                    </item>
+                    <item><spacer name="topographyColourSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>8</width><height>0</height></size></property></spacer></item>
+                    <item><widget class="QLabel" name="topographyColourLabel"><property name="text"><string>Colour</string></property></widget></item>
+                    <item>
+                     <widget class="QToolButton" name="topographyColourMinus">
+                      <property name="text"><string>−</string></property>
+                      <property name="enabled"><bool>false</bool></property>
+                      <property name="toolTip"><string>Reduce colour contrast by widening the scale; hold this range.</string></property>
+                      <property name="accessibleName"><string>Reduce topoplot colour contrast</string></property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QToolButton" name="topographyColourFit">
+                      <property name="text"><string>Fit</string></property>
+                      <property name="enabled"><bool>false</bool></property>
+                      <property name="toolTip"><string>Fit the colour scale to this map once, then hold the range.</string></property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QToolButton" name="topographyColourPlus">
+                      <property name="text"><string>+</string></property>
+                      <property name="enabled"><bool>false</bool></property>
+                      <property name="toolTip"><string>Increase colour contrast by narrowing the scale; hold this range.</string></property>
+                      <property name="accessibleName"><string>Increase topoplot colour contrast</string></property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QCheckBox" name="topographyColourAuto">
+                      <property name="text"><string>Auto</string></property>
+                      <property name="checked"><bool>true</bool></property>
+                      <property name="toolTip"><string>Continuously fit colour limits to each map. Uncheck to freeze the current range.</string></property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
                <widget class="QWidget" name="PPGPlotPanel">
                 <layout class="QVBoxLayout" name="PPGPlotLayout">
                  <item>

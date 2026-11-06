@@ -250,15 +250,15 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.raw_vertical_gains['EEG'].setValue(2.)
         self.window.update_raw_move_menu('EEG')
         self.window.raw_move_menus['EEG'].actions()[0].trigger()
-        self.assertEqual(self.window.raw_panel_order, ('PPG','EEG','EDA'))
-        for order in permutations(('EEG','PPG','EDA')):
+        self.assertEqual(self.window.raw_panel_order, ('TOPO','EEG','PPG','EDA'))
+        for order in permutations(('EEG','PPG','EDA','TOPO')):
             self.window.set_raw_panel_order(order)
             root = self.window.raw_plot_splitter
             side = self.window.raw_peripheral_splitter
             self.assertEqual(root.count(), 2)
-            self.assertEqual(side.count(), 2)
+            self.assertEqual(side.count(), 3)
             self.assertEqual(root.widget(0).objectName(), order[0]+'PlotPanel')
-            self.assertEqual([side.widget(i).objectName() for i in range(2)],
+            self.assertEqual([side.widget(i).objectName() for i in range(3)],
                              [kind+'PlotPanel' for kind in order[1:]])
             for kind in workers:
                 self.assertIs(self.window.workers[kind], workers[kind])
@@ -267,15 +267,15 @@ class GuiSmokeTests(unittest.TestCase):
             self.assertEqual(self.window.raw_vertical_gains['EEG'].value(), 2.)
         self.window.update_raw_move_menu('EDA')
         self.window.raw_move_menus['EDA'].actions()[-1].trigger()
-        self.assertEqual(self.window.raw_panel_order, ('EEG','PPG','EDA'))
+        self.assertEqual(self.window.raw_panel_order, ('EEG','TOPO','PPG','EDA'))
 
     def test_expand_and_restore_follow_rearranged_main_pane(self):
         self.window.set_raw_focus('EEG', True)
         self.window.swap_raw_panels('EEG', 'PPG')
         self.assertIsNone(self.window.focused_raw_kind)
-        for kind in ('EEG','PPG','EDA'):
+        for kind in ('EEG','PPG','EDA','TOPO'):
             self.window.set_raw_focus(kind, True)
-            self.assertEqual(self.window.raw_peripheral_splitter.isHidden(), kind=='PPG')
+            self.assertEqual(self.window.raw_peripheral_splitter.isHidden(), kind == 'PPG')
             self.window.set_raw_focus(kind, False)
             self.assertFalse(self.window.raw_peripheral_splitter.isHidden())
 
@@ -641,10 +641,11 @@ class GuiSmokeTests(unittest.TestCase):
         )
         self.assertIsInstance(self.window.raw_plot_splitter, QSplitter)
         self.assertEqual(self.window.raw_plot_splitter.count(), 2)
-        self.assertEqual(self.window.raw_peripheral_splitter.count(), 2)
+        self.assertEqual(self.window.raw_peripheral_splitter.count(), 3)
         self.assertEqual(self.window.raw_plot_splitter.widget(0).objectName(), 'EEGPlotPanel')
-        self.assertEqual(self.window.raw_peripheral_splitter.widget(0).objectName(), 'PPGPlotPanel')
-        self.assertEqual(self.window.raw_peripheral_splitter.widget(1).objectName(), 'EDAPlotPanel')
+        self.assertEqual(self.window.raw_peripheral_splitter.widget(0).objectName(), 'TOPOPlotPanel')
+        self.assertEqual(self.window.raw_peripheral_splitter.widget(1).objectName(), 'PPGPlotPanel')
+        self.assertEqual(self.window.raw_peripheral_splitter.widget(2).objectName(), 'EDAPlotPanel')
         self.assertEqual(
             self.window.raw_scroll.verticalScrollBarPolicy(),
             __import__('PySide6.QtCore', fromlist=['Qt']).Qt.ScrollBarPolicy.ScrollBarAlwaysOff

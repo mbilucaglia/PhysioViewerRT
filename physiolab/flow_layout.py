@@ -1,5 +1,5 @@
 """Wrap related controls as intact groups, using Qt size hints and DPI scaling."""
-from PySide6.QtCore import QRect, QSize, Qt, QObject, QEvent
+from PySide6.QtCore import QRect, QSize, Qt, QObject, QEvent, QTimer
 from PySide6.QtWidgets import QLayout, QWidget, QBoxLayout, QVBoxLayout
 
 
@@ -170,12 +170,17 @@ def minimum_layout_height(layout, width):
 
 
 class AdaptiveRawWorkspace(QObject):
-    """Wide EEG/peripheral columns; vertical signal stack on narrow viewports."""
+    """Wide 2:1 primary/three-row layout; vertical stack on narrow viewports."""
     def __init__(self, viewport, splitter):
         super().__init__(viewport)
         self.viewport, self.splitter = viewport, splitter
+        self._proportions_timer = QTimer(self)
+        self._proportions_timer.setSingleShot(True)
+        self._proportions_timer.timeout.connect(self.reset_proportions)
         viewport.installEventFilter(self)
         self.reflow()
+        # Before the first layout pass splitter geometry is still provisional.
+        self._proportions_timer.start(0)
 
     def eventFilter(self, watched, event):
         if event.type() == QEvent.Type.Resize:
@@ -189,5 +194,13 @@ class AdaptiveRawWorkspace(QObject):
         orientation = Qt.Orientation.Horizontal if horizontal else Qt.Orientation.Vertical
         if self.splitter.orientation() != orientation:
             self.splitter.setOrientation(orientation)
-            span = self.viewport.width() if horizontal else self.viewport.height()
-            self.splitter.setSizes([int(span * .68), int(span * .32)])
+            self._proportions_timer.start(0)
+
+    def reset_proportions(self):
+        if any(self.splitter.widget(i).isHidden() for i in range(self.splitter.count())):
+            return  # Preserve the expanded panel and its saved restore sizes.
+        horizontal = self.splitter.orientation() == Qt.Orientation.Horizontal
+        span = self.splitter.width() if horizontal else self.splitter.height()
+        span -= self.splitter.handleWidth()
+        fraction = 2/3 if horizontal else 1/4
+        self.splitter.setSizes([int(span*fraction), int(span*(1-fraction))])
