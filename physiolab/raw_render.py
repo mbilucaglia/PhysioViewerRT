@@ -121,22 +121,38 @@ def prepare_raw_window(chunks, left, right, origin, reference=None,
     # Gaps/nonfinite boundaries take precedence over the soft point budget.
     indices = np.arange(len(t))
     if fs*decimation_seconds > max_points and len(t)>max_points:
-        bins = max(1,int(max_points)//(4*n+2))
-        width = decimation_seconds/bins
-        ids = np.floor((t-origin)/width).astype(np.int64)
-        boundaries = np.r_[0,np.flatnonzero((np.diff(ids)!=0)|gap[1:])+1,len(t)]
-        retained=[]
-        for start,end in zip(boundaries[:-1],boundaries[1:]):
-            if cancelled(): raise PreparationCancelled()
-            retained.extend((start,end-1))
-            for values in (x,y):
-                block=values[start:end]
-                finite=np.isfinite(block)
-                retained.extend((start+np.argmin(np.where(finite,block,np.inf),axis=0)).tolist())
-                retained.extend((start+np.argmax(np.where(finite,block,-np.inf),axis=0)).tolist())
+        def extrema_indices(bin_count):
+            width=decimation_seconds/bin_count
+            ids=np.floor((t-origin)/width).astype(np.int64)
+            boundaries=np.r_[0,np.flatnonzero((np.diff(ids)!=0)|gap[1:])+1,len(t)]
+            retained=[]
+            for start,end in zip(boundaries[:-1],boundaries[1:]):
+                if cancelled(): raise PreparationCancelled()
+                retained.extend((start,end-1))
+                for values in (x,y):
+                    block=values[start:end]
+                    finite=np.isfinite(block)
+                    retained.extend((start+np.argmin(np.where(finite,block,np.inf),axis=0)).tolist())
+                    retained.extend((start+np.argmax(np.where(finite,block,-np.inf),axis=0)).tolist())
+            return np.unique(retained).astype(np.intp)
+
+        # Channel extrema share source timestamps. Starting with a bin count
+        # divided by channel count assumes every channel contributes unique
+        # points; correlated EEG channels often collapse those extrema to the
+        # same few timestamps and leave long waveform sections linearly joined.
+        # Start with a finer grid, then reduce it only when the actual union of
+        # retained extrema exceeds the soft point budget.
+        bins=max(1,int(max_points)//4)
+        indices=extrema_indices(bins)
+        while len(indices)>max_points and bins>1:
+            next_bins=max(1,int(bins*max_points/len(indices)))
+            if next_bins>=bins: next_bins=bins-1
+            bins=next_bins
+            indices=extrema_indices(bins)
+
         invalid=~(np.isfinite(x).all(axis=1)&np.isfinite(y).all(axis=1))
         edges=np.flatnonzero(invalid|np.r_[False,invalid[:-1]]|np.r_[invalid[1:],False])
-        indices=np.unique(np.r_[retained,edges]).astype(np.intp)
+        indices=np.unique(np.r_[indices,edges]).astype(np.intp)
     cumulative=np.cumsum(gap)
     connect=np.r_[False,cumulative[indices[1:]]==cumulative[indices[:-1]]]
     arrays=(t[indices]-origin,(x[indices]-raw_center)/scales+offsets,

@@ -1,4 +1,4 @@
-"""Modal calibration analysis keeps Qt timers moving and reports results."""
+"""Calibration dialogs preserve tab navigation and report results."""
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import unittest
@@ -26,14 +26,15 @@ class CalibrationTaskTests(unittest.TestCase):
         window.workers['EEG'] = worker
         analysis = {'metrics':{'EEG':{'AWI':{'mu':0.,'sigma':1.}}}, 'iaf_hz_used':10.}
         try:
-            with patch('physiolab.gui.CalibrationScreen') as screen, \
+            with patch('physiolab.gui.CalibrationScreen'), \
                     patch('physiolab.gui.CalibrationSession') as session, \
+                    patch.object(window,'_wait_for_calibration_dialog',
+                                 return_value=QDialog.DialogCode.Accepted), \
                     patch.object(QMessageBox,'information'), \
                     patch.object(QMessageBox,'question',return_value=QMessageBox.StandardButton.No), \
                     patch.object(window,'analyze_calibration_background',return_value=analysis), \
                     patch.object(window,'inspect_calibration'), \
                     patch.object(window,'fit_eeg_asr') as fit:
-                screen.return_value.exec.return_value = QDialog.DialogCode.Accepted
                 session.return_value.finish.return_value = {'EEG':eeg}
                 window.record_calibration('BSL')
                 fit.assert_not_called()
@@ -41,6 +42,29 @@ class CalibrationTaskTests(unittest.TestCase):
                 self.assertEqual(window.calibration_file_labels['BSL'].text(), 'Loaded (unsaved)')
         finally:
             window.workers.clear()
+            window.close()
+            app.processEvents()
+
+    def test_switch_tabs_while_calibration_dialog_is_open(self):
+        app = QApplication.instance() or QApplication([])
+        with patch.object(MainWindow, 'refresh', lambda self: None):
+            window = MainWindow()
+        dialog = QDialog(window)
+        observed = []
+        try:
+            window.show()
+
+            def switch_tabs():
+                observed.append((dialog.isVisible(), dialog.isModal(), app.activeModalWidget()))
+                window.tabs.setCurrentWidget(window.raw_page)
+                observed.append(window.tabs.currentWidget())
+                dialog.accept()
+
+            QTimer.singleShot(0, switch_tabs)
+            self.assertEqual(window._wait_for_calibration_dialog(dialog), QDialog.DialogCode.Accepted)
+            self.assertEqual(observed, [(True, False, None), window.raw_page])
+            self.assertIsNone(window._calibration_dialog)
+        finally:
             window.close()
             app.processEvents()
 

@@ -174,6 +174,14 @@ class SweepRing:
         self.positions[stale] = -10.
         return stale
 
+    def translate_y(self, offset):
+        """Move existing values and line endpoints without changing sweep bins."""
+        self.values += offset
+        if hasattr(self, '_selected_value'):
+            self._selected_value += offset
+        occupied = self.positions[..., 0] >= 0.
+        self.positions[..., 1][occupied] += offset
+
 
 @__import__('functools').lru_cache(maxsize=1)
 def _incremental_visual_class():
@@ -241,6 +249,10 @@ def _incremental_visual_class():
                 (self.capacity*self.vertices_per_slot, 2), -10., dtype=np.float32))
             self.update()
 
+        def replace_positions(self, positions):
+            self._buffer.set_subdata(positions.reshape(-1, 2).copy(), offset=0)
+            self.update()
+
         def patch(self, updates, positions=None):
             if not updates:
                 return
@@ -255,8 +267,7 @@ def _incremental_visual_class():
                 # hundreds of tiny driver commands per channel: upload the
                 # existing geometry once, including unchanged/empty slots.
                 # Copy because GL may consume the command after the ring mutates.
-                self._buffer.set_subdata(positions.reshape(-1,2).copy(),offset=0)
-                self.update()
+                self.replace_positions(positions)
                 return
             for first, end in zip(boundaries[:-1], boundaries[1:]):
                 data = vertices[first:end].reshape(-1, 2)
@@ -275,6 +286,7 @@ class IncrementalSweepLayer:
                  mode='lines'):
         self.ring = SweepRing(duration, rate, max_gap)
         self.mode = mode
+        self._full_refresh = False
         VisualClass = _incremental_visual_class()
         self.visual = VisualClass(self.ring.capacity, color, mode=mode,
                                   parent=parent)
@@ -282,13 +294,80 @@ class IncrementalSweepLayer:
     def set_gain(self, gain, center):
         self.visual.set_gain(gain, center)
 
+    def translate_y(self, offset):
+        if offset:
+            self.ring.translate_y(offset)
+            self.visual.replace_positions(self.ring.positions)
+
     def reconfigure(self, duration, rate, max_gap=None):
         """Reset display history without replacing the GPU visual/program."""
-        self.ring = SweepRing(duration, rate, max_gap)
-        self.visual.reset_capacity(self.ring.capacity)
+        ring = SweepRing(duration, rate, max_gap)
+        same_capacity = ring.capacity == self.ring.capacity
+        self.ring = ring
+        if self.mode == 'lines' and same_capacity:
+            # Defer replacing old geometry until the new CPU ring is populated;
+            # avoid an empty-buffer upload immediately before the replay upload.
+            self._full_refresh = True
+        else:
+            self._full_refresh = False
+            self.visual.reset_capacity(self.ring.capacity)
+
+    def reconfigure_preserving_history(self, duration, rate, max_gap=None):
+        """Retiming an existing sweep without replaying acquisition history."""
+        if self.mode != 'lines':
+            self.reconfigure(duration, rate, max_gap)
+            return
+        old = self.ring
+        new = SweepRing(duration, rate, max_gap)
+        latest = old.last_time
+        occupied = (np.isfinite(old.stamps) & np.isfinite(old.values)
+                    & (old.stamps >= latest-new.duration))
+        source_slots = np.flatnonzero(occupied)
+        if len(source_slots):
+            stamps = old.stamps[source_slots]
+            values = old.values[source_slots]
+            phase_tick = float(stamps[0]*new.rate)
+            new.bin_phase = phase_tick-np.rint(phase_tick)
+            identities = np.rint(stamps*new.rate-new.bin_phase).astype(np.int64)
+            target_slots = identities % new.capacity
+            _, reverse = np.unique(target_slots[::-1], return_index=True)
+            newest = len(target_slots)-1-reverse
+            source_slots = source_slots[newest]
+            stamps = stamps[newest]
+            values = values[newest]
+            identities = identities[newest]
+            target_slots = target_slots[newest]
+            geometry = old.positions[source_slots].copy()
+            old_cycles = np.floor(old.stamps[source_slots]/old.duration)
+            absolute_x = (old_cycles[:, None]*old.duration
+                          + geometry[..., 0]*old.duration)
+            new_cycles = np.floor(absolute_x/duration)
+            valid = geometry[..., 0] >= 0.
+            geometry[..., 0][valid] = (np.mod(absolute_x[valid], duration)
+                                       / duration)
+            keep_edge = (valid.all(axis=1)
+                         & (stamps >= latest-duration)
+                         & (new_cycles[:, 0] == new_cycles[:, 1]))
+            geometry[~keep_edge] = -10.
+            new.stamps[target_slots] = stamps
+            new.values[target_slots] = values
+            new.identities[target_slots] = identities
+            new.positions[target_slots] = geometry
+            latest_index = int(np.argmax(stamps))
+            new.last_id = int(identities[latest_index])
+            new._selected_time = float(stamps[latest_index])
+            new._selected_value = float(values[latest_index])
+        new.last_time = latest
+        self.ring = new
+        self._full_refresh = False
+        self.visual.replace_positions(new.positions)
 
     def append(self, times, values, connect=None):
         updates = self.ring.append(times, values, connect)
+        if self.mode == 'lines' and self._full_refresh:
+            self.visual.replace_positions(self.ring.positions)
+            self._full_refresh = False
+            return len(updates)
         if self.mode == 'points':
             self.expire_points(self.ring.last_time)
             updates = [

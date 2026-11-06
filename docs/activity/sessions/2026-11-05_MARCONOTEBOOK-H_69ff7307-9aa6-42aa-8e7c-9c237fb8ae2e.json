@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "session_id": "69ff7307-9aa6-42aa-8e7c-9c237fb8ae2e",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-05T16:18:10+01:00",
+  "status": "open",
+  "summary": "Investigate why the user still sees the EEG timebase artifact after source changes.",
+  "intervals": [
+    {
+      "id": "69ff7307-9aa6-42aa-8e7c-9c237fb8ae2e",
+      "source_event_id": "69ff7307-9aa6-42aa-8e7c-9c237fb8ae2e",
+      "started_at": "2026-11-05T16:15:29+01:00",
+      "ended_at": "2026-11-05T16:18:10+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Compare recording, source modification times, and the still-running project-local Python process to determine whether the updated rendering code was loaded.",
+      "evidence": [
+        "User report: the EEG issue still occurs",
+        "Recording file timestamp: 2026-11-05 15:57:52 Europe/Rome",
+        "Project-local Python process started at 2026-11-05 15:39:34 Europe/Rome",
+        "physiolab/raw_render.py modification timestamp: 2026-11-05 16:09:03 Europe/Rome",
+        "Codex turn 2026-11-05"
+      ]
+    }
+  ],
+  "results": [
+    "The recording and the still-running Python process both predate the adaptive decimation source change, so neither demonstrates the updated code. The process was left running to avoid interrupting a possible live LSL session.",
+    "Previous verification used fresh processes and deterministic synthetic signals; it did not verify the user's active session."
+  ],
+  "commits": [],
+  "open_items": [
+    "Restart the current project-local viewer so it imports the updated source, then verify the EEG behavior again with the live or simulated stream."
+  ],
+  "limitations": [
+    "The process command line was unavailable, so its exact entry point could not be confirmed. No active process was terminated."
+  ]
+}

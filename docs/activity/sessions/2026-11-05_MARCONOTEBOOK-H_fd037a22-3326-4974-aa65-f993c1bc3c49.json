@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "session_id": "fd037a22-3326-4974-aa65-f993c1bc3c49",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-05T17:23:50+01:00",
+  "status": "completed",
+  "summary": "Compared low-latency causal SC/PPG candidates and removed the measured live VisPy timebase hold by retiming committed sweep geometry instead of replaying full history. Added a correlated EEG retiming regression; native synthetic benchmark remained near 30 Hz through timebase changes.",
+  "intervals": [
+    {
+      "id": "fd037a22-3326-4974-aa65-f993c1bc3c49",
+      "started_at": "2026-11-05T16:41:47+01:00",
+      "ended_at": "2026-11-05T16:58:43+01:00",
+      "kind": "mixed",
+      "basis": "estimated",
+      "description": "Inspect current reducer implementation and compare primary literature for online low-latency SC and PPG alternatives; exact end time was not captured and is bounded at the first observed timestamp of the resumed rendering work.",
+      "evidence": [
+        "Codex turn 2026-11-05",
+        "Repository state checked in the user-designated local checkout"
+      ],
+      "source_event_id": null
+    },
+    {
+      "id": "2aabc7a1-b673-4f73-aefa-8edd20233269",
+      "started_at": "2026-11-05T16:58:43+01:00",
+      "ended_at": "2026-11-05T17:23:50+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Diagnose unresolved EEG rendering report and timebase hold, implement immediate VisPy sweep retiming, add correlated EEG regression, and benchmark native switches.",
+      "evidence": [
+        "Codex turn 2026-11-05; first observed native benchmark timestamp 16:58:43+01:00",
+        "tools/benchmark_timebase_switches.py native_retimed_fixed",
+        "Focused unittest runs: 23 core and 29 GUI tests"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "Native baseline reproduced the hold: first new EEG timebase draw 462 ms after switch; maximum draw gap 417 ms for the 10 s transition.",
+    "After retiming: all four EEG transitions (10, 30, 5, 15 s) drew at the new timebase within 18–23 ms; maximum draw gaps were 45–52 ms. Switch action took 6–10 ms. Benchmark used synthetic live streams with 8 displayed EEG channels.",
+    "23 core rendering tests and 29 offscreen GUI rendering tests passed; git diff --check passed.",
+    "Filter literature comparison: real-time EDA model-based Kalman filtering is a plausible causal SC candidate; PPG adaptive noise cancellation generally needs a synchronized motion reference such as accelerometry and should not be treated as a single-channel waveform filter.",
+    "Inspected the supplied Registrazione 2026-11-05 155756.mp4 in VLC; the clip shows continuous EEG traces at an 8 s window but no clear before/after timebase transition."
+  ],
+  "commits": [],
+  "open_items": [
+    "User should confirm the EEG appearance on the original recording or live acquisition; this session validated correlated synthetic EEG, not the specific user recording.",
+    "Select and validate SC/PPG preprocessing replacements against the GUI latency and signal-quality requirements before implementation."
+  ],
+  "limitations": [
+    "The end timestamp for the earlier filter-research interval was not logged; it is bounded at the first observed timestamp for this resumed rendering work, so its duration may be overstated.",
+    "Native benchmark used synthetic streams and the current PC/driver; it does not prove behavior on every EEG device or GPU.",
+    "Offscreen GUI tests warn that QOpenGLWidget context is unavailable; native benchmark supplies the timing verification.",
+    "The supplied recording did not visibly capture the timebase change, so the native benchmark verifies switch latency while the clip cannot confirm the retiming behavior on the user's exact interaction."
+  ]
+}

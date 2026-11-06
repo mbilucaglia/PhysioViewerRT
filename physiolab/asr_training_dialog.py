@@ -1,6 +1,6 @@
 """Designer-owned subject feedback during adaptive ASR training."""
 from pathlib import Path
-from PySide6.QtCore import QDir, Qt
+from PySide6.QtCore import QDir
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QProgressBar, QPushButton
 
@@ -9,7 +9,6 @@ class ASRTrainingDialog(QDialog):
     def __init__(self, minimum_seconds, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Train ASR · signal quality')
-        self.setWindowModality(Qt.WindowModality.ApplicationModal)
         folder = Path(__file__).resolve().parent.parent/'designer'
         loader = QUiLoader()
         loader.setWorkingDirectory(QDir(str(folder)))

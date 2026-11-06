@@ -54,5 +54,6 @@ class ProgressiveLayerTests(unittest.TestCase):
             self.assertEqual(len(plot._pending_layers['raw']), 32)
 
 
+
 if __name__ == '__main__':
     unittest.main()

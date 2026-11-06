@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "session_id": "40310aa5-c48d-4177-873d-68a15184ecfe",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-06T22:13:35+01:00",
+  "status": "open",
+  "summary": "Commit the current local development work, excluding already-published upstream changes, and rebase it onto the latest main while preserving all work.",
+  "intervals": [
+    {
+      "source_event_id": null,
+      "started_at": "2026-11-06T22:13:35+01:00",
+      "basis": "observed",
+      "kind": "interactive",
+      "evidence": [
+        "User approved committing all current local changes."
+      ],
+      "description": "Prepare the local checkout for a safe commit and integrate upstream main history.",
+      "ended_at": null,
+      "id": "9934c843-7a0b-499c-9657-dba12808e8a9"
+    }
+  ],
+  "results": [],
+  "commits": [],
+  "open_items": [],
+  "limitations": []
+}

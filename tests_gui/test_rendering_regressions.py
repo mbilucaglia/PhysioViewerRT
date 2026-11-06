@@ -21,6 +21,115 @@ def pump(predicate, timeout=3.):
 
 
 class RenderingRegressions(unittest.TestCase):
+    def test_explicit_center_rebuilds_reference_for_every_raw_modality(self):
+        from unittest.mock import Mock
+        from physiolab.plot_controller import PlotController
+        from physiolab.raw_render import prepare_raw_window
+        from physiolab.settings import DEFAULT_VIEWER_SETTINGS
+
+        controller = PlotController(DEFAULT_VIEWER_SETTINGS, Mock())
+        submitted = []
+        try:
+            controller.mode = 'vispy'
+            for kind in ('EEG', 'PPG', 'EDA'):
+                backend = Mock()
+                backend.history_needs_replay.return_value = True
+                backend.latest_sample_time = -np.inf
+                backend.widget.width.return_value = 800
+                controller.backends['vispy'][kind] = backend
+            controller.set_visible(('EEG', 'PPG', 'EDA'))
+
+            initial_times = np.arange(0., 2., .1)
+            shifted_times = np.arange(2., 6., .1)
+            for kind in ('EEG', 'PPG', 'EDA'):
+                initial = np.zeros((len(initial_times), 1))
+                shifted = np.full((len(shifted_times), 1), 20.)
+                controller.append(kind, initial, initial, ('signal',), 10., initial_times)
+                controller.append(kind, shifted, shifted, ('signal',), 10., shifted_times)
+                controller.state.source_bounds[kind] = (1., 6.)
+                controller.center(kind)
+            with patch.object(controller.scheduler, 'submit', side_effect=submitted.append):
+                controller.draw()
+
+            request = submitted[-1]
+            self.assertEqual(set(request.sources), {'EEG', 'PPG', 'EDA'})
+            centered_references = {}
+            for kind, source in request.sources.items():
+                self.assertIsNone(source.reference, kind)
+                frame = prepare_raw_window(
+                    source.chunks, source.left, source.right, source.origin,
+                    reference=source.reference,
+                    decimation_span=source.decimation_span,
+                    max_channels=source.max_channels,
+                    shared_scale=source.shared_scale,
+                    fit_traces=source.fit_traces,
+                    center_trace=source.center_trace,
+                )
+                previous = controller.state.initial_references[kind][0]
+                np.testing.assert_allclose(frame.centers, 20., atol=1e-10)
+                self.assertFalse(np.array_equal(frame.centers, previous))
+                centered_references[kind] = frame.centers.copy()
+                controller.state.signals.set_reference(
+                    kind, frame.centers,
+                    controller.state.initial_references[kind][1],
+                )
+                controller.state.center_requests.discard(kind)
+
+            # A duration change must retain the explicit center reference
+            # instead of restoring the startup baseline.
+            controller.set_window(10.)
+            with patch.object(controller.scheduler, 'submit', side_effect=submitted.append):
+                controller.draw()
+            replay = submitted[-1]
+            for kind, source in replay.sources.items():
+                np.testing.assert_array_equal(source.reference[0], centered_references[kind])
+        finally:
+            controller.close()
+
+    def test_metrics_keep_updating_while_a_dropdown_is_open(self):
+        with patch.object(MainWindow, 'refresh', lambda self: None):
+            window = MainWindow()
+        try:
+            tabs = window.tabs
+            tabs.setTabEnabled(tabs.indexOf(window.metrics_page), True)
+            tabs.setCurrentWidget(window.metrics_page)
+            window.metric_controller.data_changed()
+            with patch.object(QApplication, 'activePopupWidget', return_value=object()), \
+                 patch.object(window, 'poll_receivers') as poll, \
+                 patch.object(window, 'update_raw_xranges') as raw, \
+                 patch.object(window, 'update_metric_xrange') as advance, \
+                 patch.object(window, 'refresh_metric_plot') as refresh:
+                window.render_frame()
+                poll.assert_called_once()
+                advance.assert_called_once()
+                refresh.assert_called_once()
+                raw.assert_not_called()
+        finally:
+            window.close()
+            app.processEvents()
+
+    def test_gpu_warmup_uses_selected_channels_before_live_drawing(self):
+        from unittest.mock import Mock
+        from physiolab.plot_controller import PlotController
+        from physiolab.settings import DEFAULT_VIEWER_SETTINGS
+        raw = PlotController(DEFAULT_VIEWER_SETTINGS, Mock())
+        backend = Mock(reserved_channel_count=16)
+        raw.backends['vispy']['EEG'] = backend
+        raw.mode = 'vispy'
+        try:
+            with patch.dict(os.environ, {'QT_QPA_PLATFORM': 'windows'}):
+                raw.warm({'EEG': (48, 256.)})
+                backend.warm_channels.assert_called_once_with(96, raw.state.view_seconds, 256.)
+                raw.set_visible(['EEG'])
+                backend.warm_channels.reset_mock()
+                with patch.object(raw, 'draw') as draw:
+                    raw.tick()
+                    draw.assert_called_once()
+                raw.warm({'EEG': (48, 256.)})
+                backend.warm_channels.assert_not_called()
+        finally:
+            raw.close()
+
     def test_fragmented_peak_replay_bounds_gpu_upload_calls_without_changing_geometry(self):
         from unittest.mock import Mock
         from physiolab.incremental_sweep import IncrementalSweepLayer
@@ -129,6 +238,9 @@ class RenderingRegressions(unittest.TestCase):
     def test_empty_frames_during_short_packet_gap_restart_do_not_disable_source(self):
         with patch.object(MainWindow,'refresh',lambda self:None): w=MainWindow()
         try:
+            # Drive the controller directly; the window timer would otherwise
+            # replace this test's visibility with that of the hidden window.
+            w.timer.stop()
             controller=w.raw_controller
             controller.set_backend('pyqtgraph')
             controller.set_visible({'PPG'})

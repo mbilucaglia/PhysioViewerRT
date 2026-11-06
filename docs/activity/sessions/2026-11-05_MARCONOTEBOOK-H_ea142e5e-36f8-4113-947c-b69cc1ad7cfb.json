@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "session_id": "ea142e5e-36f8-4113-947c-b69cc1ad7cfb",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-05T15:52:19+01:00",
+  "status": "completed",
+  "summary": "Fixed Center requests reusing the startup reference and verified the new center persists through timebase replay.",
+  "intervals": [
+    {
+      "source_event_id": "ea142e5e-36f8-4113-947c-b69cc1ad7cfb",
+      "ended_at": "2026-11-05T15:52:19+01:00",
+      "description": "Trace raw center and timebase replay in the project-local checkout, fix the stale reference handoff, and verify all raw modalities and native renderer transitions.",
+      "id": "ea142e5e-36f8-4113-947c-b69cc1ad7cfb",
+      "kind": "mixed",
+      "evidence": [
+        "Codex turn 2026-11-05",
+        "Focused unittest command: tests.test_raw_render tests.test_raw_snapshot tests_gui.test_rendering_regressions and VisPy recenter geometry check",
+        "Native Windows/OpenGL command: tools/validate_rendering_native.py"
+      ],
+      "basis": "observed",
+      "started_at": "2026-11-05T15:41:59+01:00"
+    }
+  ],
+  "results": [
+    "Root cause: PlotController passed the latched reference to preparation for explicit Center requests, causing prepare_raw_window to reuse the old baseline; timebase replay then preserved that baseline.",
+    "Center requests now pass reference=None so preparation calculates a fresh center. Added regression coverage for EEG, PPG, and EDA and verified the new reference is reused on a later VisPy timebase replay.",
+    "Focused suites passed: 33 tests. Native Windows/OpenGL validation passed 30 renderer/channel/timebase transitions, Center and autoscale across EEG/PPG/EDA, and 21 alternating 5 s/300 s memory transitions; errors array was empty."
+  ],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "Verification used deterministic synthetic signals; no user-provided recording exhibiting the artifact was available for pixel-by-pixel comparison. No commit or push was made; pre-existing local work was preserved."
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "session_id": "84104f02-1b50-4fd8-8eec-64ab3760bc76",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "811ba416cd2f381506f50b2f51ff4d8f44e8bb87",
+  "updated_at": "2026-11-05T14:24:05+00:00",
+  "status": "completed",
+  "summary": "Pull and configure current PC, then continue handoff validation for rendering and playback.",
+  "intervals": [
+    {
+      "ended_at": "2026-11-05T15:11:59+01:00",
+      "kind": "mixed",
+      "evidence": [
+        "Codex turn 2026-11-05"
+      ],
+      "id": "84104f02-1b50-4fd8-8eec-64ab3760bc76",
+      "source_event_id": "84104f02-1b50-4fd8-8eec-64ab3760bc76",
+      "description": "Fast-forward pull of main, verification of local modifications, and review of project instructions.",
+      "started_at": "2026-11-05T15:08:57+01:00",
+      "basis": "observed"
+    },
+    {
+      "id": "c9cfd095-2825-44ce-a3e7-3b4771c4ca90",
+      "started_at": "2026-11-05T15:14:00+01:00",
+      "ended_at": "2026-11-05T14:24:05+00:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Continue rendering handoff gate: inspect and execute playback and memory validation available on this PC.",
+      "evidence": [
+        "Codex turn 2026-11-05"
+      ],
+      "source_event_id": "c9cfd095-2825-44ce-a3e7-3b4771c4ca90"
+    }
+  ],
+  "results": [
+    "main fast-forwarded from 811ba41 to 8c5053d; 17 pre-existing source changes preserved.",
+    "Pinned Windows/Python 3.12 setup completed; 14 checks passed.",
+    "Native committed-baseline validation passed: 30 transitions, 21 memory snapshots, 136 layers retained, stable 203,788,800-byte ring arrays after initial transition; no errors.",
+    "Native synthetic LSL 32-channel trials completed: Off draw p95/p99 EEG/EDA/PPG 80.6/107.5, 83.9/110.0, 82.8/111.0 ms; both Hampel 86.9/137.4, 92.0/139.0, 91.0/135.4 ms. Eight-channel/both-Hampel 30-second p95/p99 39.6/54.6, 41.4/50.8, 41.4/50.6 ms.",
+    "TODO.md updated with this PC results and outstanding hardware/performance gate. Native report copied to ignored .test-tmp for local retention.",
+    "Created an isolated managed validation worktree at gold-standard commit 8c5053d. The app now treats that checkout as this task primary; the original checkout and its pre-existing uncommitted changes remain intact."
+  ],
+  "commits": [
+    "811ba416cd2f381506f50b2f51ff4d8f44e8bb87",
+    "8c5053d16f9f6275387391820c5ec47154186d7c"
+  ],
+  "open_items": [
+    "Agree p95/p99 acceptance budgets for intended workload.",
+    "Run cross-device LSL and real EEG/PPG/SC playback checks when streams are available.",
+    "Complete a long-duration memory soak."
+  ],
+  "limitations": [
+    "Performance values are single-run local synthetic LSL diagnostics; no hardware acceptance thresholds are agreed.",
+    "No active LSL sources were found. Real-device playback, cross-device LSL and an hours-long memory soak remain unverified.",
+    "The full unit test suites were not run during this session.",
+    "The managed validation worktree could not be archived because the desktop app currently treats it as the task primary checkout."
+  ]
+}

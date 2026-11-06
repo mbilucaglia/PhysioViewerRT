@@ -94,6 +94,12 @@ class UiConsistencyTests(unittest.TestCase):
         window.findChild(QToolButton,'metricsYIn').click()
         zoomed=window.metric_plot.viewRange()[1]
         self.assertAlmostEqual(zoomed[1]-zoomed[0],.8*(bounds[1]-bounds[0]))
+        window.metric_controller.set_y_range(20., 24.)
+        center = window.findChild(QToolButton, 'metricsYCenter')
+        center.click()
+        self.assertIcon(center, 'center')
+        zoomed = window.metric_plot.viewRange()[1]
+        np.testing.assert_allclose(zoomed, (3., 7.))
         self.assertIs(window.metric_state.history,history)
         self.assertIcon(window.findChild(QToolButton,'metricsYFit'),'autoscale')
         window.metric_renderer_choice.setCurrentIndex(1)

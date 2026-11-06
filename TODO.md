@@ -14,12 +14,35 @@
 - [x] Fast-forward the canonical local checkout to include the published rendering
       fixes and portable setup. Repeat setup/doctor there: all 14 checks passed.
       Both existing calibration files retained their exact SHA-256 hashes.
-- [ ] On the other PC, pull the setup commit on the correct working branch and
-      run setup_windows.cmd --non-interactive, then project.cmd doctor --gui.
-      Open this repository as the primary Codex project folder. This PC was not
-      accessible during preparation; do not describe it as configured or tested.
-- [ ] Confirm native GPU rendering, LSL networking and real-device playback on
-      each PC. Offscreen checks do not certify these hardware-specific paths.
+- [x] On MARCONOTEBOOK-H, pulled the setup commit on main and ran
+      setup_windows.cmd --non-interactive, then project.cmd doctor --gui. This
+      repository is open as the primary Codex project folder. See the local
+      validation record below.
+- [ ] Confirm real-device playback and cross-device LSL networking on each PC.
+      MARCONOTEBOOK-H native GPU and synthetic local LSL checks passed; offscreen
+      checks and synthetic streams do not establish physical-device playback.
+
+### MARCONOTEBOOK-H follow-up — 5 November 2026
+
+- [x] Fast-forwarded main to 8c5053d and applied the pinned Windows/Python 3.12
+      setup. All 14 doctor checks passed, including native Qt/OpenGL window
+      construction in offscreen mode.
+- [x] On the committed 8c5053d source, native VisPy/PyQtGraph rendering passed
+      30 timebase/channel transitions and 21 process-memory snapshots without
+      errors. Graphics layers stayed at 136; after the first transition the
+      retained ring arrays stayed at 203,788,800 bytes. Across the ten 300-second
+      snapshots, working set ranged from 914,817,024 to 965,332,992 bytes.
+- [x] Local synthetic LSL, 60-second 32-channel playback, no reducers: draw p95
+      was 80.6/83.9/82.8 ms and p99 107.5/110.0/111.0 ms for EEG/EDA/PPG.
+      With both peripheral Hampel reducers: p95 86.9/92.0/91.0 ms and p99
+      137.4/139.0/135.4 ms. The 30-second 8-channel/both-Hampel trial measured
+      p95 39.6/41.4/41.4 ms and p99 54.6/50.8/50.6 ms. Cursor lead was zero;
+      local synthetic data advanced throughout. These are single-run diagnostics,
+      not acceptance tests or physical-device evidence.
+- [ ] Agree p95/p99 budgets for the intended workload, then repeat under real
+      device streams and perform the sustained memory soak. No LSL source was
+      active during this session; cross-device networking and hardware playback
+      remain unverified.
 
 
 ## Wavelet dependency failure on another PC — 27 October 2026

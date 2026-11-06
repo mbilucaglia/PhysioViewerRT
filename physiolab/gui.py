@@ -8,7 +8,7 @@ from dataclasses import replace
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QTimer, Qt, QDir
+from PySide6.QtCore import QTimer, Qt, QDir, QEventLoop
 from PySide6.QtUiTools import QUiLoader
 from pylsl import local_clock
 from PySide6.QtWidgets import (
@@ -104,6 +104,7 @@ class MainWindow(QMainWindow):
         self.lsl_task_serial = 0
         self.discovery_serial = 0
         self._closing = False
+        self._calibration_dialog = None
         self.performance = PerformanceMonitor()
         self._last_gui_tick = time.monotonic()
         self.raw_controller = PlotController(settings,self.performance,self)
@@ -227,7 +228,7 @@ class MainWindow(QMainWindow):
         live = getattr(worker, 'source_configuration', None)
         available, status = self.asr_session.source_availability(
             live if getattr(worker, 'active', False) else None)
-        if not available or self.capture is not None or self.asr_session.busy:
+        if not available or self.capture is not None or self.asr_session.busy or self._calibration_dialog is not None:
             self.statusBar().showMessage(status or 'Finish the current recording or training first.')
             return
         minimum = self.settings.asr_training_seconds
@@ -286,10 +287,11 @@ class MainWindow(QMainWindow):
         timer.timeout.connect(advance)
         timer.start()
         try:
-            result = progress.exec()
+            result = self._wait_for_calibration_dialog(progress)
         finally:
             cancelled = True
             timer.stop()
+            progress.deleteLater()
             worker.asr_training_monitor = None
             self.capture = None
             self.update_asr_availability()
@@ -620,9 +622,13 @@ class MainWindow(QMainWindow):
     def _connect_designer_controls(self):
         """Wire the live application to named Designer widgets, not a mockup."""
         self.filter_choices, self.filter_notches = {}, {}
+        self.graphics_status_labels = {}
         self.artifact_choices = {}
         self.source_conversions = {}
         for kind in ('EEG', 'EDA', 'PPG'):
+            status = self._required_ui(f'{kind}GraphicsWarmupStatus', QLabel)
+            status.hide()
+            self.graphics_status_labels[kind] = status
             conversion = SourceConversionControls()
             self.source_conversions[kind] = conversion
             source_layout = self._required_ui(f'{kind}SourceLayout', QVBoxLayout)
@@ -926,6 +932,7 @@ class MainWindow(QMainWindow):
         self._required_ui('metricsYOut', QToolButton).clicked.connect(lambda:self.zoom_metric_y(1.25))
         self._required_ui('metricsYIn', QToolButton).clicked.connect(lambda:self.zoom_metric_y(.8))
         self._required_ui('metricsYFit', QToolButton).clicked.connect(self.fit_metric_y)
+        self._required_ui('metricsYCenter', QToolButton).clicked.connect(self.center_metric_y)
 
 
     def update_calibration_action(self, kind):
@@ -938,6 +945,9 @@ class MainWindow(QMainWindow):
                            'Clear the active calibration; saved files are kept.')[mode])
 
     def _baseline_designer_action(self, kind):
+        if self.capture is not None or self.asr_session.busy or self._calibration_dialog is not None:
+            self.statusBar().showMessage('Finish the current recording or calibration dialog first.')
+            return
         choice = self._required_ui(f'{kind}Mode', QComboBox).currentIndex()
         if choice == 0:
             self.record_calibration(kind)
@@ -1538,6 +1548,10 @@ class MainWindow(QMainWindow):
         self.metric_y_auto.setChecked(False)
         self.metric_controller.fit_y()
 
+    def center_metric_y(self):
+        if self.metric_controller.center_y():
+            self.metric_y_auto.setChecked(False)
+
     def set_metric_time_window(self,*_):
         seconds=self.metric_time_window.currentData()
         if seconds is not None:
@@ -1695,6 +1709,41 @@ class MainWindow(QMainWindow):
     def update_raw_xranges(self):
         self.raw_controller.set_visible(k for k in self.raw_plot_stacks if self.raw_plot_visible(k))
         self.raw_controller.tick()
+        if self.tabs.currentWidget() is self.sources_page and self.raw_controller.mode == 'vispy':
+            selections = {}
+            for kind, selector in self.selectors.items():
+                info = selector.currentData()
+                if info is not None:
+                    selections[kind] = (len(self.channel_selectors[kind].selected_indices()),
+                                        info.nominal_srate())
+            self.raw_controller.warm(selections)
+            self.update_graphics_status(selections)
+        elif self.tabs.currentWidget() is self.sources_page:
+            self.update_graphics_status({})
+
+    def update_graphics_status(self, selections):
+        for kind, label in self.graphics_status_labels.items():
+            count, fs = selections.get(kind, (0, 0))
+            progress = self.raw_controller.warmup_progress(kind, count) if fs > 0 else None
+            if progress is None:
+                label.hide()
+                continue
+            ready, total, failed = progress
+            if ready == total:
+                text = 'Ready'
+                detail = f'Graphics prepared for {total} channels.'
+            elif failed:
+                text = 'On first draw'
+                detail = 'Graphics will initialize when the plot is first drawn.'
+            else:
+                text = f'Warming {ready}/{total}'
+                detail = f'Graphics prepared for {ready} of {total} channels. Play is available.'
+            if label.text() != text or label.toolTip() != detail:
+                label.setText(text)
+                label.setToolTip(detail)
+                label.setAccessibleName(f'{modality_label(kind)}: {detail}')
+            if label.isHidden():
+                label.show()
 
     def tab_changed(self, index):
         if hasattr(self, 'affect_view'):
@@ -1768,9 +1817,12 @@ class MainWindow(QMainWindow):
         self._last_gui_tick=now
         self.refresh_asr_indicator(now)
         self.refresh_peripheral_indicators(now)
-        if not self._closing and QApplication.activePopupWidget() is None:
+        if not self._closing:
             self.poll_receivers()
-            self.update_raw_xranges()
+            # Avoid raw GL redraws/warmup while a menu is interacting, but
+            # continue ingesting data and updating the other visible views.
+            if QApplication.activePopupWidget() is None:
+                self.update_raw_xranges()
             if self.tabs.currentWidget() is self.raw_page:
                 calibrated_iaf = None
                 if self.loaded_eyc is not None:
@@ -1820,6 +1872,33 @@ class MainWindow(QMainWindow):
         if self.capture is not None:
             self.capture.append(kind, samples, timestamps, channels, fs, time.monotonic())
 
+    def _wait_for_calibration_dialog(self, dialog):
+        """Keep the calibration sequence ordered without disabling the main window."""
+        if self._closing:
+            return QDialog.DialogCode.Rejected
+        if self._calibration_dialog is not None:
+            raise RuntimeError('A calibration dialog is already open')
+        loop = QEventLoop(self)
+        result = None
+
+        def finished(code):
+            nonlocal result
+            result = code
+            loop.quit()
+
+        self._calibration_dialog = dialog
+        dialog.setWindowModality(Qt.WindowModality.NonModal)
+        dialog.finished.connect(finished)
+        try:
+            dialog.show()
+            if result is None:
+                loop.exec()
+            return result if result is not None else QDialog.DialogCode.Rejected
+        finally:
+            dialog.finished.disconnect(finished)
+            self._calibration_dialog = None
+            loop.deleteLater()
+
     def record_calibration(self, kind):
         if self.capture is not None:
             QMessageBox.warning(self, 'Calibration', 'A calibration is already running.')
@@ -1855,9 +1934,12 @@ class MainWindow(QMainWindow):
         screen = CalibrationScreen(kind, self)
         self.capture = CalibrationSession(
             kind, meta, time.monotonic() + DURATION_SECONDS + 1)
-        result = screen.exec()
+        result = self._wait_for_calibration_dialog(screen)
+        screen.deleteLater()
         session = self.capture
         self.capture = None
+        if self._closing:
+            return
         for modality in tuple(self.pending_source_changes):
             self.schedule_source_change(modality)
         if kind == 'EYC':
@@ -1873,12 +1955,15 @@ class MainWindow(QMainWindow):
         try:
             analysis = self.analyze_calibration_background(kind, streams)
         except Exception as exc:
-            QMessageBox.warning(self, 'Calibration analysis failed', str(exc))
+            if not self._closing:
+                QMessageBox.warning(self, 'Calibration analysis failed', str(exc))
             return
         # Activate the completed recording before optional inspection/saving.
         # ASR fitting must not depend on whether the user saves an NPZ file.
         self.apply_calibration(kind, {'analysis': analysis}, streams=streams)
         self.inspect_calibration(kind, analysis)
+        if self._closing:
+            return
         answer = QMessageBox.question(
             self, f'Save {kind} calibration?', 'Save recorded calibration data and analysis?',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -1912,7 +1997,6 @@ class MainWindow(QMainWindow):
         progress = QProgressDialog(f'Analyzing {kind} calibration…', '', 0, 0, self)
         progress.setWindowTitle('Calibration analysis')
         progress.setCancelButton(None)
-        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
         progress.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
         task = CalibrationAnalysisTask(kind, streams, self.iaf_hz, self,
             eeg_asr_model=self.asr_session.model if self.asr_session.enabled else None)
@@ -1924,9 +2008,10 @@ class MainWindow(QMainWindow):
 
         task.completed.connect(completed)
         task.start()
-        progress.exec()
+        self._wait_for_calibration_dialog(progress)
         task.wait()
         task.deleteLater()
+        progress.deleteLater()
         if not outcome:
             raise RuntimeError('Calibration analysis interrupted')
         if outcome[1] is not None:
@@ -1973,7 +2058,7 @@ class MainWindow(QMainWindow):
                 lines.append('')
             view.setPlainText('\n'.join(lines))
             pages.setCurrentWidget(dlg.findChild(QWidget, 'statisticsPage'))
-        dlg.exec()
+        self._wait_for_calibration_dialog(dlg)
         dlg.deleteLater()
 
     def set_calibration_file(self, kind, filename):
@@ -2020,13 +2105,18 @@ class MainWindow(QMainWindow):
             # both EYC PSD and BSL metric references; saved results may differ.
             analysis = self.analyze_calibration_background(kind, streams)
             self.inspect_calibration(kind, analysis)
+            if self._closing:
+                return
             self.apply_calibration(kind, {'analysis': analysis}, filename=filename, streams=streams)
             self.statusBar().showMessage(f'Loaded {kind}: {filename}')
         except Exception as exc:
-            QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
+            if not self._closing:
+                QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
 
     def closeEvent(self, event):
         self._closing = True
+        if self._calibration_dialog is not None:
+            self._calibration_dialog.reject()
         for timer in self.source_change_timers.values():
             timer.stop()
         self.pending_source_changes.clear()

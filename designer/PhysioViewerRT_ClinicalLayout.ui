@@ -620,6 +620,13 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                    </property>
                   </widget>
                  </item>
+                 <item row="0" column="2">
+                  <widget class="QLabel" name="EEGGraphicsWarmupStatus">
+                   <property name="text">
+                    <string>Ready</string>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="1" column="0">
                   <widget class="QLabel" name="eegCountLabel">
                    <property name="text">
@@ -883,6 +890,13 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                   </widget>
                  </item>
                  <item>
+                  <widget class="QLabel" name="PPGGraphicsWarmupStatus">
+                   <property name="text">
+                    <string>Ready</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
                   <spacer name="PPGChannelsSpacer">
                    <property name="orientation">
                     <enum>Qt::Horizontal</enum>
@@ -1113,6 +1127,13 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      <width>16</width>
                      <height>16</height>
                     </size>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="EDAGraphicsWarmupStatus">
+                   <property name="text">
+                    <string>Ready</string>
                    </property>
                   </widget>
                  </item>
@@ -3357,6 +3378,14 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                       <normaloff>../assets/icons/autoscale.svg</normaloff>
                      </iconset>
                     </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="metricsYCenter">
+                    <property name="text"><string>Center</string></property>
+                    <property name="toolTip"><string>Center the visible metrics once without changing the vertical zoom.</string></property>
+                    <property name="toolButtonStyle"><enum>Qt::ToolButtonTextBesideIcon</enum></property>
+                    <property name="icon"><iconset><normaloff>../assets/icons/center.svg</normaloff></iconset></property>
                    </widget>
                   </item>
                   <item>

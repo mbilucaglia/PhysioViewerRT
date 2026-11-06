@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "session_id": "e40c9ed4-f900-4a7b-9c92-0957b7b88f58",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-05T14:38:57+00:00",
+  "status": "completed",
+  "summary": "Open simulate_windows.cmd from the project-local checkout.",
+  "intervals": [
+    {
+      "description": "Restore the single tracked simulator command from the checkout index and open it from the requested project-local folder.",
+      "id": "e40c9ed4-f900-4a7b-9c92-0957b7b88f58",
+      "evidence": [
+        "Codex turn 2026-11-05"
+      ],
+      "source_event_id": "e40c9ed4-f900-4a7b-9c92-0957b7b88f58",
+      "started_at": "2026-11-05T15:38:32+01:00",
+      "basis": "observed",
+      "kind": "interactive",
+      "ended_at": "2026-11-05T15:38:57+01:00"
+    }
+  ],
+  "results": [
+    "simulate_windows.cmd restored from the main checkout index and opened in the editor at the project-local path."
+  ],
+  "commits": [
+    "8c5053d16f9f6275387391820c5ec47154186d7c"
+  ],
+  "open_items": [],
+  "limitations": [
+    "All other pre-existing local source changes were preserved."
+  ]
+}
