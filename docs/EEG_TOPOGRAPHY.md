@@ -10,17 +10,41 @@ EEG on the left and topoplot/PPG/SC on the right. The narrow layout stacks the
 panels and permits vertical scrolling when
 needed. Expanding a panel does not stop acquisition.
 
-Choose the topoplot mode directly above the map. Open **… (Topoplot settings)** to adjust:
+The EEG time-series viewer orders recognized electrodes from anterior to
+posterior, left to right within fixed scalp rows, using the bundled standard
+montage coordinates. Unrecognized channel labels remain together at the bottom
+in source order. This changes only the display order, never acquisition or
+processing indices.
+
+Choose the band and raw/processed input directly above the map. The compact
+toolbar keeps IAF-band selection and raw-voltage persistence visible; the
+analysis window is fixed at **1 s with 50% overlap** (0.5 s update step).
 
 | Control | Meaning |
 | --- | --- |
-| Unfiltered | Signed raw voltage in source-reference space; always uses raw input. |
-| Delta / Theta / Alpha / Beta / Gamma | Absolute band power, respectively 1–4 / 4–8 / 8–13 / 13–30 / 30–45 Hz. |
+| Unfiltered | Raw voltage in source-reference space; always uses raw input. Channel values are min–max normalized for each map. |
+| Delta / Theta / Alpha / Beta / Gamma | Band power at 1–4 / 4–8 / 8–13 / 13–30 / 30–45 Hz, followed by per-map min–max normalization across channels. |
 | Band-power input | Processed EEG (including active preprocessing/ASR) or raw EEG. |
-| Use calibrated IAF | Alpha becomes IAF ±2 Hz when a valid EYC calibration is loaded. Without calibration, Alpha stays 8–13 Hz; a default 10 Hz value is not treated as calibration. Other bands remain fixed. |
-| Analysis window | 0.25–10 seconds of continuous EEG, independent of waveform sweep duration. |
-| Window overlap | 0–95%; step = window × (1 − overlap). Rendering is capped at 20 maps/s and skips obsolete updates if computation is slower. |
-| Unfiltered persistence | 0–2 second exponential time constant τ. Zero shows the latest sample; positive values average recent signed voltages. This is temporal smoothing, so opposing polarities can cancel. |
+| IAF bands | With a valid calibrated IAF, use Delta [0, IAF−6), Theta [IAF−6, IAF−2), Alpha [IAF−2, IAF+2), Beta [IAF+2, IAF+16), and Gamma [IAF+16, IAF+25) Hz. Without calibration or when unchecked, use the fixed bands listed above. This is the convention used by [Borghini et al. (2019)](https://doi.org/10.3390/s19030704); IAF-based boundaries are not universal across EEG studies. |
+| Persistence τ [s] | 0–2 second exponential time constant, always available beside the map. Zero disables persistence. For Unfiltered, positive values average recent signed voltages; for band maps, they smooth successive normalized maps. |
+
+Every displayed topoplot vector is always min–max normalized across its available
+electrodes to **0–1**, regardless of band or unfiltered voltage. This rescales
+each frame independently, so the displayed colors show spatial distribution;
+absolute level and voltage polarity are not retained. A flat vector maps to 0.5.
+Auto uses the complete 0–1 range for every map. The adjacent − / fit / + controls
+can adjust the displayed colour range without changing the normalized values;
+the scale labels follow the displayed range.
+
+The EYC calibration metadata stores both the measured `iaf_hz` and the derived
+`iaf_bands_hz` boundaries, together with the convention name. Older EYC files are
+re-analyzed on load; if a saved band set is absent, limits are derived from the
+recalculated IAF.
+
+Band power uses a 1-second Hann Welch window and a 50% hop. The PSD resolution
+is therefore 1 Hz; a band with no positive-frequency PSD bin is reported as
+unresolvable. Rendering is capped at 20 maps/s and skips obsolete updates if
+computation is slower.
 
 The **Full scalp** checkbox below the map is
 enabled by default. It extends the estimated field to the head boundary. The
@@ -30,32 +54,18 @@ hover a circle to see its channel name. Uncheck Full scalp
 to show only the area enclosed by available electrodes. This checkbox is defined
 in the Qt Designer project as `topographyExtrapolate`, inside `TOPOPlotPanel`.
 
-The same footer contains Designer-owned **Colour − / Fit / + / Auto** controls:
-
-- **+** narrows the colour range by the waveform gain step (default 1.2), increasing contrast.
-- **−** widens the range by that step, reducing contrast.
-- **Fit** fits the currently displayed map once, then holds those limits.
-- **Auto** continuously fits every map; unchecking it freezes the current limits.
-
-Minus, plus and Fit turn Auto off. They recolour the existing map immediately,
-including while RAW is paused, without recomputing or modifying EEG data. Power
-scales stay anchored at zero; signed voltage keeps symmetric negative/positive
-limits. Values outside a narrowed manual range saturate visually at the palette
-ends; the map data are unchanged. The numerical colour bar shows the active limits.
-Manual limits survive new frames, pause, history navigation, window/overlap and
-extrapolation changes. A new source/generation, units, band/IAF limits or raw versus
-processed input seeds the range from its first new map; the Auto choice is retained.
-
-For a responsive unfiltered map, try a 0.5 s window, 90% overlap, and 0.15 s
-persistence. For band power, the initial 2 s window and 50% overlap provide a
-one-second update step. Longer windows give finer frequency resolution.
-Auto colour scaling is initially enabled. Disable it to compare successive maps
-against fixed limits. The numerical color bar and units are always displayed.
+A slim vertical colour scale sits in a separate gutter to the right of the scalp.
+It uses the same palette as the map, spans 0–1 in Auto mode, and shows three
+reference labels. The panel header orders its controls as Move, Expand, −, Fit,
++ and Auto.
+The Fit icon indicates vertical autoscaling. Unfiltered persistence defaults to
+0.15 s.
 
 All selected EEG channels are considered, independently of the number of visible
-waveform traces. Known voltage units are converted to µV; power is in µV².
-Missing units remain a.u./a.u.². The source's existing reference is preserved;
-the topoplot does not add an average reference or change physiological metrics.
+waveform traces. Known voltage units are converted to µV and band power is
+calculated in µV² before min–max normalization. The source's existing reference
+is preserved; the topoplot does not add an average reference or change
+physiological metrics.
 
 ## Locations and interpolation
 
@@ -114,9 +124,10 @@ sample intervals restart the continuous window; gaps are never filled for PSD.
 
 Unfiltered persistence uses source-time exponential weights over the recent
 history (at least five time constants), normalized to preserve constant voltage.
-It is independent of acquisition packet boundaries. No persistence is carried
-across source changes or gaps. The window controls warmup and update cadence;
-persistence controls temporal averaging separately.
+It is independent of acquisition packet boundaries. Band-map persistence uses
+an exponential display filter over successive per-frame normalized fields.
+Neither carries state across source/settings changes. The window controls warmup
+and update cadence; persistence controls temporal averaging separately.
 
 The map follows the EEG waveform's presentation time, RAW pause, and historical
 navigation. While paused, mode/settings changes recompute only from frozen

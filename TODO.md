@@ -641,6 +641,7 @@ The measures, statistical assumptions and presentation still need discussion.
 - [x] Remove editable vertical-gain values from Raw Data plot headers. Keep
       minus/Fit/plus buttons and bounded internal gain state; source-conversion
       gain/offset controls remain acquisition settings, independent of this view.
+
 ## Local checkout handoff — 3 November 2026
 
 - **Launch from `PhysioViewerRT`**, the canonical local checkout. Its `main`
@@ -658,3 +659,20 @@ The measures, statistical assumptions and presentation still need discussion.
 - See [rendering refactor validation and remaining checks](docs/RENDERING_REFACTOR.md).
   Close any app running from `PhysioViewerRT-refactor` before removing that
   duplicate checkout. Local calibration recordings remain in their original paths.
+
+## EEG topoplot refinements — 9 November 2026
+
+- [x] Keep the topoplot toolbar compact: remove the separate options dialog,
+      fix its analysis window at 1 s / 50% overlap, expose persistence and IAF,
+      and place Move, Expand, −, Fit, +, Auto together in the header.
+- [x] Place a slim vertical color scale in a separate gutter beside the scalp,
+      with three quiet reference labels and the active unit. Keep it outside the
+      plot area so it does not take height from the map.
+- [x] Normalize every band or voltage topoplot vector to 0–1 with min–max.
+      Save Borghini et al. (2019) IAF-derived band boundaries with IAF in EYC
+      analysis metadata, and use them in the topoplot.
+- [x] Restore the false-colour map palette and align Move, Expand, Center, and
+      topoplot colour commands across the tab headers in the order Move, Expand,
+      −, Fit, +, Auto; remove Gain text while preserving its layout space.
+- [ ] Validate the updated view with a real EEG device and its channel labels.
+      No tests or device checks were run in this implementation session.

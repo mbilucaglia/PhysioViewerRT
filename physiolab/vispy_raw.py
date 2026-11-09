@@ -25,6 +25,8 @@ def _sweep_slot_rate(duration):
 class VisPyRawPlot:
     """Incremental EEG/EDA/PPG GPU sweep using the common circular renderer."""
 
+    WARMUP_PAIRS_PER_TICK = 4
+
     def __init__(self, kind):
         from .vispy_plot_engine import VisPyPlotEngine
         self.kind = kind
@@ -167,7 +169,7 @@ class VisPyRawPlot:
         self._configuration = None
 
     def warm_channels(self, count, duration, nominal_fs):
-        """Prepare one spare channel pair per idle tick, including driver linking.
+        """Prepare a small batch of spare channel pairs per idle tick.
 
         The offscreen draw uses empty geometry and never commits a display frame.
         Existing channel resources and their samples remain untouched.
@@ -179,29 +181,38 @@ class VisPyRawPlot:
         # Match set_frame's fixed-capacity slots so every timebase reuses
         # the warmed VBO allocation as well as its linked shader program.
         rate = _sweep_slot_rate(duration)
-        pair = []
+        pairs = []
+        batch_size = min(self.WARMUP_PAIRS_PER_TICK,
+                         count - len(self._layer_pool['raw']))
         try:
-            for key, color in (('raw', '#db3232'), ('filtered', '#171717')):
-                layer = IncrementalSweepLayer(self.view.scene, duration, rate, color)
-                pair.append(layer)
-                layer.visual.visible = True
+            for _ in range(batch_size):
+                pair = []
+                pairs.append(pair)
+                for key, color in (('raw', '#db3232'), ('filtered', '#171717')):
+                    layer = IncrementalSweepLayer(self.view.scene, duration, rate, color)
+                    pair.append(layer)
+                    layer.visual.visible = True
             # VisPy links programs lazily at draw time, not node construction.
-            # A tiny framebuffer avoids reading back a full hidden plot image.
+            # Link this batch in one tiny offscreen draw, avoiding a full hidden
+            # plot readback and amortizing the per-call framebuffer cost.
             self.canvas.render(size=(1, 1))
             self.engine.label_gutter.fontMetrics().height()
         except Exception:
-            for layer in pair:
-                layer.close()
+            for pair in pairs:
+                for layer in pair:
+                    layer.close()
             # Warmup is optional; normal first-use rendering remains available.
             import logging
             logging.getLogger(__name__).warning('Raw GPU warmup failed', exc_info=True)
             self._warmup_failed = True
             return False
         finally:
-            for layer in pair:
-                layer.visual.visible = False
-        for key, layer in zip(('raw', 'filtered'), pair):
-            self._layer_pool[key].append(layer)
+            for pair in pairs:
+                for layer in pair:
+                    layer.visual.visible = False
+        for pair in pairs:
+            for key, layer in zip(('raw', 'filtered'), pair):
+                self._layer_pool[key].append(layer)
         return True
 
     @property

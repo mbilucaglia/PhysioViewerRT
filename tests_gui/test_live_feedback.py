@@ -146,7 +146,8 @@ class LiveFeedbackTests(unittest.TestCase):
                 w.set_plot_paused('raw',True)
                 before_gain=w.raw_vertical_gains[kind].value()
                 w.raw_center_buttons[kind].setEnabled(True)
-                self.assertEqual(w.raw_center_buttons[kind].text(),'Center')
+                self.assertEqual(w.raw_center_buttons[kind].text(),'')
+                self.assertEqual(w.raw_center_buttons[kind].accessibleName(),'Center')
                 self.assertFalse(w.raw_center_buttons[kind].icon().isNull())
                 w.raw_center_buttons[kind].click()
                 deadline=time.monotonic()+3.

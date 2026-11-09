@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 from scipy.signal import welch
+from .eeg_bands import IAF_BAND_CONVENTION, derive_iaf_bands
 
 DURATION_SECONDS = 60.0
 POSTERIOR = {
@@ -56,6 +57,8 @@ def analyze_eyc(eeg, eeg_asr_model=None):
     return {
         'eeg_asr_model_id': eeg_asr_model.model_id if eeg_asr_model else None,
         'iaf_hz': cog, 'alpha_range_hz': [7, 13],
+        'iaf_bands_hz': derive_iaf_bands(cog),
+        'iaf_band_convention': IAF_BAND_CONVENTION,
         'posterior_channels': [names[i] for i in idx],
         'psd_hz': freq.tolist(), 'mean_psd': mean_psd.tolist(),
         'method': 'Welch Hann 1-second segments; 50% overlap; mean posterior PSD; 7–13 Hz center of gravity',

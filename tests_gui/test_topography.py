@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtWidgets import QApplication, QCheckBox, QToolButton
+from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QHBoxLayout
 
 from physiolab.gui import MainWindow
 from physiolab.eeg_montage import COORDINATES_MM
@@ -107,11 +107,11 @@ class TopographyGuiTests(unittest.TestCase):
         full = self.wait_map()
         self.assertTrue(full['extrapolated'].any())
         self.assertEqual(len(self.view.sensors.points()), 5)
-        self.assertIn('spline extrapolation', self.view.status.text())
+        self.assertFalse(self.view.status.isVisible())
         checkbox.setChecked(False)
         local = self.wait_map()
         self.assertFalse(local['extrapolated'].any())
-        self.assertIn('spherical spline', self.view.status.text())
+        self.assertFalse(self.view.status.isVisible())
         self.assertEqual(local['end'], full['end'])
         np.testing.assert_array_equal(local['values'], full['values'])
         self.assertLess(np.isfinite(local['grid']).sum(), np.isfinite(full['grid']).sum())
@@ -131,69 +131,54 @@ class TopographyGuiTests(unittest.TestCase):
         self.view.band.setCurrentText('Beta')
         beta = self.wait_map()
         self.assertLess(beta['values'].max(), .002)
-        self.assertFalse(self.view.persistence.isEnabled())
-        self.assertAlmostEqual(self.view.settings().hop, 1.)
-        self.view.overlap.setValue(75.)
+        self.assertTrue(self.view.persistence.isEnabled())
+        self.assertEqual(self.view.settings().window, 1.)
+        self.assertEqual(self.view.settings().overlap, .5)
         self.assertAlmostEqual(self.view.settings().hop, .5)
 
-    def test_designer_colour_controls_adjust_paused_image_without_recomputing(self):
-        for name, control in (('Minus', self.view.colour_minus),
-                              ('Fit', self.view.colour_fit), ('Plus', self.view.colour_plus)):
-            self.assertIs(control, self.window._required_ui('topographyColour'+name, QToolButton))
-            self.assertFalse(control.isEnabled())
-        self.assertIs(self.view.colour_auto, self.window._required_ui('topographyColourAuto', QCheckBox))
+    def test_every_map_is_minmax_normalized_with_matching_colourbar(self):
+        self.assertIsNone(self.view.findChild(QCheckBox, 'topographyNormalize'))
+        self.assertIsNone(self.view.findChild(QComboBox, 'topographyNormalizationMode'))
+        header = self.view.designer_ui.findChild(QHBoxLayout, 'topographyHeaderLayout')
+        ordered = [self.view.move, self.view.expand, self.view.colour_minus,
+                   self.view.colour_fit, self.view.colour_plus, self.view.colour_auto]
+        self.assertEqual([header.indexOf(widget) for widget in ordered],
+                         sorted(header.indexOf(widget) for widget in ordered))
         self.window.set_plot_paused('raw', True)
-        result = self.wait_map()
-        grid = result['grid'].copy()
-        initial = tuple(self.view.colorbar.levels())
-        self.assertTrue(self.view.colour_auto.isChecked())
-        revision = self.view._revision
-        self.view.colour_plus.click()
-        self.assertFalse(self.view.colour_auto.isChecked())
-        np.testing.assert_allclose(self.view.colorbar.levels(), (0., initial[1]/self.window.settings.gain_step))
-        np.testing.assert_allclose(self.view.image.getLevels(), self.view.colorbar.levels())
-        self.view.colour_minus.click()
-        np.testing.assert_allclose(self.view.colorbar.levels(), initial)
-        self.assertIs(self.view.result, result)
-        self.assertEqual(self.view._revision, revision)
-        np.testing.assert_array_equal(result['grid'], grid)
+        for band in ('Alpha', 'Unfiltered'):
+            self.view.band.setCurrentText(band)
+            result = self.wait_map()
+            self.assertEqual(result['normalization'], 'minmax')
+            self.assertEqual(result['levels'], (0., 1.))
+            self.assertAlmostEqual(float(result['values'].min()), 0.)
+            self.assertAlmostEqual(float(result['values'].max()), 1.)
+            self.assertEqual(self.view.colorbar.levels(), (0., 1.))
+            np.testing.assert_allclose(self.view.image.getLevels(), (0., 1.))
+            color_map = self.view.image.getColorMap()
+            self.assertIsNotNone(color_map)
+            lut = color_map.getLookupTable(nPts=2)
+            self.assertFalse(np.array_equal(lut[0], lut[-1]))
+            finite = result['grid'][np.isfinite(result['grid'])]
+            self.assertGreaterEqual(float(finite.min()), 0.)
+            self.assertLessEqual(float(finite.max()), 1.)
 
-    def test_manual_colour_range_survives_frames_and_pause_fit_and_auto_work(self):
-        result = self.wait_map()
-        self.view.colour_plus.click()
-        frozen = tuple(self.view.colorbar.levels())
-        changed = dict(result, grid=result['grid']*4., values=result['values']*4.,
-                       levels=(0., result['levels'][1]*4.))
-        self.view.present(changed, self.view.settings(), self.state.origin, False)
-        np.testing.assert_allclose(self.view.colorbar.levels(), frozen)
-        self.view.colour_fit.click()
-        self.assertFalse(self.view.colour_auto.isChecked())
-        np.testing.assert_allclose(self.view.colorbar.levels(), changed['levels'])
-        self.view.present(result, self.view.settings(), self.state.origin, False)
-        np.testing.assert_allclose(self.view.colorbar.levels(), changed['levels'])
-        self.view.colour_auto.setChecked(True)
-        np.testing.assert_allclose(self.view.colorbar.levels(), result['levels'])
+        self.assertEqual(self.view.colour_minus.text(), '')
+        self.assertFalse(self.view.colour_minus.icon().isNull())
+        self.assertEqual(self.view.move.text(), '')
+        self.assertEqual(self.view.move.accessibleName(), 'Move')
+        self.assertEqual(self.view.expand.text(), '')
+        self.assertEqual(self.view.expand.accessibleName(), 'Expand')
+        self.assertEqual(self.view.colour_fit.text(), '')
+        self.assertFalse(self.view.colour_fit.icon().isNull())
+        self.assertEqual(self.view.colour_plus.text(), '')
+        self.assertFalse(self.view.colour_plus.icon().isNull())
         self.view.colour_auto.setChecked(False)
-        held = tuple(self.view.colorbar.levels())
-        self.window.set_plot_paused('raw', True)
-        self.wait_map()
-        np.testing.assert_allclose(self.view.colorbar.levels(), held)
-
-    def test_colour_range_reseeds_on_quantity_and_source_change_and_voltage_is_symmetric(self):
-        self.wait_map()
         self.view.colour_plus.click()
-        self.view.band.setCurrentText('Unfiltered')
-        voltage = self.wait_map()
-        np.testing.assert_allclose(self.view.colorbar.levels(), voltage['levels'])
-        self.view.colour_plus.click()
-        low, high = self.view.colorbar.levels()
-        self.assertEqual(low, -high)
-        self.assertAlmostEqual(high, voltage['levels'][1]/self.window.settings.gain_step)
-        self.window.reset_stream_display('EEG')
-        self.assertFalse(self.view.colour_plus.isEnabled())
-        self.samples(20., 4.)
-        new_source = self.wait_map()
-        np.testing.assert_allclose(self.view.colorbar.levels(), new_source['levels'])
+        np.testing.assert_allclose(self.view.colorbar.levels(), (0., 1./self.window.settings.gain_step))
+        np.testing.assert_allclose(self.view.image.getLevels(), self.view.colorbar.levels())
+        self.view.colour_fit.click()
+        np.testing.assert_allclose(self.view.colorbar.levels(), (0., 1.))
+        self.view.colour_auto.setChecked(True)
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 
 from physiolab.gui import MainWindow
 from physiolab.ingress import ChunkMailbox
@@ -521,6 +521,9 @@ class GuiSmokeTests(unittest.TestCase):
         from PySide6.QtWidgets import QHBoxLayout, QDoubleSpinBox, QPushButton
         for kind in ('EEG', 'PPG', 'EDA'):
             gain = self.window.raw_vertical_gains[kind]
+            gain_label = self.window.findChild(QLabel, kind+'AmplitudeLabel')
+            self.assertEqual(gain_label.text(), '')
+            self.assertGreater(gain_label.minimumWidth(), 0)
             header = self.window.findChild(QHBoxLayout, f'{kind}PlotHeader')
             self.assertEqual(header.indexOf(self.window.raw_autoscale_buttons[kind]),
                              header.indexOf(gain)+1)

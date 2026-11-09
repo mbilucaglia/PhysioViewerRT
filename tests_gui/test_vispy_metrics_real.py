@@ -53,12 +53,12 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
         # Native driver linking is exercised by the transition benchmark;
         # this lifecycle check also runs on CI without an OpenGL context.
         with patch.object(plot.canvas, 'render') as render:
-            for count in range(1, 9):
+            for count in (4, 8):
                 self.assertTrue(plot.warm_channels(8, 5., 64.))
                 self.assertEqual(plot.reserved_channel_count, count)
                 self.assertFalse(plot.configured)
             self.assertFalse(plot.warm_channels(8, 5., 64.))
-            self.assertEqual(render.call_count, 8)
+            self.assertEqual(render.call_count, 2)
         programs = tuple(layer.visual.shared_program for layer in plot._layer_pool['raw'])
         times = np.arange(64) / 64.
         values = np.ones((64, 8)) + 6*np.arange(8)

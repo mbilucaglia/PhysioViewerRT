@@ -13,6 +13,7 @@ from .raw_render_worker import RawRenderWorker
 from .raw_snapshot import build_raw_source
 from .render_contracts import ViewSpec
 from .render_policy import RAW_DISPLAY_POLICY
+from .eeg_montage import scalp_display_order
 from .amplitude_display import visible_gain
 from .pyqtgraph_raw import PyQtGraphRawPlot
 from .vispy_raw import VisPyRawPlot
@@ -154,7 +155,7 @@ class PlotController(QObject):
         self.draw()
 
     def warm(self, selections):
-        """Prepare one selected source's spare pair before entering Raw Data.
+        """Prepare one selected source's spare channel batch before Raw Data.
 
         Selections carry channel counts and nominal rates, so this can run
         before Play. Never add an offscreen draw to the live presentation loop.
@@ -272,6 +273,7 @@ class PlotController(QObject):
                     if outcome.status=='no_data': self.empty_view(kind)
                 continue
             if kind not in self.visible: state.dirty=True; continue
+            display_frame = self._ordered_display_frame(kind, frame)
             if source.command=='center':
                 old_centers,old_scales=state.initial_references[kind]
                 centers=old_centers.copy(); n=frame.raw.shape[1]
@@ -283,7 +285,7 @@ class PlotController(QObject):
                 shifted = False
                 if self.mode == 'vispy':
                     try:
-                        shifted = backend.recenter(frame.centers, state.view_seconds)
+                        shifted = backend.recenter(display_frame.centers, state.view_seconds)
                     except Exception as exc:
                         self.status.emit(f'{kind} recentering failed: {exc}')
                 if not shifted:
@@ -301,7 +303,7 @@ class PlotController(QObject):
                           self.gains[kind],self.show_raw,self.show_filtered)
             start=time.perf_counter()
             try:
-                ready=self.backends[self.mode][kind].present(frame,view,source.chunks[-1][4])
+                ready=self.backends[self.mode][kind].present(display_frame,view,source.chunks[-1][4])
             except Exception as exc:
                 self.status.emit(f'{kind} drawing failed: {type(exc).__name__}: {exc}')
                 attempts=self.failures.get(kind,0)+1
@@ -316,6 +318,23 @@ class PlotController(QObject):
                 self.failures.pop(kind,None)
                 self.presented_timing[kind]=(response.queued_at,response.ready_at,time.perf_counter())
                 self.frame_presented.emit(kind)
+
+    @staticmethod
+    def _ordered_display_frame(kind, frame):
+        if kind != 'EEG' or len(frame.names) < 2:
+            return frame
+        order = scalp_display_order(frame.names)
+        if order == tuple(range(len(frame.names))):
+            return frame
+
+        def ordered(values):
+            result = np.take(values, order, axis=-1)
+            result.setflags(write=False)
+            return result
+
+        return replace(frame, raw=ordered(frame.raw), filtered=ordered(frame.filtered),
+                       centers=ordered(frame.centers), scales=ordered(frame.scales),
+                       names=tuple(frame.names[index] for index in order))
 
     def close(self):
         self.closed=True; self.scheduler.stop()

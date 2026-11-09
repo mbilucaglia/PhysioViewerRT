@@ -504,9 +504,21 @@ class MainWindow(QMainWindow):
              'values':self._required_ui('metricsValuesMove', QToolButton)},
             {'trends':'Metric trends', 'values':'Metric values'})
         self.metric_arrangement.changed.connect(self._restore_metric_panels)
+        for name in ('metricsTrendMove', 'metricsValuesMove'):
+            button = self._required_ui(name, QToolButton)
+            set_action(button, '', 'move')
+            button.setAccessibleName('Move')
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            button.setToolTip('Move this panel.')
         for key, name in (('trends','metricsTrendExpand'), ('values','metricsValuesExpand')):
-            self._required_ui(name, QToolButton).clicked.connect(
+            button = self._required_ui(name, QToolButton)
+            set_panel_expanded(button, False)
+            button.clicked.connect(
                 lambda checked=False,k=key:self.toggle_metric_panel_focus(k))
+        metric_fit = self._required_ui('metricsYFit', QToolButton)
+        set_action(metric_fit, '', 'autoscale')
+        metric_fit.setAccessibleName('Fit vertical range')
+        metric_fit.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self._metric_workspace = AdaptiveRawWorkspace(
             self._required_ui('metricsTabScroll', QScrollArea).viewport(), splitter)
 
@@ -746,10 +758,15 @@ class MainWindow(QMainWindow):
         self.focused_raw_kind = None
         for kind in ('EEG', 'PPG', 'EDA'):
             focus = self._required_ui(f'{kind}Expand', QToolButton)
+            set_panel_expanded(focus, False)
             focus.setToolTip(f'Give {modality_label(kind)} the full plot area; all streams keep acquiring')
             focus.toggled.connect(lambda checked, k=kind: self.set_raw_focus(k, checked))
             self.raw_focus_buttons[kind] = focus
             move = self._required_ui(f'{kind}Move', QToolButton)
+            set_action(move, '', 'move')
+            move.setAccessibleName('Move')
+            move.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            move.setToolTip(f'Move {modality_label(kind)} to another panel position.')
             menu = QMenu(move)
             move.setMenu(menu)
             move.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
@@ -779,6 +796,9 @@ class MainWindow(QMainWindow):
             self.plots[kind] = plot
             self.raw_controller.register_plot(kind, plot)
             gain = self._required_ui(f'{kind}Amplitude', QDoubleSpinBox)
+            gain_label = self._required_ui(f'{kind}AmplitudeLabel', QLabel)
+            gain_label.setText('')
+            gain_label.setMinimumWidth(gain_label.fontMetrics().horizontalAdvance('Gain'))
             gain.hide()  # Keep bounded gain state; adjustment uses − / Fit / + only.
             gain.setDecimals(2)
             # Qt's Windows stylesheet gives NoButtons a zero-width editor.
@@ -796,26 +816,26 @@ class MainWindow(QMainWindow):
                 lambda _, k=kind: self.set_raw_vertical_gain(k))
             self.raw_vertical_gains[kind] = gain
             autoscale = self._required_ui(f'{kind}Autoscale', QToolButton)
+            set_action(autoscale, '', 'autoscale')
+            autoscale.setAccessibleName('Fit amplitude range')
+            autoscale.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
             autoscale.setToolTip('Fit visible raw/filtered extrema; EEG keeps one shared gain')
             autoscale.clicked.connect(lambda _, k=kind: self.autoscale_raw(k))
             self.raw_autoscale_buttons[kind] = autoscale
             center=self._required_ui(f'{kind}Center',QToolButton)
+            set_action(center, '', 'center')
+            center.setAccessibleName('Center')
+            center.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            center.setToolTip(f'Center {modality_label(kind)} around zero.')
             center.clicked.connect(lambda _,k=kind:self.center_raw(k))
             self.raw_center_buttons[kind]=center
             self._required_ui(f'{kind}AmplitudeMinus', QPushButton).clicked.connect(
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/self.settings.gain_step))
             self._required_ui(f'{kind}AmplitudePlus', QPushButton).clicked.connect(
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, self.settings.gain_step))
-        host = self._required_ui('TOPOPlotPanel', QWidget)
-        self.topography = TopographyView(
-            host, self._required_ui('topographyExtrapolate', QCheckBox),
-            colour_controls={
-                'minus': self._required_ui('topographyColourMinus', QToolButton),
-                'fit': self._required_ui('topographyColourFit', QToolButton),
-                'plus': self._required_ui('topographyColourPlus', QToolButton),
-                'auto': self._required_ui('topographyColourAuto', QCheckBox)},
-            colour_step=self.settings.gain_step)
-        host.layout().insertWidget(0, self.topography, 1)
+        host = self._required_ui('topographyViewHost', QWidget)
+        self.topography = TopographyView(host, colour_step=self.settings.gain_step)
+        host.layout().addWidget(self.topography, 1)
         self.raw_focus_buttons['TOPO'] = self.topography.expand
         self.topography.expand.toggled.connect(lambda checked: self.set_raw_focus('TOPO', checked))
         menu = QMenu(self.topography.move)
@@ -932,7 +952,12 @@ class MainWindow(QMainWindow):
         self._required_ui('metricsYOut', QToolButton).clicked.connect(lambda:self.zoom_metric_y(1.25))
         self._required_ui('metricsYIn', QToolButton).clicked.connect(lambda:self.zoom_metric_y(.8))
         self._required_ui('metricsYFit', QToolButton).clicked.connect(self.fit_metric_y)
-        self._required_ui('metricsYCenter', QToolButton).clicked.connect(self.center_metric_y)
+        metric_center = self._required_ui('metricsYCenter', QToolButton)
+        set_action(metric_center, '', 'center')
+        metric_center.setAccessibleName('Center')
+        metric_center.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        metric_center.setToolTip('Center the vertical range on its data.')
+        metric_center.clicked.connect(self.center_metric_y)
 
 
     def update_calibration_action(self, kind):
@@ -1825,11 +1850,14 @@ class MainWindow(QMainWindow):
                 self.update_raw_xranges()
             if self.tabs.currentWidget() is self.raw_page:
                 calibrated_iaf = None
+                calibrated_bands = None
                 if self.loaded_eyc is not None:
-                    candidate = (self.loaded_eyc.get('analysis') or {}).get('iaf_hz')
+                    eyc_analysis = self.loaded_eyc.get('analysis') or {}
+                    candidate = eyc_analysis.get('iaf_hz')
                     if candidate is not None and np.isfinite(candidate) and 6. <= candidate <= 16.:
                         calibrated_iaf = float(candidate)
-                self.topography.tick(self.raw_display, calibrated_iaf)
+                        calibrated_bands = eyc_analysis.get('iaf_bands_hz')
+                self.topography.tick(self.raw_display, calibrated_iaf, calibrated_bands)
             if self.tabs.currentWidget() is self.metrics_page and (not self.metric_plot_paused or self.metric_dirty):
                 self.update_metric_xrange()
                 if self.metric_dirty: self.refresh_metric_plot()

@@ -5,6 +5,7 @@ assets/montages/README.md for provenance, checksum and projection conventions.
 No runtime MNE dependency or network access is required.
 """
 from pathlib import Path
+import re
 from types import MappingProxyType
 
 import numpy as np
@@ -77,6 +78,37 @@ SPHERE_DIRECTIONS = MappingProxyType(dict(zip(
     (name.lower() for name in COORDINATES_MM), map(tuple, _directions))))
 PROJECTION_SCALE = .98 / np.arctan2(np.linalg.norm(_directions[:, :2], axis=1),
                                    _directions[:, 2]).max()
+
+
+def scalp_display_order(labels):
+    """Return backend order so traces read top-down anterior-to-posterior.
+
+    Trace index zero is drawn at the bottom, so backend order is posterior to
+    anterior and right-to-left within each approximate scalp row. On screen,
+    the visible order is therefore anterior-to-posterior and left-to-right.
+    Unknown labels keep their input order at the bottom of the view. This only
+    affects presentation; source data and processing channel indices are intact.
+    """
+    positioned, unpositioned = [], []
+    for index, raw_label in enumerate(labels):
+        label = re.sub(r'^eeg\s+', '', str(raw_label).strip(), flags=re.I).lower()
+        label = re.sub(r'[-_](ref|le|re|avg)$', '', label)
+        label = ALIASES.get(label, label)
+        xy = POSITIONS.get(label)
+        if xy is None:
+            unpositioned.append(index)
+        else:
+            x, y = float(xy[0]), float(xy[1])
+            # Fixed horizontal bands keep the order stable when the user
+            # changes the selected subset of electrodes.
+            row = int(round(y / .08))
+            positioned.append((index, x, row))
+
+    # Index zero is drawn at the bottom: posterior rows first; within each
+    # row, right-to-left so the visible top-down order reads left-to-right.
+    positioned.sort(key=lambda item: (item[2], -item[1], item[0]))
+    ordered = [item[0] for item in positioned]
+    return tuple((*unpositioned, *ordered))
 
 
 def unproject_positions(xy):

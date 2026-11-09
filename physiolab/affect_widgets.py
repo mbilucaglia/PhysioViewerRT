@@ -404,6 +404,12 @@ class AffectView(QWidget):
             {'circumplex':'Affect landscape', 'ei':'Emotional Index'})
         self.arrangement.changed.connect(self._arrangement_changed)
         for key in ('circumplex','ei'):
+            move = self.cards_splitter.findChild(QToolButton, key+'Move')
+            set_action(move, '', 'move')
+            move.setAccessibleName('Move')
+            move.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            move.setToolTip('Move this panel.')
+        for key in ('circumplex','ei'):
             self.cards_splitter.findChild(QPushButton,key+'Expand').clicked.connect(
                 lambda checked=False,k=key:self._expand(k))
         self.top_axis = self._label('Higher arousal', 'affectHint', Qt.AlignmentFlag.AlignCenter)
