@@ -1,0 +1,38 @@
+{
+  "branch": "main",
+  "head_at_start": "80c6c65eda65149124568ad420914e05cba64e14",
+  "commits": [
+    "091bcb2"
+  ],
+  "results": [
+    "Diff staged verificato; rimossa una riga vuota finale in muse_lsl/__init__.py.",
+    "Commit 091bcb2 pubblicato con successo su origin/main; git push exit code 0."
+  ],
+  "status": "completed",
+  "machine": "MARCONOTEBOOK-H",
+  "session_id": "54c4b37a-35e1-427b-9dd7-7ffd5017ae5a",
+  "limitations": [
+    "Test non ripetuti: esiti e limiti documentati nelle sessioni precedenti"
+  ],
+  "intervals": [
+    {
+      "ended_at": "2026-11-10T18:10:25.8582706+01:00",
+      "evidence": [
+        "Richiesta: pusha tutto su github"
+      ],
+      "kind": "mixed",
+      "source_event_id": null,
+      "started_at": "2026-11-10T18:09:36.7725431+01:00",
+      "id": "8add999b-4f50-4ec3-8665-ab7f6962682d",
+      "basis": "observed",
+      "description": "Revisione file, commit e push"
+    }
+  ],
+  "schema_version": 1,
+  "reporting_timezone": "Europe/Rome",
+  "project": "PhysioViewerRT",
+  "thread_id": null,
+  "open_items": [],
+  "summary": "Pubblicate tutte le modifiche di progetto e i registri precedenti su GitHub; registro di pubblicazione preparato per commit finale.",
+  "updated_at": "2026-11-10T18:10:25.8582706+01:00"
+}
