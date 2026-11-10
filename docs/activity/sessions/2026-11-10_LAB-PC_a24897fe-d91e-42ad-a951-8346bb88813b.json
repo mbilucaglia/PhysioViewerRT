@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "session_id": "a24897fe-d91e-42ad-a951-8346bb88813b",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "codex/portable-environment",
+  "head_at_start": "0a8b2f5ace05d6288ef8483c143b307a5c7da45b",
+  "updated_at": "2026-11-10T10:12:08.3238108+01:00",
+  "status": "completed",
+  "summary": "Refactoring integrato con main 0450512 nel merge locale 5fba112; preservate modifiche recenti, audit e test ripetuti. Nessun push.",
+  "intervals": [
+    {
+      "kind": "interactive",
+      "source_event_id": null,
+      "description": "Preservazione lavoro locale, integrazione main e verifiche",
+      "evidence": [
+        "docs/REFACTORING_MAIN_INTEGRATION.md",
+        ".local/integration-core.log",
+        ".local/integration-gui-verified.log",
+        ".local/integration-native/results.json",
+        ".local/integration-native-skips.log",
+        ".local/integration-preservation.json"
+      ],
+      "started_at": "2026-11-10T09:53:45.3172742+01:00",
+      "basis": "observed",
+      "id": "5b2387cc-c78b-4e8d-a15f-f5af08b375b0",
+      "ended_at": "2026-11-10T10:12:08.3238108+01:00"
+    }
+  ],
+  "results": [
+    "Fetch iniziale e finale: origin/main 04505122e614a5cbf4686219377763f4a917586d. Verificato come antenato di HEAD dopo il merge.",
+    "Conflitti GUI e topografia risolti preservando navigazione non modale, bande IAF e shutdown asincrono. Layout, algoritmi topografia e rendering recente mantenuti.",
+    "Baseline main pulita: 250 test core con 6 fallimenti da aspettative obsolete; suite GUI bloccata da fake senza sweep_time, diagnosticata con traceback e timeout; 3 fallimenti topografia GUI riprodotti isolatamente. Test aggiornati preservando verifiche sui valori assoluti e sulla nuova normalizzazione.",
+    "Integrazione: 270 test core OK in 21.372 s; 171 test GUI OK con 3 skip in 158.570 s, exit 0.",
+    "Tre test saltati offscreen eseguiti nativamente: 3 OK in 2.756 s.",
+    "Verifica nativa VisPy/pyqtgraph: 30 transizioni, 21 cicli memoria, zero errori, shutdown_complete=true, chiusura completa 129.3 ms, exit 0.",
+    "13 test mirati integrazione OK. Ruff OK e mypy OK su quattro moduli; gate architetturali inclusi nei test core.",
+    "Inventario AST finale: 101 delle 116 funzioni recenti identiche a main; differenze residue revisionate. 46 dei 57 file remoti identici al testo di main.",
+    "git diff --cached --check senza errori; nessun conflitto residuo. Tutte le modifiche applicative e i report di integrazione committati localmente.",
+    "Documentati e corretti due errori nelle fixture di integrazione (larghezza backend e pagina RAW nascosta). Vecchi risultati non usati come prova sulla nuova baseline."
+  ],
+  "commits": [
+    "c0ff6420fa931ae297c7cdf16f1f2f45924c4a61 - recovery checkpoint",
+    "5fba112c7723c2b286f48988b13443b8363464fd - integration merge with main 04505122e614a5cbf4686219377763f4a917586d"
+  ],
+  "open_items": [
+    "Pubblicazione e CI remota non eseguite.",
+    "Verifica su dispositivi fisici e prove prolungate non effettuate."
+  ],
+  "limitations": [
+    "Inizio al primo timestamp osservato. Nessun push; main nel checkout separato non modificata.",
+    "Prima suite GUI baseline e primo tentativo integrato interrotti solo dopo identificazione esatta dei processi bloccati nel warning offscreen; log conservati. Baseline GUI completa non dichiarata superata.",
+    "MainWindow resta ampio; i controlli strutturali e i test non provano assenza di qualsiasi race o leak. Calcoli nativi non interrompibili possono ritardare la chiusura definitiva.",
+    "I file preesistenti non tracciati (report notturno e registri del 6 e 9 novembre) sono preservati e non inclusi nei commit di integrazione."
+  ]
+}
