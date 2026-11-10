@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "session_id": "b59ce8d0-14a4-493f-addd-fbdecfc068f9",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "codex/portable-environment",
+  "head_at_start": "1edb95af9a4e851f0e59d308ce46f84d2ac77992",
+  "updated_at": "2026-11-10T11:20:48.5465984+01:00",
+  "status": "completed",
+  "summary": "Conferma pubblicazione della versione integrata con ultime modifiche topoplot e preparazione sincronizzazione registri",
+  "intervals": [
+    {
+      "kind": "interactive",
+      "description": "Verifica SHA remoto e preparazione registri autorizzati",
+      "started_at": "2026-11-10T11:20:22.2969371+01:00",
+      "id": "afbc889b-a18c-4f40-be92-02eac52dbeca",
+      "evidence": [
+        "git fetch origin",
+        "git ls-remote --heads origin",
+        "git merge-base --is-ancestor origin/main HEAD"
+      ],
+      "basis": "observed",
+      "ended_at": "2026-11-10T11:20:48.5465984+01:00",
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "GitHub conferma 1edb95af9a4e851f0e59d308ce46f84d2ac77992 sul ramo codex/portable-environment.",
+    "La versione contiene main 0450512 e il refactoring integrato nel merge 5fba112.",
+    "Codice invariato rispetto alla versione testata; sola sincronizzazione dei registri di pubblicazione."
+  ],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "Main non modificata. Nessun nuovo test necessario per soli registri. Il completamento del push dei registri viene verificato dal comando successivo."
+  ]
+}
