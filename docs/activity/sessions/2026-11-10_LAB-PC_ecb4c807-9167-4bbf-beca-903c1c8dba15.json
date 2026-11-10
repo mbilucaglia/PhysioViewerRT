@@ -7,14 +7,14 @@
   "thread_id": null,
   "branch": "main",
   "head_at_start": "2ff8a322460d04ffc29003426a4d8e96f5b9a20b",
-  "updated_at": "2026-11-10T14:54:49.8952288+01:00",
-  "status": "open",
+  "updated_at": "2026-11-10T14:55:56.6267191+01:00",
+  "status": "completed",
   "summary": "Verifica e pubblicazione di tutte le modifiche consolidate su main",
   "intervals": [
     {
       "id": "263d1c7f-b151-4b85-83d5-12302355aba2",
       "started_at": "2026-11-10T14:54:37.5309966+01:00",
-      "ended_at": null,
+      "ended_at": "2026-11-10T14:55:56.6267191+01:00",
       "kind": "mixed",
       "basis": "observed",
       "description": "Controlli pre-commit, commit e push autorizzati",
@@ -24,10 +24,22 @@
       "source_event_id": null
     }
   ],
-  "results": [],
-  "commits": [],
-  "open_items": [],
+  "results": [
+    "Pubblicati su origin/main i quattro commit preesistenti e il commit f2f6b6b5d4b9f6ee67b5b80f7397427cefe6f338: 46 file, codice ACC/NLMS, test, documentazione e registri.",
+    "Push riuscito e SHA remoto verificato con git ls-remote.",
+    "git diff --cached --check e validazione JSON/intervalli superati. Esclusi archivi, ambienti, cache e calibrazioni locali.",
+    "Verificati i log precedenti: 288 test core OK; 178 GUI OK con 3 skip; Ruff e mypy OK."
+  ],
+  "commits": [
+    "f2f6b6b5d4b9f6ee67b5b80f7397427cefe6f338"
+  ],
+  "open_items": [
+    "Pulizia vecchia cartella ancora gestita dalla sessione automatica a0960c00-c832-44be-9bcb-8dbf35afdf77: eventuali aggiornamenti successivi al push richiederanno nuova pubblicazione."
+  ],
   "limitations": [
-    "Inizio al primo timestamp osservato."
+    "Inizio al primo timestamp osservato.",
+    "Test, lint e type checking non rieseguiti in questo turno; consultati i log del consolidamento.",
+    "Git ha segnalato credential-manager-core non disponibile, ma push e verifica remota sono riusciti.",
+    "Primo controllo timestamp corretto usando ConvertFrom-Json -DateKind String per evitare conversione automatica delle date; nessun registro storico modificato."
   ]
 }
