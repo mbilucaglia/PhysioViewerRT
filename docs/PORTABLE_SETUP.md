@@ -54,6 +54,21 @@ Il comando doctor non installa librerie di sistema e segnala gli import falliti.
 
 ## Codex su ogni macchina
 
+Per i controlli di sviluppo, creare un ambiente separato nella radice del checkout:
+
+```powershell
+.venv/Scripts/python.exe -m venv .local/quality-venv
+.local/quality-venv/Scripts/python.exe -m pip install -r requirements-dev.txt
+.local/quality-venv/Scripts/python.exe -m ruff check physiolab tests tests_gui tools main.py simulate.py
+.local/quality-venv/Scripts/python.exe -m mypy
+```
+
+Ruff verifica per ora gli errori di esecuzione; mypy controlla i contratti indicati
+in `pyproject.toml`. I test architetturali sono parte della suite core ordinaria.
+Questi tool non cambiano il lock runtime. Su macOS/Linux usare `bin/python` al
+posto di `Scripts/python.exe`. La CI conserva i job Python 3.11 e aggiunge il job
+Windows 3.12 con il lock applicativo.
+
 - Selezionare la repository come cartella principale del progetto, non una
   cartella contenitore esterna. Dopo il primo pull avviare una nuova conversazione
   perché le istruzioni AGENTS.md siano caricate dall'inizio.

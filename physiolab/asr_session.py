@@ -1,27 +1,51 @@
 """Independent EEG training, ASR model and baseline reference ownership, without presentation or Qt."""
-from copy import deepcopy
-
+from .calibration_coordinator import CalibrationCoordinator
 from .eeg_asr import ASRError
 from .metric_observation import source_configuration
 
 
 class ASRSession:
-    def __init__(self):
+    def __init__(self, calibrations=None):
+        self.calibrations = calibrations if calibrations is not None else CalibrationCoordinator()
         self.generation = 0
-        self.reference_generation = 0
         self.training = None
-        self.base_analysis = {}
-        self.streams = {}
-        self.filename = None
         self.model = self.cleaned_analysis = None
         self.enabled = self.busy = False
 
     def set_baseline(self, analysis=None, streams=None, filename=None):
-        self.reference_generation += 1
-        self.base_analysis = deepcopy(analysis or {})
-        self.streams = streams or {}
-        self.filename = filename
-        self.cleaned_analysis = None
+        self.calibrations.set_baseline(analysis, streams, filename)
+
+    @property
+    def reference_generation(self):
+        return self.calibrations.reference_generation
+
+    @reference_generation.setter
+    def reference_generation(self, value):
+        self.calibrations.reference_generation = value
+
+    @property
+    def base_analysis(self):
+        return self.calibrations.base_analysis
+
+    @property
+    def streams(self):
+        return self.calibrations.streams
+
+    @property
+    def filename(self):
+        return self.calibrations.paths['BSL']
+
+    @filename.setter
+    def filename(self, value):
+        self.calibrations.paths['BSL'] = value
+
+    @property
+    def cleaned_analysis(self):
+        return self.calibrations.cleaned_analysis
+
+    @cleaned_analysis.setter
+    def cleaned_analysis(self, value):
+        self.calibrations.cleaned_analysis = value
 
     def set_training(self, eeg):
         self.generation += 1

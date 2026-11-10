@@ -1,5 +1,6 @@
 """Synthetic calibration tests. Run: python -m unittest discover -s tests -v"""
 import tempfile
+import os
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -153,6 +154,167 @@ class CalibrationTests(unittest.TestCase):
             self.assertAlmostEqual(meta['analysis']['iaf_hz'], 10, delta=.1)
             with self.assertRaisesRegex(ValueError, 'type'):
                 load_calibration(file, 'BSL')
+
+
+class CalibrationPersistenceTests(unittest.TestCase):
+    def setUp(self):
+        self.streams = {'EEG': {
+            'fs': 128., 'channels': ['O1'],
+            'data': np.arange(16., dtype=float)[:, None],
+            'timestamps': 100. + np.arange(16) / 128.,
+        }}
+
+    def test_failed_compression_preserves_previous_file_or_absent_destination(self):
+        for kind in ('EYC', 'BSL'):
+            for exists in (False, True):
+                for partial in (False, True):
+                    with self.subTest(kind=kind, exists=exists, partial=partial), \
+                            tempfile.TemporaryDirectory() as folder:
+                        path = Path(folder) / 'calibration.npz'
+                        if exists:
+                            save_calibration(path, kind, self.streams, {'previous': True})
+                        before = path.read_bytes() if exists else None
+
+                        def fail_write(handle, **arrays):
+                            if partial:
+                                handle.write(b'incomplete ZIP archive')
+                                handle.flush()
+                            raise OSError('injected compression failure')
+
+                        with patch('physiolab.calibration_storage.np.savez_compressed',
+                                   side_effect=fail_write):
+                            with self.assertRaisesRegex(OSError, 'injected compression'):
+                                save_calibration(path, kind, self.streams, {'previous': False})
+                        if exists:
+                            self.assertEqual(path.read_bytes(), before)
+                            meta, _ = load_calibration(path, kind)
+                            self.assertEqual(meta['analysis'], {'previous': True})
+                        else:
+                            self.assertFalse(path.exists())
+                        self.assertEqual(set(Path(folder).iterdir()), {path} if exists else set())
+
+    def test_io_failures_preserve_destination_and_remove_temporary(self):
+        make_temporary = tempfile.NamedTemporaryFile
+
+        class FailingFile:
+            def __init__(self, file, stage):
+                self.file, self.stage = file, stage
+
+            def __getattr__(self, name):
+                return getattr(self.file, name)
+
+            def __enter__(self):
+                return self
+
+            def flush(self):
+                if self.stage == 'flush':
+                    raise OSError('injected flush failure')
+                self.file.flush()
+
+            def __exit__(self, *args):
+                self.file.close()
+                if self.stage == 'close':
+                    raise OSError('injected close failure')
+
+        for stage in ('create', 'flush', 'sync', 'close', 'replace'):
+            for exists in (False, True):
+                with self.subTest(stage=stage, exists=exists), \
+                        tempfile.TemporaryDirectory() as folder:
+                    path = Path(folder) / 'calibration.npz'
+                    if exists:
+                        save_calibration(path, 'EYC', self.streams, {'previous': True})
+                    before = path.read_bytes() if exists else None
+                    error = OSError(f'injected {stage} failure')
+                    if stage in ('flush', 'close'):
+                        injection = patch('physiolab.calibration_storage.tempfile.NamedTemporaryFile',
+                            side_effect=lambda **kw: FailingFile(make_temporary(**kw), stage))
+                    else:
+                        target = {'create': 'tempfile.NamedTemporaryFile',
+                                  'sync': 'os.fsync', 'replace': 'os.replace'}[stage]
+                        injection = patch('physiolab.calibration_storage.' + target, side_effect=error)
+                    with injection:
+                        with self.assertRaisesRegex(OSError, f'injected {stage}'):
+                            save_calibration(path, 'EYC', self.streams, {'previous': False})
+                    self.assertEqual(path.read_bytes() if path.exists() else None, before)
+                    self.assertEqual(set(Path(folder).iterdir()), {path} if exists else set())
+
+    def test_success_commits_complete_schema_one_archive_without_extra_files(self):
+        replace_file = os.replace
+        for kind in ('EYC', 'BSL'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as folder:
+                # The API keeps the exact supplied filename, even without .npz.
+                path = Path(folder) / 'calibration without extension'
+                for revision in (1, 2):
+                    before = path.read_bytes() if path.exists() else None
+
+                    def commit(source, destination):
+                        self.assertEqual(Path(source).parent, path.parent)
+                        self.assertEqual(path.read_bytes() if path.exists() else None, before)
+                        meta, loaded = load_calibration(source, kind)
+                        self.assertEqual(meta['schema'], 1)
+                        self.assertEqual(meta['analysis'], {'revision': revision})
+                        np.testing.assert_array_equal(loaded['EEG']['data'],
+                                                      self.streams['EEG']['data'])
+                        replace_file(source, destination)
+
+                    with patch('physiolab.calibration_storage.os.replace', side_effect=commit) as replace:
+                        save_calibration(str(path), kind, self.streams, {'revision': revision})
+                    replace.assert_called_once()
+                    meta, loaded = load_calibration(path, kind)
+                    self.assertEqual(meta['analysis'], {'revision': revision})
+                    np.testing.assert_array_equal(loaded['EEG']['timestamps'],
+                                                  self.streams['EEG']['timestamps'])
+                    self.assertEqual(set(Path(folder).iterdir()), {path})
+
+    def test_cleanup_failure_keeps_original_error_and_reports_temporary(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'calibration.npz'
+            save_calibration(path, 'EYC', self.streams, {})
+            before = path.read_bytes()
+            error = OSError('injected replace failure')
+            with patch('physiolab.calibration_storage.os.replace', side_effect=error), \
+                    patch('physiolab.calibration_storage.os.unlink', side_effect=PermissionError('in use')):
+                with self.assertRaises(OSError) as caught:
+                    save_calibration(path, 'EYC', self.streams, {})
+            self.assertIs(caught.exception, error)
+            self.assertEqual(path.read_bytes(), before)
+            leftovers = set(Path(folder).iterdir()) - {path}
+            self.assertEqual(len(leftovers), 1)
+            self.assertIn(str(leftovers.pop()), error.__notes__[0])
+
+    def test_validation_failure_does_not_touch_previous_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'calibration.npz'
+            save_calibration(path, 'EYC', self.streams, {})
+            before = path.read_bytes()
+            invalid = {'EEG': {**self.streams['EEG'], 'data': np.array([[np.nan]])}}
+            with self.assertRaises(ValueError):
+                save_calibration(path, 'EYC', invalid, {})
+            with self.assertRaises(TypeError):
+                save_calibration(path, 'EYC', self.streams, {'invalid': object()})
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(set(Path(folder).iterdir()), {path})
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows open-file replacement semantics')
+    def test_windows_destination_in_use_is_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'calibration.npz'
+            save_calibration(path, 'EYC', self.streams, {'previous': True})
+            before = path.read_bytes()
+            with path.open('rb'):
+                with self.assertRaises(PermissionError):
+                    save_calibration(path, 'EYC', self.streams, {'previous': False})
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(set(Path(folder).iterdir()), {path})
+
+    def test_relative_destination_keeps_exact_filename(self):
+        with tempfile.TemporaryDirectory(dir='.') as folder:
+            path = Path(os.path.relpath(Path(folder) / 'relative calibration'))
+            self.assertFalse(path.is_absolute())
+            save_calibration(path, 'BSL', self.streams, {'relative': True})
+            meta, _ = load_calibration(path, 'BSL')
+            self.assertEqual(meta['analysis'], {'relative': True})
+            self.assertEqual(set(path.parent.iterdir()), {path})
 
 
 if __name__ == '__main__':

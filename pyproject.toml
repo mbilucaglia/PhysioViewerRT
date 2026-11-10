@@ -1,0 +1,15 @@
+[tool.ruff]
+target-version = "py311"
+extend-exclude = [".local", ".test-tmp"]
+
+[tool.ruff.lint]
+# Start with execution errors; do not reformat or rewrite the existing codebase.
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["physiolab/render_contracts.py", "physiolab/receiver_state.py", "physiolab/asr_training_policy.py", "physiolab/calibration_contracts.py"]
+follow_imports = "skip"
+ignore_missing_imports = true
+check_untyped_defs = true
+cache_dir = ".local/mypy-cache"

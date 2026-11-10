@@ -2,6 +2,8 @@
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import unittest
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 import numpy as np
@@ -10,9 +12,60 @@ from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from physiolab.gui import MainWindow
 from physiolab.metric_observation import source_configuration
+from physiolab.calibration import save_calibration, load_calibration
 
 
 class CalibrationTaskTests(unittest.TestCase):
+    def test_save_failure_keeps_active_recording_unsaved_and_preserves_disk_file(self):
+        app = QApplication.instance() or QApplication([])
+        with patch.object(MainWindow, 'refresh', lambda self: None):
+            window = MainWindow()
+        window.timer.stop()  # The synthetic receiver only supplies capture metadata.
+        eeg = {'data': np.zeros((16, 1)), 'fs': 128., 'channels': ['O1'],
+               'timestamps': np.arange(16) / 128., 'units': ['uV']}
+        window.workers['EEG'] = SimpleNamespace(isRunning=lambda: True, active=True,
+            info=SimpleNamespace(nominal_srate=lambda: 128.), selected_names=['O1'],
+            preprocessing={}, conversion=SimpleNamespace(metadata=lambda: {}),
+            source_units=['uV'], output_units=['uV'], latest_source_timestamp=0.)
+        analysis = {'metrics': {}, 'iaf_hz_used': 10.}
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / 'bsl.npz'
+                save_calibration(path, 'BSL', {'EEG': eeg}, {'previous': True})
+                before = path.read_bytes()
+                with patch('physiolab.gui.CalibrationScreen') as screen, \
+                        patch('physiolab.gui.CalibrationSession') as session, \
+                        patch.object(QMessageBox, 'information'), \
+                        patch.object(QMessageBox, 'question', return_value=QMessageBox.StandardButton.Yes), \
+                        patch.object(QMessageBox, 'critical') as critical, \
+                        patch('physiolab.gui.QFileDialog.getSaveFileName', return_value=(str(path), '')), \
+                        patch.object(window, 'analyze_calibration_background', return_value=analysis), \
+                        patch.object(window, 'inspect_calibration'), \
+                        patch.object(window, '_apply_asr_metric_references'):
+                    screen.return_value.exec.return_value = QDialog.DialogCode.Accepted
+                    session.return_value.finish.return_value = {'EEG': eeg}
+                    with patch('physiolab.calibration_storage.os.replace',
+                               side_effect=PermissionError('injected replace failure')):
+                        window.record_calibration('BSL')
+                    critical.assert_called_once()
+                    self.assertIn('injected replace failure', critical.call_args.args[2])
+                    self.assertEqual(window.loaded_bsl['analysis'], analysis)
+                    self.assertIsNone(window.calibration_paths['BSL'])
+                    self.assertEqual(window.calibration_file_labels['BSL'].text(), 'Loaded (unsaved)')
+                    self.assertFalse(window.statusBar().currentMessage().startswith('Saved BSL:'))
+                    self.assertEqual(path.read_bytes(), before)
+                    self.assertEqual(set(Path(folder).iterdir()), {path})
+                    # Retry through the same GUI entry point after the error.
+                    window.record_calibration('BSL')
+                    self.assertEqual(window.calibration_paths['BSL'], str(path))
+                    self.assertEqual(window.statusBar().currentMessage(), f'Saved BSL: {path}')
+                    self.assertEqual(load_calibration(path, 'BSL')[0]['analysis'], analysis)
+                    critical.assert_called_once()
+        finally:
+            window.workers.clear()
+            window.close()
+            app.processEvents()
+
     def test_completed_bsl_is_active_without_retraining_asr_even_when_not_saved(self):
         app = QApplication.instance() or QApplication([])
         with patch.object(MainWindow, 'refresh', lambda self: None):

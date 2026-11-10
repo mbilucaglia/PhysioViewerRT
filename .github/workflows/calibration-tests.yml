@@ -7,6 +7,38 @@ on:
   workflow_dispatch:
 
 jobs:
+  architecture_quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned development tools
+        run: python -m pip install -r requirements-dev.txt
+      - name: Check execution errors
+        run: python -m ruff check physiolab tests tests_gui tools main.py simulate.py
+      - name: Check migrated boundary types
+        run: python -m mypy
+
+  windows_locked:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked application environment
+        run: python -m pip install -r requirements-lock-windows-py312.txt
+      - name: Check installed requirements
+        run: python -m pip check
+      - name: Run core and architecture tests
+        run: python -m unittest discover -s tests -v
+      - name: Run GUI lifecycle and integration tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -s tests_gui -v
+
   calibration:
     strategy:
       fail-fast: false

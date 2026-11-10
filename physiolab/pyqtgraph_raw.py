@@ -16,6 +16,10 @@ class PyQtGraphRawPlot:
         self.history_seconds=history_seconds
         self._caption_duration=None
 
+    @property
+    def presentation_width(self):
+        return self.widget.width()
+
     def history_needs_replay(self,count,duration): return True
     def invalidate_history(self): pass  # Full-window backend; active drawing stays visible.
 

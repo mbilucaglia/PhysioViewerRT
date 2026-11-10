@@ -206,7 +206,7 @@ class PlotController(QObject):
                 sources[kind]=replace(source,source_generation=state.signals.generations[kind],
                     coverage='full' if replay or command or not gpu else 'incremental',
                     unit=state.units[kind],available_at=state.last_received.get(kind),command=command,
-                    max_points=max(128,min(RAW_DISPLAY_POLICY.max_points,backend.widget.width()*2)))
+                    max_points=max(128,min(RAW_DISPLAY_POLICY.max_points,backend.presentation_width*2)))
             else: self.empty_view(kind)
         request=state.begin_frame(sources)
         if request is not None: self.scheduler.submit(request)

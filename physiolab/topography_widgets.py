@@ -30,6 +30,7 @@ class TopographyView(QWidget):
                  colour_step=DEFAULT_VIEWER_SETTINGS.gain_step):
         super().__init__(parent)
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='eeg-topography')
+        self._closing = False
         self._future = None
         self._revision = 0
         self._key = None
@@ -227,7 +228,7 @@ class TopographyView(QWidget):
         self._apply_colour_levels()
 
     def tick(self, state, iaf=None):
-        if not self.isVisible():
+        if self._closing or not self.isVisible():
             return
         config = self.settings()
         self.iaf_status.setText(f'Calibrated IAF: {iaf:.2f} Hz' if iaf is not None else
@@ -307,5 +308,15 @@ class TopographyView(QWidget):
                                + '\nExcluded: ' + (', '.join(result['excluded']) or 'none'))
 
     def shutdown(self):
+        if self._closing:
+            return
+        self._closing = True
         self._revision += 1
+        self._pool.shutdown(wait=False, cancel_futures=True)
+
+    def shutdown_complete(self):
+        if self._future is not None and not self._future.done():
+            return False
+        # No numerical call remains: join only the idle executor's teardown.
         self._pool.shutdown(wait=True, cancel_futures=True)
+        return True

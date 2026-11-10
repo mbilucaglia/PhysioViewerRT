@@ -1,4 +1,7 @@
 import time
+import logging
+import threading
+from dataclasses import replace
 from PySide6.QtCore import QThread, Signal
 from pylsl import StreamInlet, resolve_streams, proc_clocksync, local_clock
 from .processing import Processor, METRIC_HOP_SECONDS
@@ -12,6 +15,9 @@ from .metric_observation import MetricObservation, source_configuration
 from .physiological_metrics import METRIC_CALCULATORS
 from .sc_decomposition import TonicSCProcessor, sc_pipeline_metadata
 from .eeg_asr import ASRError, StreamingASR
+from .receiver_state import ReceiverSnapshot, freeze
+
+logger = logging.getLogger(__name__)
 
 
 class Receiver(QThread):
@@ -22,6 +28,11 @@ class Receiver(QThread):
     def __init__(self, info, kind, selected_indices, selected_names, preprocessing=None,
                  conversion=None, eeg_asr_model=None):
         super().__init__()
+        self._control_lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._requested_iaf = 10.
+        self._requested_monitor = None
+        self._status = None
         self.info, self.kind = info, kind
         self.selected_indices = validated_indices(selected_indices, info.channel_count(), kind)
         if len(selected_names) != info.channel_count():
@@ -48,6 +59,58 @@ class Receiver(QThread):
         # Immutable snapshot: processed time, last modification, startup progress,
         # waiting for the first output (also reset after a source gap).
         self.mailbox = ChunkMailbox(info.nominal_srate())
+        self._publish_status()
+
+    @property
+    def active(self):
+        return not self._stop_event.is_set()
+
+    @active.setter
+    def active(self, value):
+        if value:
+            self._stop_event.clear()
+        else:
+            self._stop_event.set()
+
+    @property
+    def iaf_hz(self):
+        with self._control_lock:
+            return self._requested_iaf
+
+    @iaf_hz.setter
+    def iaf_hz(self, value):
+        with self._control_lock:
+            self._requested_iaf = float(value)
+
+    @property
+    def asr_training_monitor(self):
+        with self._control_lock:
+            return self._requested_monitor
+
+    @asr_training_monitor.setter
+    def asr_training_monitor(self, value):
+        with self._control_lock:
+            self._requested_monitor = value
+
+    def _chunk_controls(self):
+        with self._control_lock:
+            return self._requested_iaf, self._requested_monitor
+
+    def _publish_status(self):
+        configuration = freeze(self.source_configuration)
+        preprocessing = freeze(self.preprocessing)
+        tonic = freeze(self.tonic_metadata)
+        with self._control_lock:
+            revision = 0 if self._status is None else self._status.revision + 1
+            self._status = ReceiverSnapshot(revision, self.active, configuration,
+                preprocessing, tonic, tuple(self.source_units), tuple(self.output_units),
+                self.latest_source_timestamp, self.asr_status, self.eeg_asr_model,
+                self.asr_processed_samples, self.asr_last_processed_at,
+                self.asr_last_correction_at, self.reduction_feedback, self.last_error)
+
+    def status_snapshot(self):
+        with self._control_lock:
+            return self._status
 
     def run(self):
         try:
@@ -63,6 +126,7 @@ class Receiver(QThread):
             try:
                 units = stream_channel_units(inlet.info(timeout=2.), self.selected_indices)
             except Exception:
+                logger.warning('Receiver metadata fallback (kind=%s)', self.kind, exc_info=True)
                 units = [''] * count
             self.source_units = list(units)
             units = self.conversion.units(units)
@@ -92,6 +156,7 @@ class Receiver(QThread):
                 self.tonic_metadata = sc_pipeline_metadata(
                     tonic, proc.preprocessing, self.conversion.metadata())
             first_source_timestamp = None
+            self._publish_status()
             self.stream_ready.emit(self.kind, names, float(fs))
             while self.active:
                 # Bound delivery to one metric hop, including after a backlog.
@@ -99,7 +164,8 @@ class Receiver(QThread):
                     timeout=.2, max_samples=max(1, round(fs * METRIC_HOP_SECONDS)))
                 if not samples:
                     continue
-                proc.iaf_hz = self.iaf_hz
+                iaf_hz, monitor = self._chunk_controls()
+                proc.iaf_hz = iaf_hz
                 selected = select_chunk(samples, self.selected_indices)
                 timestamps, selected, _ = clean_lsl_chunk(
                     timestamps, selected, selected, self.latest_source_timestamp)
@@ -108,7 +174,7 @@ class Receiver(QThread):
                 if (cleaner is not None and self.latest_source_timestamp is not None
                         and timestamps[0]-self.latest_source_timestamp > max(.25, 3/fs)):
                     cleaner.reset()
-                    proc = Processor(self.kind, fs, count, names, iaf_hz=self.iaf_hz,
+                    proc = Processor(self.kind, fs, count, names, iaf_hz=iaf_hz,
                                      preprocessing=self.preprocessing, sample_transform=cleaner.process)
                     first_source_timestamp = None
                 self.latest_source_timestamp = float(timestamps[-1])
@@ -123,9 +189,10 @@ class Receiver(QThread):
                     self.asr_status = f'ASR bypassed after processing error: {exc}'
                     self.source_configuration = {key: value for key, value in self.source_configuration.items()
                                                  if key != 'asr_model_id'}
-                    proc = Processor(self.kind, fs, count, names, iaf_hz=self.iaf_hz,
+                    proc = Processor(self.kind, fs, count, names, iaf_hz=iaf_hz,
                                      preprocessing=self.preprocessing)
                     metric = proc.push(selected,timestamps=timestamps)
+                    self._publish_status()
                     self.stream_ready.emit(self.kind, names, float(fs))
                 reducer = proc.artifact_reducer
                 if reducer is not None:
@@ -136,9 +203,9 @@ class Receiver(QThread):
                                   None if warming else previous[1])
                     self.reduction_feedback = (processed_at,changed_at,reducer.total/fs,warming)
                 if not len(proc.last_filtered_chunk):
+                    self._publish_status()
                     continue  # Explicit reducer buffer; no fabricated processed samples.
                 selected,timestamps = proc.last_raw_chunk,proc.last_timestamps
-                monitor = self.asr_training_monitor
                 if monitor is not None:
                     monitor.push(selected, proc.last_preprocessed_chunk, timestamps)
                 if cleaner is not None:
@@ -179,25 +246,31 @@ class Receiver(QThread):
                         metric['_tonic_status'] = tonic.status
                     metric['_observations'] = metadata
                 computed_at = time.monotonic()
+                self._publish_status()
                 self.mailbox.put(AcquisitionChunk(
                     selected.copy(),
                     proc.last_filtered_chunk.copy(),
                     names, metric, float(fs), timestamps, computed_at,
                 ))
         except Exception as exc:
+            logger.exception('Receiver failed (kind=%s)', self.kind)
             self.last_error = f'{self.kind}: {exc}'
+            self._publish_status()
             self.failure.emit(self.last_error)
         finally:
             if self.inlet is not None:
                 try:
                     self.inlet.close_stream()
                 except Exception:
-                    pass
+                    logger.warning('Receiver inlet cleanup failed (kind=%s)', self.kind, exc_info=True)
                 self.inlet = None
+            self._publish_status()
 
     def request_stop(self):
         # Called from GUI thread: do not block waiting for the inlet timeout.
         self.active = False
+        with self._control_lock:
+            self._status = replace(self._status, active=False, revision=self._status.revision + 1)
 
     def stop(self):
         self.request_stop()

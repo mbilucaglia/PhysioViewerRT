@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "session_id": "56b1c6e7-6cb9-4473-9964-b4ba72fbe253",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "codex/portable-environment",
+  "head_at_start": "0a8b2f5ace05d6288ef8483c143b307a5c7da45b",
+  "updated_at": "2026-11-10T07:13:15.1360936+01:00",
+  "status": "completed",
+  "summary": "Verificati report, cronologia e codice attuale. Roadmap in 17 blocchi con evidenze, dipendenze, rischi, test, criteri e approvazioni. Nessuna modifica al codice.",
+  "intervals": [
+    {
+      "id": "76af8ad3-742c-4ad5-a4d6-18c0da45eb49",
+      "started_at": "2026-11-10T06:56:03.872153+01:00",
+      "ended_at": "2026-11-10T07:13:15.1360936+01:00",
+      "kind": "interactive",
+      "basis": "observed",
+      "description": "Lettura report, verifica codice e storico, preparazione roadmap",
+      "evidence": [
+        "REFACTORING_OVERNIGHT_REPORT.md",
+        "REFACTORING_ARCHITECTURAL_ROADMAP.md",
+        ".local/roadmap-review-core.log",
+        ".local/roadmap-review-gui.log",
+        ".local/roadmap-review-audit.json"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "248 test core OK in 17.886 s, exit 0.",
+    "149 test GUI offscreen: OK, 3 skip, 153.114 s, exit 0.",
+    "Probe ispezionato e ripetuto con nuovi artefatti: save fallito 942 -> 0 byte; loader accetta input invalido; ciclo differito calibration/asr_tasks confermato.",
+    "66 moduli analizzati dal probe, 145 file compilati in memoria, pip check OK.",
+    "Verificati refactoring rendering precedenti; rilevati contratto RawBackend incompleto e differenza CI Python 3.11 rispetto al lock locale 3.12.",
+    "Creato REFACTORING_ARCHITECTURAL_ROADMAP.md; raccomandato B01, seguito da helper puro B02.",
+    "Nessun commit, push o fetch; codice e test versionati invariati."
+  ],
+  "commits": [],
+  "open_items": [
+    "Attesa approvazione utente prima di implementare B01 o altri blocchi.",
+    "Da decidere policy legacy, UX chiusura, accorpamento task e nuovi gate."
+  ],
+  "limitations": [
+    "Inizio al primo timestamp osservato; letture iniziali precedenti non cronometrate. Nessun fetch: riferimenti remoti locali.",
+    "Primo tentativo Python nella sandbox fallito prima dei test; run validi fuori sandbox.",
+    "Il probe riutilizza l algoritmo notturno dopo ispezione manuale; non e un secondo analizzatore indipendente.",
+    "Nessuna validazione GPU nativa, hardware fisico, soak test o misura coverage. Warning OpenGL offscreen e mediana geometrica restano presenti."
+  ]
+}

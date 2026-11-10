@@ -1,6 +1,8 @@
 """Waveform modification feedback; deliberately not a signal-quality measure."""
+from .receiver_state import receiver_view
 
 def peripheral_runtime_state(worker, now, pending=False):
+    worker = receiver_view(worker)
     if pending:
         return 'waiting','Reduction updating…','Waiting for processing reconfiguration.'
     if worker is None or not worker.active:

@@ -230,6 +230,10 @@ class VisPyRawPlot:
         return self._latest
 
     @property
+    def presentation_width(self):
+        return self.widget.width()
+
+    @property
     def configured(self):
         return self._configuration is not None
 

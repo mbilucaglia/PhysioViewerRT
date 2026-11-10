@@ -8,7 +8,7 @@ from dataclasses import replace
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QTimer, Qt, QDir
+from PySide6.QtCore import QTimer, Qt, QDir, Slot
 from PySide6.QtUiTools import QUiLoader
 from pylsl import local_clock
 from PySide6.QtWidgets import (
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QProgressDialog, QMenu
 )
 from .worker import Receiver
+from .receiver_state import receiver_view
 from .processing import validate_preprocessing
 from .peripheral_reduction import require_reduction_backend
 from .channel_selection import validated_indices
@@ -39,8 +40,10 @@ from .display_units import DEFAULT_EEG_DISPLAY_STEP, ARBITRARY_UNIT
 from .plot_controller import PlotController
 from .metric_plot_controller import MetricPlotController
 from .metric_state import MetricState
+from .calibration_coordinator import CalibrationCoordinator
 from .calibration_session import CalibrationSession
-from .calibration_tasks import CalibrationAnalysisTask
+from .calibration_tasks import CalibrationAnalysisTask, CalibrationIOTask
+from .task_lifecycle import TaskLifecycle, TaskProgress, OperationCancelled, GenerationResultHandler
 from .affect_state import AffectState
 from .affect_widgets import AffectView
 from .asr_widgets import ASRControls
@@ -52,6 +55,7 @@ from .asr_session import ASRSession
 from .asr_runtime import asr_runtime_state
 from .peripheral_runtime import peripheral_runtime_state
 from .asr_training import ASRTrainingAccumulator
+from .asr_training_policy import TrainingPolicy
 from .asr_training_dialog import ASRTrainingDialog
 from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
@@ -65,20 +69,57 @@ from .calibration import (
 )
 
 
+# A close request may outlive its caller (including tests and modal dialogs).
+# Release this reference only after every owned task has finished.
+_closing_windows = set()
+
+
 class MainWindow(QMainWindow):
+
+    # Compatibility accessors for views/tools; state has one authoritative owner.
+    @property
+    def loaded_eyc(self): return self.calibrations.loaded_eyc
+    @loaded_eyc.setter
+    def loaded_eyc(self, value): self.calibrations.loaded_eyc = value
+    @property
+    def loaded_bsl(self): return self.calibrations.loaded_bsl
+    @loaded_bsl.setter
+    def loaded_bsl(self, value): self.calibrations.loaded_bsl = value
+    @property
+    def eyc_recording(self): return self.calibrations.eyc_recording
+    @eyc_recording.setter
+    def eyc_recording(self, value): self.calibrations.eyc_recording = value
+    @property
+    def iaf_hz(self): return self.calibrations.iaf_hz
+    @iaf_hz.setter
+    def iaf_hz(self, value): self.calibrations.iaf_hz = value
+    @property
+    def eeg_reference_pending(self): return self.calibrations.pending
+    @eeg_reference_pending.setter
+    def eeg_reference_pending(self, value): self.calibrations.pending = value
+    @property
+    def eeg_reference_error(self): return self.calibrations.error
+    @eeg_reference_error.setter
+    def eeg_reference_error(self, value): self.calibrations.error = value
+    @property
+    def _reference_source_configuration(self): return self.calibrations.reference_source
+    @_reference_source_configuration.setter
+    def _reference_source_configuration(self, value): self.calibrations.reference_source = value
 
     def __init__(self, settings=DEFAULT_VIEWER_SETTINGS, metric_definitions=DEFAULT_METRICS):
         super().__init__()
         self.settings = settings
+        self.calibrations = CalibrationCoordinator()
 
         self.metric_definitions = validate_metrics(metric_definitions)
         self.metric_state = MetricState(self.metric_definitions, settings.metric_history_capacity)
         self.metric_controller = MetricPlotController(self.metric_state,settings)
-        self.asr_session = ASRSession()
+        self.asr_session = ASRSession(self.calibrations)
         self.asr_tasks = []
         self._asr_report_dialog = None
         self._asr_report_generation = None
         self.eeg_reference_tasks = []
+        self._pending_reference = None
         self.eeg_reference_pending = False
         self.eeg_reference_error = None
         self.eyc_recording = None
@@ -103,7 +144,15 @@ class MainWindow(QMainWindow):
         self._metadata_requests = {}
         self.lsl_task_serial = 0
         self.discovery_serial = 0
+        self._discovery_pending = False
         self._closing = False
+        self._closed = False
+        self.task_lifecycle = TaskLifecycle(self)
+        self._operation_dialogs = set()
+        self._io_busy = False
+        self._shutdown_timer = QTimer(self)
+        self._shutdown_timer.setInterval(25)
+        self._shutdown_timer.timeout.connect(self._finish_close)
         self.performance = PerformanceMonitor()
         self._last_gui_tick = time.monotonic()
         self.raw_controller = PlotController(settings,self.performance,self)
@@ -125,7 +174,7 @@ class MainWindow(QMainWindow):
         self.capture = None
         self.loaded_eyc = None
         self.loaded_bsl = None
-        self.calibration_paths = {'EYC': None, 'BSL': None}
+        self.calibration_paths = self.calibrations.paths
 
 
 
@@ -209,9 +258,10 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'asr_view'):
             return
         worker = self.workers.get('EEG')
-        live = getattr(worker, 'source_configuration', None)
+        view = receiver_view(worker)
+        live = getattr(view, 'source_configuration', None)
         source_ok, source_status = self.asr_session.source_availability(
-            live if getattr(worker, 'active', False) else None)
+            live if getattr(view, 'active', False) else None)
         available, status, _ = self.asr_session.availability(live)
         self.asr_view.set_source(source_ok, source_status or status, available)
         model = self.asr_session.model
@@ -223,59 +273,56 @@ class MainWindow(QMainWindow):
         self.asr_view.report.setEnabled(model is not None and not self.asr_session.busy)
 
     def train_eeg_asr(self):
+        if self._closing:
+            return
         worker = self.workers.get('EEG')
-        live = getattr(worker, 'source_configuration', None)
+        view = receiver_view(worker)
+        live = getattr(view, 'source_configuration', None)
         available, status = self.asr_session.source_availability(
-            live if getattr(worker, 'active', False) else None)
+            live if getattr(view, 'active', False) else None)
         if not available or self.capture is not None or self.asr_session.busy:
             self.statusBar().showMessage(status or 'Finish the current recording or training first.')
             return
         minimum = self.settings.asr_training_seconds
         metadata = {'fs': float(worker.info.nominal_srate()),
                     'channels': list(worker.selected_names),
-                    'preprocessing': dict(worker.preprocessing),
+                    'preprocessing': dict(view.preprocessing),
                     'conversion': worker.conversion.metadata(),
-                    'source_units': list(worker.source_units), 'units': list(worker.output_units),
-                    'start_lsl_timestamp': worker.latest_source_timestamp}
+                    'source_units': list(view.source_units), 'units': list(view.output_units),
+                    'start_lsl_timestamp': view.latest_source_timestamp}
         started = time.monotonic()
         session = CalibrationSession('ASR', {'EEG': metadata}, started+300.)
         monitor = ASRTrainingAccumulator(metadata['fs'], metadata['channels'], max(180., minimum+60.))
         progress = ASRTrainingDialog(minimum, self)
-        fit = {'running': False, 'next': minimum, 'error': '', 'model': None, 'eeg': None}
+        fit = TrainingPolicy(minimum, session.deadline)
         settings = self.asr_view.settings()
-        cancelled = False
 
         def checked(generation, model, error):
-            fit['running'] = False
-            if cancelled or self._closing:
+            if self._closing:
                 return
-            if error is not None:
-                fit['error'] = error
-                fit['next'] = monitor.status()['accepted_seconds']+10.
-            else:
-                fit['model'] = model
+            if fit.complete(model, error, monitor.status()['accepted_seconds']):
                 progress.accept()
+
+        result_handler = GenerationResultHandler(checked, progress)
 
         def advance():
             status = monitor.status()
             now = time.monotonic()
-            progress.show_status(status, now-started, fit['running'], fit['error'])
-            if (self._closing or session.errors or not worker.active
-                    or self.workers.get('EEG') is not worker
-                    or now > session.deadline):
+            progress.show_status(status, now-started, fit.running, fit.error)
+            action = fit.action(status, now,
+                source_available=receiver_view(worker).active and self.workers.get('EEG') is worker,
+                interrupted=self._closing or bool(session.errors))
+            if action == 'stop':
                 progress.reject()
                 return
-            if (not fit['running'] and fit['next'] > status['accepted_seconds']
-                    and monitor.accepted_samples >= monitor.maximum_samples):
-                progress.reject()
-                return
-            if (not fit['running'] and status['accepted_seconds'] >= fit['next']):
+            if action == 'fit':
                 eeg = monitor.snapshot(metadata)
                 task = ASRFitTask(0, eeg, settings, self)
-                fit.update(running=True, eeg=eeg)
+                fit.start_fit(eeg)
                 self.asr_tasks.append(task)
-                task.completed.connect(checked)
-                task.finished.connect(lambda t=task: self._asr_task_finished(t))
+                task.completed.connect(result_handler.receive)
+                task.finished.connect(self._asr_task_finished)
+                self.task_lifecycle.track(task)
                 task.start()
 
         self.capture = session
@@ -285,30 +332,35 @@ class MainWindow(QMainWindow):
         timer.setInterval(100)
         timer.timeout.connect(advance)
         timer.start()
+        self._operation_dialogs.add(progress)
         try:
             result = progress.exec()
         finally:
-            cancelled = True
+            self._operation_dialogs.discard(progress)
+            fit.cancel()
             timer.stop()
             worker.asr_training_monitor = None
             self.capture = None
             self.update_asr_availability()
             for kind in tuple(self.pending_source_changes):
                 self.schedule_source_change(kind)
-        if result != QDialog.DialogCode.Accepted or self._closing or fit['model'] is None:
-            reason = fit['error'] or ('; '.join(session.errors)) or monitor.status()['reason']
+            progress.deleteLater()
+        if result != QDialog.DialogCode.Accepted or self._closing or fit.model is None:
+            reason = fit.error or ('; '.join(session.errors)) or monitor.status()['reason']
             self.statusBar().showMessage('ASR training not completed; previous model kept. '+reason)
             return
         if self.asr_session.enabled:
             self.set_eeg_asr_enabled(False)
         if self._asr_report_dialog is not None:
             self._asr_report_dialog.close()
-        self.asr_session.set_training(fit['eeg'])
+        self.asr_session.set_training(fit.recording)
         self._asr_resume_after_fit = True
-        self.eeg_asr_fitted(self.asr_session.generation, fit['model'], None)
+        self.eeg_asr_fitted(self.asr_session.generation, fit.model, None)
 
     def fit_eeg_asr(self, settings, enable_on_success=False):
-        live = getattr(self.workers.get('EEG'), 'source_configuration', None)
+        if self._closing:
+            return
+        live = getattr(receiver_view(self.workers.get('EEG')), 'source_configuration', None)
         available, status, _ = self.asr_session.availability(live)
         if not available or self.asr_session.busy or self.capture is not None:
             self.asr_view.set_fit_state(False, self.asr_session.busy, status or 'Finish recording first.')
@@ -349,13 +401,15 @@ class MainWindow(QMainWindow):
         self.asr_view.set_fit_state(False, True)
         self.asr_tasks.append(task)
         task.completed.connect(self.eeg_asr_fitted)
-        task.finished.connect(lambda t=task: self._asr_task_finished(t))
+        task.finished.connect(self._asr_task_finished)
+        self.task_lifecycle.track(task)
         task.start()
 
-    def _asr_task_finished(self, task):
+    @Slot()
+    def _asr_task_finished(self, task=None):
+        task = task or self.sender()
         if task in self.asr_tasks:
             self.asr_tasks.remove(task)
-        task.deleteLater()
 
     def eeg_asr_fitted(self, generation, result, error):
         if self._closing or generation != self.asr_session.generation:
@@ -393,48 +447,41 @@ class MainWindow(QMainWindow):
 
 
     def _apply_asr_metric_references(self):
+        if self._closing:
+            return
         session = self.asr_session
-        session.reference_generation += 1
-        self.eeg_reference_pending = False
-        self.eeg_reference_error = None
         self.metric_state.reset('EEG')
         self.affect_state.reset('EEG')
-        live = getattr(self.workers.get('EEG'), 'source_configuration', None)
-        self._reference_source_configuration = deepcopy(live)
-        if self._reference_source_configuration is not None:
-            self._reference_source_configuration.pop('asr_model_id', None)
-        eeg = session.streams.get('EEG') if self.loaded_bsl is not None else None
-        if self.eyc_recording is not None or eeg is not None:
-            self.eeg_reference_pending = True
+        live = getattr(receiver_view(self.workers.get('EEG')), 'source_configuration', None)
+        self._pending_reference = self.calibrations.request_replay(
+            session.model if session.enabled else None, live)
+        if self._pending_reference is not None:
             self.calibration_state.setText('Recalculating EEG EYC and BSL references…')
-            model = session.model if session.enabled else None
-            live = getattr(self.workers.get('EEG'), 'source_configuration', None)
-            task = CalibrationReferenceTask(session.reference_generation,
-                self.eyc_recording, eeg, session.base_analysis, self.iaf_hz, model, live, self)
-            self.eeg_reference_tasks.append(task)
-            task.completed.connect(self.calibration_references_ready)
-            task.finished.connect(lambda t=task: self._eeg_reference_finished(t))
-            task.start()
+            self._start_pending_reference()
         self.update_metrics_availability()
         self.refresh_metrics()
         self.refresh_affect_references()
 
+    def _start_pending_reference(self):
+        if self._closing or self.eeg_reference_tasks or self._pending_reference is None:
+            return
+        arguments, self._pending_reference = self._pending_reference, None
+        task = CalibrationReferenceTask(*arguments, parent=self)
+        self.eeg_reference_tasks.append(task)
+        task.completed.connect(self.calibration_references_ready)
+        task.finished.connect(self._eeg_reference_finished)
+        self.task_lifecycle.track(task)
+        task.start()
+
+    @Slot(object, object, object)
     def calibration_references_ready(self, generation, result, error):
         if self._closing or generation != self.asr_session.reference_generation:
             return
-        self.eeg_reference_pending = False
-        self.eeg_reference_error = error
+        iaf_changed = self.calibrations.complete_replay(
+            generation, result, error, self.asr_session.enabled)
         if error:
             self.statusBar().showMessage(error)
         else:
-            iaf_changed = not np.isclose(self.iaf_hz, result['iaf_hz'])
-            self.iaf_hz = result['iaf_hz']
-            if result['eyc'] is not None and self.loaded_eyc is not None:
-                self.loaded_eyc = {**self.loaded_eyc, 'analysis': result['eyc']}
-            if result['bsl'] is not None and self.loaded_bsl is not None:
-                self.loaded_bsl = {**self.loaded_bsl, 'analysis': result['bsl']}
-                if self.asr_session.enabled:
-                    self.asr_session.cleaned_analysis = result['bsl']
             worker = self.workers.get('EEG')
             if worker is not None:
                 worker.iaf_hz = self.iaf_hz
@@ -447,17 +494,19 @@ class MainWindow(QMainWindow):
         self.refresh_metrics()
         self.refresh_affect_references()
 
-    def _eeg_reference_finished(self, task):
+    @Slot()
+    def _eeg_reference_finished(self, task=None):
+        task = task or self.sender()
         if task in self.eeg_reference_tasks:
             self.eeg_reference_tasks.remove(task)
-        task.deleteLater()
+        self._start_pending_reference()
 
     def set_eeg_asr_enabled(self, enabled):
         if self.capture is not None:
             self.asr_view.set_enabled(self.asr_session.enabled)
             return
         if enabled:
-            live = getattr(self.workers.get('EEG'), 'source_configuration', None)
+            live = getattr(receiver_view(self.workers.get('EEG')), 'source_configuration', None)
             available, status, _ = self.asr_session.availability(live)
             if not available:
                 self.asr_view.set_enabled(False)
@@ -540,24 +589,11 @@ class MainWindow(QMainWindow):
 
     def metric_references(self):
         """One compatibility policy for both Metrics and Affect normalization."""
-        analysis = (self.loaded_bsl or {}).get('analysis') or {}
-        references = dict(analysis.get('metrics', {}))
-        configurations = analysis.get('source_configurations', {})
-        for kind, baseline in configurations.items():
-            live = getattr(self.workers.get(kind), 'source_configuration', None)
-            if live is not None and live != baseline:
-                references.pop(kind, None)
-        if (self.eeg_reference_pending or self.eeg_reference_error
-                or not np.isclose(analysis.get('iaf_hz_used', self.iaf_hz), self.iaf_hz)
-                or (self.asr_session.enabled and 'asr_model_id' not in configurations.get('EEG', {}))):
-            references.pop('EEG', None)
-        metadata = analysis.get('tonic_sc') or {}
-        if not (metadata.get('configuration_id') and
-                metadata['configuration_id'] == self._tonic_live_configuration):
-            references.pop('EDA', None)
-        if not (references.get('PPG', {}).get('HR') and references.get('EDA', {}).get('SCL')):
-            references.pop('EI', None)
-        return references
+        return self.calibrations.references(
+            {kind: getattr(receiver_view(worker), 'source_configuration', None)
+             for kind, worker in self.workers.items()},
+            asr_enabled=self.asr_session.enabled,
+            tonic_configuration=self._tonic_live_configuration)
 
     def refresh_affect_references(self):
         analysis = (self.loaded_bsl or {}).get('analysis') or {}
@@ -947,17 +983,13 @@ class MainWindow(QMainWindow):
             self.clear_calibration(kind)
 
     def clear_calibration(self, kind):
+        self.calibrations.clear(kind)
         if kind == 'EYC':
-            self.loaded_eyc = None
-            self.eyc_recording = None
-            self.iaf_hz = 10.
             for worker in self.workers.values():
                 if worker.kind == 'EEG':
                     worker.iaf_hz = self.iaf_hz
         else:
-            self.loaded_bsl = None
             self.metric_state.ei.set_references(None, None)
-            self.asr_session.set_baseline()
         self.calibration_paths[kind] = None
         self.calibration_file_labels[kind].setText('None selected')
         self.calibration_state.setText(
@@ -1094,25 +1126,40 @@ class MainWindow(QMainWindow):
 
     def queue_lsl_task(self, operation, info=None):
         """Run blocking LSL APIs outside the Qt GUI event loop."""
+        if self._closing:
+            return None
         self.lsl_task_serial += 1
         token = self.lsl_task_serial
         task = LSLTask(token, operation, info, self)
         self.lsl_tasks[token] = task
         task.completed.connect(self.lsl_task_completed)
-        task.finished.connect(lambda n=token, w=task: self.lsl_task_finished(n, w))
+        task.finished.connect(self._lsl_finished_signal)
+        self.task_lifecycle.track(task)
         task.start()
         return token
 
     def lsl_task_finished(self, token, task):
         self.lsl_tasks.pop(token, None)
-        task.deleteLater()
+        if task.operation == 'discover' and self._discovery_pending and not self._closing:
+            self._discovery_pending = False
+            self.refresh()
+
+    @Slot()
+    def _lsl_finished_signal(self):
+        task = self.sender()
+        self.lsl_task_finished(task.token, task)
 
     def refresh(self):
         if self._closing:
             return
+        if any(task.operation == 'discover' for task in self.lsl_tasks.values()):
+            self._discovery_pending = True
+            self.discovery_serial = -1  # The active result is superseded.
+            return
         self.discovery_serial = self.queue_lsl_task('discover')
         self.statusBar().showMessage('Discovering LSL sources…')
 
+    @Slot(object, object, object)
     def lsl_task_completed(self, token, result, error):
         if self._closing:
             return
@@ -1211,6 +1258,7 @@ class MainWindow(QMainWindow):
         self.schedule_source_change(kind)
 
     def _receiver_processing_matches(self,kind,worker):
+        worker = receiver_view(worker)
         requested = validate_preprocessing(kind,preset=self.filter_choices[kind].currentData(),
             notch=self.filter_notches[kind].isChecked(),
             artifact_reduction=(self.artifact_choices[kind].currentData() if kind in self.artifact_choices else 'off'))
@@ -1221,7 +1269,7 @@ class MainWindow(QMainWindow):
         if kind != 'EEG':
             return True
         requested = self.asr_session.model if self.asr_session.enabled else None
-        active = getattr(worker, 'eeg_asr_model', None)
+        active = getattr(receiver_view(worker), 'eeg_asr_model', None)
         return ((requested.model_id if requested is not None else None)
                 == (active.model_id if active is not None else None))
 
@@ -1235,7 +1283,7 @@ class MainWindow(QMainWindow):
         except RuntimeError as exc:
             worker = self.workers.get(kind)
             if worker is not None:
-                previous = worker.preprocessing.get('artifact_reduction', 'off')
+                previous = receiver_view(worker).preprocessing.get('artifact_reduction', 'off')
                 blocked = choice.blockSignals(True)
                 choice.setCurrentIndex(choice.findData(previous))
                 choice.blockSignals(blocked)
@@ -1249,6 +1297,8 @@ class MainWindow(QMainWindow):
 
     def schedule_source_change(self, kind):
         """Replace an active source asynchronously; coalesce rapid selections."""
+        if self._closing:
+            return
         if not self.source_backend_available(kind):
             return
         worker = self.workers.get(kind)
@@ -1341,6 +1391,8 @@ class MainWindow(QMainWindow):
         if self.workers.get(kind) is not worker:
             return
         self.workers.pop(kind, None)
+        if self._closing:
+            return
         self.source_conversions[kind].setEnabled(True)
         self.stream_buttons[kind].setEnabled(True)
         set_action(self.stream_buttons[kind], 'Play', 'play-white')
@@ -1357,6 +1409,8 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f'{modality_label(kind)} reception stopped')
 
     def connect_stream(self, kind):
+        if self._closing:
+            return
         if self.capture is not None:
             QMessageBox.warning(self, 'Calibration in progress',
                                 'Finish or cancel calibration before changing a stream.')
@@ -1395,7 +1449,8 @@ class MainWindow(QMainWindow):
         worker.display_scale_ready.connect(self.set_stream_display_scale)
         worker.iaf_hz = self.iaf_hz
         worker.failure.connect(self.statusBar().showMessage)
-        worker.finished.connect(lambda k=kind, w=worker: self.receiver_finished(k, w))
+        worker.finished.connect(self._receiver_finished_signal)
+        self.task_lifecycle.track(worker)
         self.workers[kind] = worker
         self.sync_affect_sources()
         self.source_conversions[kind].setEnabled(False)
@@ -1403,6 +1458,11 @@ class MainWindow(QMainWindow):
         self.stream_buttons[kind].setEnabled(True)
         worker.start()
         self.statusBar().showMessage(f'{modality_label(kind)}: starting selected LSL stream reception')
+
+    @Slot()
+    def _receiver_finished_signal(self):
+        worker = self.sender()
+        self.receiver_finished(worker.kind, worker)
 
     def receive(self, kind, raw, processed, names, metric, fs, timestamps, metric_at=None,
                 refresh_labels=True):
@@ -1798,8 +1858,10 @@ class MainWindow(QMainWindow):
 
 
     def ready_stream(self, kind, channels, fs):
+        if self._closing:
+            return
         if kind == 'EEG':
-            worker = self.workers.get(kind)
+            worker = receiver_view(self.workers.get(kind))
             asr_bypassed = self.asr_session.enabled and getattr(worker, 'eeg_asr_model', None) is None
             if asr_bypassed:
                 self.asr_session.set_enabled(False)
@@ -1811,7 +1873,7 @@ class MainWindow(QMainWindow):
                 self._apply_asr_metric_references()
             self.update_asr_availability()
         if kind == 'EDA':
-            metadata = getattr(self.workers.get(kind), 'tonic_metadata', None) or {}
+            metadata = getattr(receiver_view(self.workers.get(kind)), 'tonic_metadata', None) or {}
             self._tonic_live_configuration = metadata.get('configuration_id')
         self.refresh_affect_references()
         self.statusBar().showMessage(f'{modality_label(kind)} ready: {len(channels)} channels at {fs:g} Hz')
@@ -1821,6 +1883,8 @@ class MainWindow(QMainWindow):
             self.capture.append(kind, samples, timestamps, channels, fs, time.monotonic())
 
     def record_calibration(self, kind):
+        if self._closing:
+            return
         if self.capture is not None:
             QMessageBox.warning(self, 'Calibration', 'A calibration is already running.')
             return
@@ -1841,25 +1905,32 @@ class MainWindow(QMainWindow):
         meta = {}
         for modality in included:
             worker = connected[modality]
+            view = receiver_view(worker)
             info = worker.info
             channels = list(worker.selected_names)
             meta[modality] = {
                 'fs': float(info.nominal_srate()), 'channels': channels,
-                'preprocessing': dict(worker.preprocessing),
+                'preprocessing': dict(view.preprocessing),
                 'conversion': worker.conversion.metadata(),
-                'source_units': list(worker.source_units),
-                'units': list(worker.output_units),
+                'source_units': list(view.source_units),
+                'units': list(view.output_units),
                 'chunks': [], 'times': [],
-                'start_lsl_timestamp': worker.latest_source_timestamp,
+                'start_lsl_timestamp': view.latest_source_timestamp,
             }
         screen = CalibrationScreen(kind, self)
         self.capture = CalibrationSession(
             kind, meta, time.monotonic() + DURATION_SECONDS + 1)
-        result = screen.exec()
+        self._operation_dialogs.add(screen)
+        try:
+            result = screen.exec()
+        finally:
+            self._operation_dialogs.discard(screen)
         session = self.capture
         self.capture = None
         for modality in tuple(self.pending_source_changes):
             self.schedule_source_change(modality)
+        if self._closing:
+            return
         if kind == 'EYC':
             QMessageBox.information(self, 'EYC finished', 'Open your eyes.')
         if result != QDialog.DialogCode.Accepted:
@@ -1872,6 +1943,8 @@ class MainWindow(QMainWindow):
             return
         try:
             analysis = self.analyze_calibration_background(kind, streams)
+        except OperationCancelled:
+            return
         except Exception as exc:
             QMessageBox.warning(self, 'Calibration analysis failed', str(exc))
             return
@@ -1879,6 +1952,8 @@ class MainWindow(QMainWindow):
         # ASR fitting must not depend on whether the user saves an NPZ file.
         self.apply_calibration(kind, {'analysis': analysis}, streams=streams)
         self.inspect_calibration(kind, analysis)
+        if self._closing:
+            return
         answer = QMessageBox.question(
             self, f'Save {kind} calibration?', 'Save recorded calibration data and analysis?',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -1893,7 +1968,9 @@ class MainWindow(QMainWindow):
         if not filename.lower().endswith('.npz'):
             filename += '.npz'
         try:
-            save_calibration(filename, kind, streams, analysis)
+            self._run_calibration_io('save', filename, kind, streams, analysis)
+        except OperationCancelled:
+            return
         except Exception as exc:
             QMessageBox.critical(self, 'Save failed', str(exc))
             return
@@ -1909,29 +1986,45 @@ class MainWindow(QMainWindow):
 
     def analyze_calibration_background(self, kind, streams):
         """Keep reception, raw plots and countdown/UI events responsive."""
-        progress = QProgressDialog(f'Analyzing {kind} calibration…', '', 0, 0, self)
-        progress.setWindowTitle('Calibration analysis')
-        progress.setCancelButton(None)
-        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
-        progress.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
         task = CalibrationAnalysisTask(kind, streams, self.iaf_hz, self,
             eeg_asr_model=self.asr_session.model if self.asr_session.enabled else None)
-        outcome = []
+        return self._run_calibration_task(task, f'Analyzing {kind} calibration…')
 
-        def completed(result, error):
-            outcome.extend((result, error))
-            progress.accept()
-
-        task.completed.connect(completed)
+    def _run_calibration_task(self, task, text):
+        if self._closing:
+            task.deleteLater()
+            raise OperationCancelled('Application is closing')
+        progress = TaskProgress(text, self)
+        progress.setWindowTitle('Calibration analysis')
+        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
+        progress.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
+        task.completed.connect(progress.receive)
+        task.finished.connect(progress.finish_task)
+        self.task_lifecycle.track(task)
+        self._operation_dialogs.add(progress)
         task.start()
-        progress.exec()
-        task.wait()
-        task.deleteLater()
-        if not outcome:
-            raise RuntimeError('Calibration analysis interrupted')
+        try:
+            progress.exec()
+            outcome = progress.outcome
+        finally:
+            self._operation_dialogs.discard(progress)
+            progress.deleteLater()
+        if self._closing or outcome is None:
+            raise OperationCancelled('Calibration operation interrupted')
         if outcome[1] is not None:
             raise ValueError(outcome[1])
         return outcome[0]
+
+    def _run_calibration_io(self, operation, path, kind, streams=None, analysis=None):
+        if self._io_busy:
+            raise OperationCancelled('A calibration file operation is already running')
+        self._io_busy = True
+        try:
+            task = CalibrationIOTask(operation, path, kind, streams, analysis, self)
+            return self._run_calibration_task(task,
+                f'{"Saving" if operation == "save" else "Loading"} {kind} calibration…')
+        finally:
+            self._io_busy = False
 
     def inspect_calibration(self, kind, analysis):
         folder = Path(__file__).resolve().parent.parent / 'designer'
@@ -1973,7 +2066,11 @@ class MainWindow(QMainWindow):
                 lines.append('')
             view.setPlainText('\n'.join(lines))
             pages.setCurrentWidget(dlg.findChild(QWidget, 'statisticsPage'))
-        dlg.exec()
+        self._operation_dialogs.add(dlg)
+        try:
+            dlg.exec()
+        finally:
+            self._operation_dialogs.discard(dlg)
         dlg.deleteLater()
 
     def set_calibration_file(self, kind, filename):
@@ -1985,17 +2082,11 @@ class MainWindow(QMainWindow):
             self.asr_session.filename = filename
 
     def apply_calibration(self, kind, meta, filename=None, streams=None):
+        self.calibrations.apply(kind, meta, filename, streams)
         if kind == 'EYC':
-            self.loaded_eyc = meta
-            self.eyc_recording = deepcopy((streams or {}).get('EEG'))
-            self.iaf_hz = float(meta['analysis']['iaf_hz'])
             for worker in self.workers.values():
                 if worker.kind == 'EEG':
                     worker.iaf_hz = self.iaf_hz
-        else:
-            self.loaded_bsl = meta
-            self.asr_session.set_baseline(meta.get('analysis'), streams, filename)
-            # Compatible EI input references are reconciled below.
         self.set_calibration_file(kind, filename)
         self.calibration_state.setText(
             f"EYC: {self.iaf_hz:.2f} Hz"
@@ -2009,36 +2100,61 @@ class MainWindow(QMainWindow):
         self._apply_asr_metric_references()
 
     def load_existing(self, kind):
+        if self._closing:
+            return
         filename, _ = QFileDialog.getOpenFileName(
             self, f'Open {kind} calibration', '', 'Calibration (*.npz)'
         )
         if not filename:
             return
         try:
-            meta, streams = load_calibration(filename, kind)
+            loaded = self._run_calibration_io('load', filename, kind)
+            meta, streams = loaded.metadata, loaded.streams
             # Replay raw recordings through the current preprocessing chain for
             # both EYC PSD and BSL metric references; saved results may differ.
             analysis = self.analyze_calibration_background(kind, streams)
             self.inspect_calibration(kind, analysis)
+            if self._closing:
+                return
             self.apply_calibration(kind, {'analysis': analysis}, filename=filename, streams=streams)
             self.statusBar().showMessage(f'Loaded {kind}: {filename}')
+        except OperationCancelled:
+            return
         except Exception as exc:
             QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
 
     def closeEvent(self, event):
-        self._closing = True
-        for timer in self.source_change_timers.values():
-            timer.stop()
-        self.pending_source_changes.clear()
-        self.timer.stop()
-        for task in list(self.asr_tasks) + list(self.eeg_reference_tasks):
-            task.wait()
-        for task in list(self.lsl_tasks.values()):
-            task.wait(3000)
+        if self._closed:
+            super().closeEvent(event)
+            return
+        event.ignore()
+        if not self._closing:
+            self._closing = True
+            _closing_windows.add(self)
+            self.centralWidget().setEnabled(False)
+            self.statusBar().showMessage('Closing: waiting for running operations to finish…')
+            for timer in self.source_change_timers.values():
+                timer.stop()
+            self.pending_source_changes.clear()
+            self._pending_reference = None
+            self._discovery_pending = False
+            self.timer.stop()
+            for dialog in tuple(self._operation_dialogs):
+                dialog.reject()
+            self.task_lifecycle.begin_close()
+            self.topography.shutdown()
+            self._shutdown_timer.start()
+        self._finish_close()
+
+    @Slot()
+    def _finish_close(self):
+        if (self._closed or not self._closing or not self.task_lifecycle.idle
+                or self._operation_dialogs or not self.topography.shutdown_complete()):
+            return
+        self._shutdown_timer.stop()
         self.raw_controller.close()
-        self.topography.shutdown()
         self.metric_controller.close()
         self.affect_view.close()
-        for worker in self.workers.values():
-            worker.stop()
-        super().closeEvent(event)
+        self._closed = True
+        self.close()
+        _closing_windows.discard(self)

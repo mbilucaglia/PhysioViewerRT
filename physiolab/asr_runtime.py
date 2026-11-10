@@ -1,6 +1,8 @@
 """Truthful acquisition feedback, independent of the requested checkbox state."""
+from .receiver_state import receiver_view
 
 def asr_runtime_state(worker, now, pending=False):
+    worker = receiver_view(worker)
     if pending:
         return 'waiting', 'ASR updating…', 'Waiting for EEG processing reconfiguration.'
     if worker is None or not worker.active:

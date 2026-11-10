@@ -99,6 +99,8 @@ class ASRTrainingAccumulator:
             elif clock-self.last_arrival > 1.:
                 state, reason = 'bad', 'No fresh EEG—check the connection.'
             return {'state': state, 'reason': reason,
+                'accepted_samples': self.accepted_samples,
+                'maximum_samples': self.maximum_samples,
                 'accepted_seconds': self.accepted_samples/self.fs,
                 'rejected_seconds': self.rejected_samples/self.fs,
                 'recorded_seconds': self.seen_samples/self.fs}

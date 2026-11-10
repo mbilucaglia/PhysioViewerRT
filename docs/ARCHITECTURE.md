@@ -13,6 +13,24 @@ gated on the outstanding performance/device validation described in the handoff.
 
 ## Current modules
 
+The November architecture pass adds pure reference/training policies and one
+calibration coordinator, immutable receiver telemetry, bounded replay/discovery,
+and asynchronous application shutdown and NPZ I/O. See
+[the implementation and validation results](ARCHITECTURAL_REFACTOR_RESULTS.md).
+`calibration_storage` owns schema-1 persistence; `calibration_validation` validates
+loaded recordings before activation. Public save/load functions in `calibration`
+remain lazy compatibility wrappers. `TaskLifecycle` retains Qt tasks until their
+finished notifications reach the GUI; a close request disables new operations and
+keeps the event loop running until every participant finishes. A timeout is never
+treated as proof that a native calculation has stopped.
+
+`CalibrationCoordinator` owns original/derived baseline state and reference replay
+generations. `ASRSession` owns training/model state and delegates calibration data
+to that coordinator. MainWindow compatibility properties do not duplicate state.
+`Receiver.status_snapshot()` returns coherent, immutable telemetry; IAF/monitor
+requests are synchronized and consumed at chunk boundaries. Read-modify-write
+operations on worker fields should not be added to GUI code.
+
 | Responsibility | Modules | Contract |
 | --- | --- | --- |
 | LSL discovery and stream reception | `lsl_tasks.py`, `worker.py` | Blocking LSL work runs outside the GUI thread. |

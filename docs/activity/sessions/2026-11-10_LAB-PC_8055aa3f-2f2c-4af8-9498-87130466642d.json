@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "session_id": "8055aa3f-2f2c-4af8-9498-87130466642d",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "codex/portable-environment",
+  "head_at_start": "0a8b2f5ace05d6288ef8483c143b307a5c7da45b",
+  "updated_at": "2026-11-10T07:45:54.6949300+01:00",
+  "status": "completed",
+  "summary": "B01 completato: salvataggio NPZ con temporaneo nella stessa directory, flush/fsync/close e replace; failure injection e integrazione GUI verificate.",
+  "intervals": [
+    {
+      "id": "083fd12c-76e9-4781-9801-5cc85c2b223f",
+      "started_at": "2026-11-10T07:18:48.0594271+01:00",
+      "ended_at": "2026-11-10T07:45:54.6949300+01:00",
+      "kind": "interactive",
+      "basis": "observed",
+      "description": "Implementazione e verifica B01",
+      "evidence": [
+        "physiolab/calibration.py",
+        "tests/test_calibration.py",
+        "tests_gui/test_calibration_tasks.py",
+        ".local/b01-before.log",
+        ".local/b01-core.log",
+        ".local/b01-gui.log",
+        "REFACTORING_ARCHITECTURAL_ROADMAP.md"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "Prima della correzione: regressione riprodotta in 8 subtest; 10 test totali, exit 1 atteso.",
+    "Dopo correzione: 14 test calibrazione OK; successivamente aggiunti casi Windows reale e percorso relativo.",
+    "Suite core finale: 255 test OK in 17.499 s, exit 0.",
+    "Suite GUI calibrazioni: 5 test OK in 3.257 s, exit 0; errore di save e retry verificati.",
+    "Preservato file precedente su errori; cleanup best effort preserva eccezione originale. API, schema 1 e GUI applicativa invariati.",
+    "Aggiornata roadmap con B01 completato. Nessun commit, push o nuova dipendenza."
+  ],
+  "commits": [],
+  "open_items": [
+    "B02-B17 non implementati; restano proposte da approvare."
+  ],
+  "limitations": [
+    "Inizio al primo timestamp osservato; nessun commit o push richiesto.",
+    "Suite GUI completa non rieseguita: solo suite calibrazioni pertinente; core completo.",
+    "Test eseguiti fuori sandbox per limite noto di avvio Python locale.",
+    "Garanzia contro errori prima del replace su file locali; nessuna promessa di durabilita assoluta dopo power loss o equivalenza su rete."
+  ]
+}

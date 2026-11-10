@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "session_id": "536fcf64-8102-4865-9826-71d5318fa3a7",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "codex/portable-environment",
+  "head_at_start": "0a8b2f5ace05d6288ef8483c143b307a5c7da45b",
+  "updated_at": "2026-11-10T08:40:26.4673271+01:00",
+  "status": "completed",
+  "summary": "Implementati B02-B17 della roadmap autorizzata; B01 preservato. Separazione policy/stato/storage, lifecycle asincrono, snapshot receiver, scheduling limitato, I/O worker e controlli architetturali. Tutte le modifiche locali.",
+  "intervals": [
+    {
+      "id": "80807313-b87c-4e4c-8912-e158c1517feb",
+      "started_at": "2026-11-10T07:54:05.2347184+01:00",
+      "ended_at": "2026-11-10T08:40:26.4673271+01:00",
+      "kind": "interactive",
+      "basis": "observed",
+      "description": "Implementazione, test core/GUI/nativi, benchmark reattivita e documentazione della roadmap completa",
+      "evidence": [
+        "REFACTORING_ARCHITECTURAL_ROADMAP.md",
+        "docs/ARCHITECTURAL_REFACTOR_RESULTS.md",
+        ".local/roadmap-final-core.log",
+        ".local/roadmap-final-gui.log",
+        ".local/roadmap-native-20261110/results.json",
+        ".local/roadmap-io-responsiveness.log"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "268 test core OK (26.154 s).",
+    "162 test GUI OK con 3 skip (167.472 s), exit 0.",
+    "Verifica nativa VisPy/pyqtgraph: passed=true, zero errori, 30 transizioni e 21 cicli di memoria; nessun processo Python residuo alla verifica finale.",
+    "Ruff superato; mypy senza errori sui quattro moduli selezionati. git diff --check superato.",
+    "Heartbeat durante save sintetico: intervallo massimo 164.1 ms sincrono, 24.4 ms con worker; durata totale comparabile.",
+    "Corrette durante i test collisione slot finished/QDialog e interferenza del timer GUI in due fixture; asserzioni rendering preservate.",
+    "CI Windows Python 3.12 con lock e controlli architetturali configurata; dipendenze runtime e lock invariati.",
+    "Autorizzazione complessiva applicata senza richieste per blocco; report storico notturno conservato."
+  ],
+  "commits": [],
+  "open_items": [
+    "Esecuzione remota dei nuovi job CI dopo pubblicazione autorizzata.",
+    "Validazione con dispositivi fisici e prove di durata prolungata non effettuate."
+  ],
+  "limitations": [
+    "Inizio al primo timestamp osservato. Modifiche B01 preesistenti preservate. Nessun commit o push richiesto o effettuato.",
+    "Tre test GUI nativi saltati offscreen; la verifica nativa separata non equivale a ogni asserzione pixel saltata.",
+    "Un calcolo nativo che non ritorna puo ritardare la chiusura definitiva; event loop mantenuto attivo, nessuna terminazione forzata.",
+    "Benchmark sintetico locale; nessuna garanzia di latenza generale, durabilita dopo perdita alimentazione o semantica su share di rete."
+  ]
+}

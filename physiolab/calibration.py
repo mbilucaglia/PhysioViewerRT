@@ -1,11 +1,8 @@
 """EYC/BSL calibration analysis and safe portable .npz storage."""
-import json
-from datetime import datetime, timezone
-
 import numpy as np
 from scipy.signal import welch
 
-DURATION_SECONDS = 60.0
+from .calibration_validation import DURATION_SECONDS
 POSTERIOR = {
     'O1','O2','OZ','O3','O4','O9','O10',
     'PO3','PO4','PO7','PO8','PO9','PO10','POZ',
@@ -82,7 +79,7 @@ def summarize_metric(values):
 def _eeg_transform(eeg, model):
     if model is None:
         return None
-    from .asr_tasks import eeg_configuration
+    from .metric_observation import eeg_configuration
     from .eeg_asr import StreamingASR
     if eeg_configuration(eeg) != model.source_configuration:
         raise ValueError('EEG recording settings differ from ASR training; use matching settings')
@@ -214,55 +211,12 @@ def samples_after_timestamp(data, timestamps, boundary):
 
 
 def save_calibration(path, kind, streams, analysis):
-    """Persist raw samples, LSL timestamps, labels, fs and summaries without pickle."""
-    if kind not in ('EYC', 'BSL'):
-        raise ValueError('Unknown calibration type.')
-    meta = {
-        'schema': 1, 'type': kind, 'timestamp_utc': datetime.now(timezone.utc).isoformat(),
-        'duration_requested_s': DURATION_SECONDS, 'streams': {},
-        'analysis': analysis,
-    }
-    arrays = {}
-    for modality, item in streams.items():
-        if modality not in ('EEG', 'EDA', 'PPG'):
-            continue
-        data = np.asarray(item['data'], dtype=float)
-        stamp = np.asarray(item['timestamps'], dtype=float)
-        if data.ndim != 2 or len(data) != len(stamp) or not len(data) or not np.isfinite(data).all() or not np.isfinite(stamp).all():
-            raise ValueError(f'Invalid capture for {modality}')
-        arrays[f'{modality}_data'] = data
-        arrays[f'{modality}_timestamps'] = stamp
-        meta['streams'][modality] = {'fs': float(item['fs']), 'channels': list(item['channels']),
-                                     'preprocessing': dict(item.get('preprocessing') or {}),
-                                     'conversion': dict(item.get('conversion') or {}),
-                                     'source_units': list(item.get('source_units') or []),
-                                     'units': list(item.get('units') or []),
-                                     'samples': int(len(data)),
-                                     'recorded_span_s': float(stamp[-1]-stamp[0])}
-    if kind == 'EYC' and 'EEG' not in meta['streams']:
-        raise ValueError('EYC EEG stream missing')
-    if not meta['streams']:
-        raise ValueError('No streams collected')
-    arrays['metadata'] = np.array(json.dumps(meta))
-    with open(path, 'wb') as fh:
-        np.savez_compressed(fh, **arrays)
+    """Compatibility entry point; persistence is loaded only when requested."""
+    from .calibration_storage import save_calibration as save
+    return save(path, kind, streams, analysis)
 
 
 def load_calibration(path, expected_kind):
-    with np.load(path, allow_pickle=False) as fh:
-        meta = json.loads(str(fh['metadata'].item()))
-        if meta.get('schema') != 1 or meta.get('type') != expected_kind:
-            raise ValueError('Unexpected calibration type/schema')
-        streams = {}
-        for modality, descriptor in meta['streams'].items():
-            data = np.array(fh[f'{modality}_data'], dtype=float)
-            stamps = np.array(fh[f'{modality}_timestamps'], dtype=float)
-            if data.ndim != 2 or len(data) != len(stamps) or data.shape[1] != len(descriptor['channels']):
-                raise ValueError('Invalid file signal dimensions')
-            streams[modality] = {'data': data, 'timestamps': stamps,
-                                 'fs': descriptor['fs'], 'channels': descriptor['channels'],
-                                 'preprocessing': descriptor.get('preprocessing', {}),
-                                 'conversion': descriptor.get('conversion', {}),
-                                 'source_units': descriptor.get('source_units', []),
-                                 'units': descriptor.get('units', [])}
-    return meta, streams
+    """Load and validate a schema-1 recording through the NPZ adapter."""
+    from .calibration_storage import load_calibration as load
+    return load(path, expected_kind)

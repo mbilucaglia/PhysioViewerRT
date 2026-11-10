@@ -1,19 +1,16 @@
 """Independent ASR training and optional matched EEG BSL reference replay."""
 from copy import deepcopy
+import logging
 
 import numpy as np
 from PySide6.QtCore import QThread, Signal
 
 from .calibration import summarize_metric
 from .eeg_asr import ASRSettings, StreamingASR, fit_asr
-from .metric_observation import source_configuration
+from .metric_observation import eeg_configuration
 from .processing import Processor, METRIC_HOP_SECONDS
 
-
-def eeg_configuration(eeg):
-    return source_configuration('EEG', float(eeg['fs']), list(eeg['channels']),
-        eeg.get('preprocessing'), eeg.get('conversion'),
-        eeg.get('units') or ['']*len(eeg['channels']))
+logger = logging.getLogger(__name__)
 
 
 def fit_training_asr(eeg, settings=None):
@@ -94,6 +91,7 @@ class ASRFitTask(QThread):
         try:
             self.completed.emit(self.generation, fit_training_asr(*self.arguments), None)
         except Exception as exc:
+            logger.exception('ASR fit failed (generation=%s)', self.generation)
             self.completed.emit(self.generation, None, str(exc))
 
 
@@ -133,4 +131,5 @@ class CalibrationReferenceTask(QThread):
             result = calibration_references(*self.arguments)
             self.completed.emit(self.generation, result, None)
         except Exception as exc:
+            logger.exception('Calibration reference replay failed (generation=%s)', self.generation)
             self.completed.emit(self.generation, None, str(exc))

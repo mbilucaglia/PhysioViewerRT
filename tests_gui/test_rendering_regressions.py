@@ -128,6 +128,9 @@ class RenderingRegressions(unittest.TestCase):
 
     def test_empty_frames_during_short_packet_gap_restart_do_not_disable_source(self):
         with patch.object(MainWindow,'refresh',lambda self:None): w=MainWindow()
+        # This test drives visibility/viewport directly. The window's timer
+        # would otherwise replace them from the (hidden) Sources-page widgets.
+        w.timer.stop()
         try:
             controller=w.raw_controller
             controller.set_backend('pyqtgraph')

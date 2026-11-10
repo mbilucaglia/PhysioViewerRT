@@ -14,6 +14,13 @@ def source_configuration(kind, fs, channels, preprocessing, conversion, units):
             'units': [source_display_unit([unit]) for unit in units]}
 
 
+def eeg_configuration(eeg):
+    """Canonical EEG metadata shared by live training and calibration replay."""
+    return source_configuration('EEG', float(eeg['fs']), list(eeg['channels']),
+        eeg.get('preprocessing'), eeg.get('conversion'),
+        eeg.get('units') or [''] * len(eeg['channels']))
+
+
 @dataclass(frozen=True)
 class MetricObservation:
     value: float | None
