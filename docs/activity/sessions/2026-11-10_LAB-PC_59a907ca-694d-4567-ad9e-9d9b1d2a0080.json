@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "session_id": "59a907ca-694d-4567-ad9e-9d9b1d2a0080",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "2ff8a322460d04ffc29003426a4d8e96f5b9a20b",
+  "updated_at": "2026-11-10T14:41:16.9093771+01:00",
+  "status": "interrupted",
+  "summary": "Verifica checkout canonico e rimozione del vecchio contenitore vuoto",
+  "intervals": [
+    {
+      "id": "ef0d9109-7a80-4ca9-9009-f148b33fb5dc",
+      "started_at": "2026-11-10T14:39:32.7546439+01:00",
+      "ended_at": "2026-11-10T14:41:16.9093771+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Lettura istruzioni, verifica percorsi e completamento consolidamento",
+      "evidence": [
+        "docs/WORKSPACE_CONSOLIDATION.md",
+        "Get-Location; git status --short --branch; git rev-parse HEAD"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "Percorso corrente e radice Git coincidono con il checkout canonico; unico worktree su main.",
+    "Cartella precedente vuota e priva di reparse point; cancellazione non ricorsiva fallita per sharing violation anche fuori sandbox.",
+    "Modifiche preesistenti conservate; aggiornato WORKSPACE_CONSOLIDATION.md. Nessun commit o push."
+  ],
+  "commits": [],
+  "open_items": [
+    "Liberare il blocco Windows e verificare la rimozione della vecchia cartella.",
+    "Tentativo automatico precedente PID 36400 ancora attivo: esito in .local/consolidation-20261110/cleanup-status.json; intervallo nella sessione a0960c00-c832-44be-9bcb-8dbf35afdf77, non duplicato qui."
+  ],
+  "limitations": [
+    "Inizio registrato al primo timestamp osservato; tempo precedente non misurato.",
+    "Processo che trattiene la cartella non identificato con certezza.",
+    "Test applicativi, lint e type checking non eseguiti: nessuna modifica al codice."
+  ]
+}

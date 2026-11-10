@@ -31,6 +31,8 @@ class CalibrationIOTask(QThread):
                 for stream in streams.values():
                     stream['data'].setflags(write=False)
                     stream['timestamps'].setflags(write=False)
+                    if 'motion_cleaned' in stream:
+                        stream['motion_cleaned'].setflags(write=False)
                 result = CalibrationLoaded(meta, streams)
             else:
                 raise ValueError(f'Unknown calibration operation: {self.operation}')

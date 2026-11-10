@@ -15,7 +15,7 @@ METRIC_STARTUP_SECONDS = 1.
 
 class Processor:
     def __init__(self, kind, fs, channels, names, iaf_hz=DEFAULT_IAF_HZ, preprocessing=None,
-                 sample_transform=None):
+                 sample_transform=None, timestamp_transform=None):
         self.kind, self.fs, self.channels, self.names = kind, float(fs), channels, names
         if not np.isfinite(self.fs) or self.fs <= 0:
             raise ValueError('Sampling rate must be finite and positive')
@@ -29,6 +29,9 @@ class Processor:
         self.artifact_reducer = PeripheralReducer(kind,self.fs,channels,method) if method != 'off' else None
         self._last_input_timestamp = None
         self.last_raw_chunk = np.empty((0,channels))
+        self.last_motion_chunk = None
+        self._pending_raw = np.empty((0, channels))
+        self._pending_motion = np.empty((0, channels))
         self.last_timestamps = np.empty(0)
         self.last_reduction_changed = False
         self.sos, self.notch_frequencies = build_filter(kind, self.fs, config)
@@ -42,6 +45,7 @@ class Processor:
         self.last_filtered_chunk = np.empty((0, channels))
         self.last_preprocessed_chunk = np.empty((0, channels))
         self.sample_transform = sample_transform
+        self.timestamp_transform = timestamp_transform
         self.since_metric = 0
         self.last_metric = {}
 
@@ -54,6 +58,15 @@ class Processor:
         self.last_reduction_changed = False
         self._raw_history.append(x)
         stamps = np.asarray(timestamps,dtype=float) if timestamps is not None else None
+        # Adaptive motion cleaning is an input stage, before peripheral
+        # reduction, ordinary filters, ASR, metric windows and calibration.
+        motion = None
+        if self.timestamp_transform is not None:
+            motion = np.asarray(self.timestamp_transform(x, stamps), dtype=float)
+            if motion.shape != x.shape or not np.isfinite(motion).all():
+                raise ValueError('Timestamp transform must preserve finite samples and channel shape')
+        source = motion if motion is not None else x
+        self.last_motion_chunk = None
         if self.artifact_reducer is not None:
             if (stamps is not None and len(stamps) and self._last_input_timestamp is not None
                     and stamps[0]-self._last_input_timestamp > max(.25,3/self.fs)):
@@ -64,20 +77,32 @@ class Processor:
                     self.zi.fill(0.)
                 self._filtered_history = SampleRing(self.max_samples,self.channels)
                 self.since_metric = 0
+                self._pending_raw = np.empty((0, self.channels))
+                self._pending_motion = np.empty((0, self.channels))
             if stamps is not None and len(stamps):
                 self._last_input_timestamp = float(stamps[-1])
-            x,y,stamps = self.artifact_reducer.push(x,stamps)
+            if motion is not None:
+                self._pending_raw = np.concatenate((self._pending_raw, x))
+                self._pending_motion = np.concatenate((self._pending_motion, motion))
+            reduced_input,y,stamps = self.artifact_reducer.push(source,stamps)
+            self.last_reduction_changed = bool(np.any(~np.isclose(y,reduced_input,rtol=1e-9,atol=1e-12)))
+            if motion is not None:
+                count = len(y)
+                x = self._pending_raw[:count].copy()
+                self.last_motion_chunk = self._pending_motion[:count].copy()
+                self._pending_raw = self._pending_raw[count:].copy()
+                self._pending_motion = self._pending_motion[count:].copy()
+            else:
+                x = reduced_input
             self.last_raw_chunk,self.last_timestamps = x,stamps
             if not len(y):
                 self.last_filtered_chunk = self.last_preprocessed_chunk = np.empty((0,self.channels))
                 return None
         else:
-            y = x.copy()
+            y = source.copy()
+            self.last_motion_chunk = motion.copy() if motion is not None else None
             self.last_raw_chunk = x.copy()
             self.last_timestamps = stamps if stamps is not None else np.empty(0)
-        # Compare before ordinary filters: the LED reports only reducer changes.
-        if self.artifact_reducer is not None:
-            self.last_reduction_changed = bool(np.any(~np.isclose(y,x,rtol=1e-9,atol=1e-12)))
         if self.sos is not None:
             y, self.zi = sosfilt(self.sos, y, axis=0, zi=self.zi)
         self.last_preprocessed_chunk = y

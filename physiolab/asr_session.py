@@ -76,7 +76,8 @@ class ASRSession:
         if info['duration'] < 30:
             return False, 'ASR requires at least 30 seconds of EEG training samples.', info
         config = source_configuration('EEG', fs, names, eeg.get('preprocessing'),
-                                      eeg.get('conversion'), eeg.get('units') or ['']*len(names))
+                                      eeg.get('conversion'), eeg.get('units') or ['']*len(names),
+                                      eeg.get('motion_reference'))
         if config['preprocessing']['preset'] == 'off':
             return False, 'ASR requires high-pass-filtered EEG training data.', info
         if live is not None:

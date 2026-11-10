@@ -15,7 +15,7 @@ def validate_calibration(meta, streams, expected_kind):
     Saved analysis is not trusted as live state: the application recalculates it.
     """
     if (expected_kind not in ('EYC', 'BSL') or not isinstance(meta, dict)
-            or meta.get('schema') != 1 or meta.get('type') != expected_kind):
+            or meta.get('schema') not in (1, 2) or meta.get('type') != expected_kind):
         raise ValueError('Unexpected calibration type/schema')
     descriptors = meta.get('streams')
     if not isinstance(descriptors, dict) or not descriptors:
@@ -34,6 +34,11 @@ def validate_calibration(meta, streams, expected_kind):
                 or any(not isinstance(name, str) or not name.strip() for name in channels)):
             raise ValueError(f'{kind}: channel labels must be nonempty strings')
         data, timestamps = streams[kind]['data'], streams[kind]['timestamps']
+        if descriptor.get('motion_reference') is not None:
+            if meta['schema'] != 2:
+                raise ValueError('ACC calibration requires schema 2')
+            from .motion_recording import recorded_input
+            recorded_input({**streams[kind], 'motion_reference': descriptor['motion_reference']})
         if (data.ndim != 2 or not len(data) or data.shape[1] != len(channels)
                 or timestamps.ndim != 1 or len(timestamps) != len(data)):
             raise ValueError(f'{kind}: invalid file signal dimensions')

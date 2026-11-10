@@ -1,0 +1,54 @@
+{
+  "intervals": [
+    {
+      "ended_at": "2026-11-10T13:04:03.8687924+01:00",
+      "description": "Implementazione simulazione ACC e verifica NLMS",
+      "basis": "observed",
+      "started_at": "2026-11-10T12:52:01.1006725+01:00",
+      "evidence": [
+        "simulate.py",
+        "physiolab/synthetic_motion.py",
+        "physiolab/synthetic.py",
+        "tests/test_synthetic_motion.py",
+        "tests_gui/test_synthetic_motion_lsl.py",
+        ".local/synthetic-motion-evidence.json",
+        ".local/synthetic-motion-core.log",
+        ".local/synthetic-motion-lsl.log",
+        ".local/synthetic-motion-publisher.log",
+        ".local/synthetic-motion-cli.log"
+      ],
+      "source_event_id": null,
+      "kind": "mixed",
+      "id": "2f6de4c5-3f12-4b00-9c26-1ab44295804b"
+    }
+  ],
+  "open_items": [
+    "Validazione con ACC e biosensori fisici; le misure riportate riguardano solo il modello sintetico.",
+    "Per usare il nuovo algoritmo v3 nel live, registrare calibrazioni e training ASR con configurazione v3."
+  ],
+  "commits": [],
+  "project": "PhysioViewerRT",
+  "branch": "codex/portable-environment",
+  "machine": "LAB-PC",
+  "thread_id": null,
+  "results": [
+    "Simulatore esteso a sei stream: EEG/PPG/EDA e tre ACC XYZ con metadati di associazione, un solo clock LSL, frequenze ACC 64/64/32 Hz.",
+    "Contaminazione causale derivata dagli stessi campioni ACC float32, con ritardi, pesi per modalita/canale e guadagno variabile; generazione indipendente da ordine e dimensione chunk.",
+    "Opzioni --motion none/mild/moderate/strong, --seconds e inoltro argomenti nel launcher Windows. Default interattivo moderate; default della classe mantenuto none per compatibilita.",
+    "La misura iniziale ha rilevato crescita dei pesi NLMS durante pause a energia ACC quasi nulla. Corretto con soglia energetica, reset pesi e nuovo warmup; algoritmo v3 con protezione della compatibilita delle calibrazioni.",
+    "Con seed 2026, 80 s, motion strong e altri artefatti none: riduzione potenza errore rispetto alla stessa fisiologia pulita 10.531 dB EEG, 9.783 dB PPG, 7.827 dB SC sui tratti di movimento sostenuto.",
+    "288 test core superati; 6 test mirati GUI/LSL superati e un ulteriore test timestamp publisher superato. Avvio pubblico project.cmd simulate -- --artifacts none --motion strong --seconds 0.5 verificato.",
+    "Ruff superato, mypy superato sui 4 file configurati, git diff --check superato.",
+    "Modifiche e registro rimasti locali, nessun commit o push."
+  ],
+  "updated_at": "2026-11-10T13:04:03.8687924+01:00",
+  "summary": "Generatore sintetico ACC per modalita e contaminazione coerente da movimento",
+  "schema_version": 1,
+  "limitations": [
+    "Inizio registrato al primo controllo temporale dopo lettura dei file."
+  ],
+  "session_id": "b60d2740-219a-42a4-a5c9-abef31402c95",
+  "reporting_timezone": "Europe/Rome",
+  "head_at_start": "2ff8a322460d04ffc29003426a4d8e96f5b9a20b",
+  "status": "completed"
+}

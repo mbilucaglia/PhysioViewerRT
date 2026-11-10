@@ -5,6 +5,7 @@ and must not be used to validate physiological accuracy.
 """
 import numpy as np
 from scipy.signal import lfilter
+from .synthetic_motion import ACC_SPECS, SyntheticMotion
 
 EEG_LABELS = (
     'Fp1', 'Fp2', 'AF3', 'AF4', 'F7', 'F3', 'Fz', 'F4',
@@ -37,10 +38,14 @@ class SyntheticPhysiology:
     size does not change the generated sample sequence.
     """
 
-    def __init__(self, seed=2026, artifact_level='moderate'):
+    def __init__(self, seed=2026, artifact_level='moderate', motion_level='none'):
         if artifact_level not in ('none', 'mild', 'moderate', 'strong'):
             raise ValueError('artifact_level must be none, mild, moderate or strong')
         self.artifact_level = artifact_level
+        # Existing physiological fixtures stay unchanged; the interactive
+        # simulator explicitly enables moderate coherent motion by default.
+        self.motion = SyntheticMotion(seed=seed, level=motion_level)
+        self.last_acc_end = {kind: 0 for kind in ACC_SPECS}
         self.artifact_scale = {'none': 0., 'mild': .45, 'moderate': 1., 'strong': 1.8}[artifact_level]
         streams = np.random.SeedSequence(seed).spawn(3)
         self.rng = {kind: np.random.default_rng(state)
@@ -74,10 +79,31 @@ class SyntheticPhysiology:
             return np.empty((0, len(names)), dtype=np.float32)
         t = (start + np.arange(count, dtype=float)) / fs
         if kind == 'EEG':
-            return self._eeg(t).astype(np.float32)
-        if kind == 'EDA':
-            return self._eda(t).astype(np.float32)[:, None]
-        return self._ppg(t).astype(np.float32)[:, None]
+            data = self._eeg(t)
+        elif kind == 'EDA':
+            data = self._eda(t)[:, None]
+        else:
+            data = self._ppg(t)[:, None]
+        if self.motion.scale:
+            data = data + self.motion.contamination(kind, t, len(names))
+        return data.astype(np.float32)
+
+    def generate_acc(self, kind, start, count):
+        """Independent ACC clock for the corresponding physiological modality."""
+        if kind not in ACC_SPECS:
+            raise ValueError(f'Unknown synthetic ACC modality: {kind}')
+        if count < 0 or start != self.last_acc_end[kind]:
+            raise ValueError('Each synthetic ACC stream must advance in time order')
+        self.last_acc_end[kind] += count
+        fs, _ = ACC_SPECS[kind]
+        t = (start+np.arange(count, dtype=float))/fs
+        return self.motion.acceleration(kind, t).astype(np.float32)
+
+    def motion_artifact(self, kind, start, count):
+        """Ground-truth motion component; does not advance any stream clock."""
+        fs, names = SPECS[kind]
+        t = (start+np.arange(count, dtype=float))/fs
+        return self.motion.contamination(kind, t, len(names))
 
     def _eeg(self, t):
         n = len(EEG_LABELS)

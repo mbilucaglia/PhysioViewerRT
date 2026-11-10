@@ -9,6 +9,7 @@ from .calibration import summarize_metric
 from .eeg_asr import ASRSettings, StreamingASR, fit_asr
 from .metric_observation import eeg_configuration
 from .processing import Processor, METRIC_HOP_SECONDS
+from .motion_recording import recorded_input
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ def fit_training_asr(eeg, settings=None):
         return fit_asr(filtered, fs, names, config, settings or ASRSettings())
     if len(stamps) > 1 and np.max(np.diff(stamps)) > max(.25, 3./fs):
         raise ValueError('EEG dropped out during ASR training; train again on continuous data')
+    data = recorded_input(eeg)
     processor = Processor('EEG', fs, len(names), names, preprocessing=eeg.get('preprocessing'))
     hop = max(1, round(fs*METRIC_HOP_SECONDS))
     chunks = []
@@ -50,7 +52,7 @@ def fit_training_asr(eeg, settings=None):
 
 def eeg_reference_analysis(eeg, analysis, iaf_hz, model=None):
     fs, names = float(eeg['fs']), list(eeg['channels'])
-    data = np.asarray(eeg['data'], dtype=float)
+    data = recorded_input(eeg)
     config = eeg_configuration(eeg)
     if model is not None and model.source_configuration != config:
         raise ValueError('EEG BSL configuration differs from ASR training; record a matching BSL')
@@ -103,7 +105,14 @@ def matched_recording(eeg, live):
     for key in ('fs', 'channels', 'conversion', 'units'):
         if recorded[key] != live[key]:
             raise ValueError(f'EEG calibration {key} differs from live source; record matching EYC/BSL')
-    return {**eeg, 'preprocessing': dict(live['preprocessing'])}
+    requested = live.get('motion_reference')
+    if requested is not None and recorded.get('motion_reference') != requested:
+        raise ValueError('EEG calibration ACC cleaning differs from live source; record matching EYC/BSL')
+    result = {**eeg, 'preprocessing': dict(live['preprocessing'])}
+    if requested is None:
+        result.pop('motion_reference', None)
+        result.pop('motion_cleaned', None)
+    return result
 
 
 def calibration_references(eyc, bsl, analysis, iaf_hz, model, live):

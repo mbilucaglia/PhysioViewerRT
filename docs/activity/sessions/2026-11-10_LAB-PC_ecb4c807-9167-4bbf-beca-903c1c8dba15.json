@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "session_id": "ecb4c807-9167-4bbf-beca-903c1c8dba15",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "2ff8a322460d04ffc29003426a4d8e96f5b9a20b",
+  "updated_at": "2026-11-10T14:54:49.8952288+01:00",
+  "status": "open",
+  "summary": "Verifica e pubblicazione di tutte le modifiche consolidate su main",
+  "intervals": [
+    {
+      "id": "263d1c7f-b151-4b85-83d5-12302355aba2",
+      "started_at": "2026-11-10T14:54:37.5309966+01:00",
+      "ended_at": null,
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Controlli pre-commit, commit e push autorizzati",
+      "evidence": [
+        "Richiesta utente: pusha il tutto"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "Inizio al primo timestamp osservato."
+  ]
+}

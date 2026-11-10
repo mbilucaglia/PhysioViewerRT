@@ -16,6 +16,7 @@ from .physiological_metrics import METRIC_CALCULATORS
 from .sc_decomposition import TonicSCProcessor, sc_pipeline_metadata
 from .eeg_asr import ASRError, StreamingASR
 from .receiver_state import ReceiverSnapshot, freeze
+from .motion_lsl import MotionInput
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class Receiver(QThread):
     display_scale_ready = Signal(str, object, str)
 
     def __init__(self, info, kind, selected_indices, selected_names, preprocessing=None,
-                 conversion=None, eeg_asr_model=None):
+                 conversion=None, eeg_asr_model=None, motion_reference=None):
         super().__init__()
         self._control_lock = threading.Lock()
         self._stop_event = threading.Event()
@@ -46,6 +47,10 @@ class Receiver(QThread):
         self.source_units = []
         self.output_units = []
         self.inlet = None
+        self.motion_reference = motion_reference
+        if motion_reference is not None:
+            motion_reference.validate_primary(info, self.selected_indices)
+        self.motion_feedback = ('ACC waiting' if motion_reference else 'ACC off', None)
         self.latest_source_timestamp = None
         self.tonic_metadata = None
         self.source_configuration = None
@@ -106,13 +111,15 @@ class Receiver(QThread):
                 preprocessing, tonic, tuple(self.source_units), tuple(self.output_units),
                 self.latest_source_timestamp, self.asr_status, self.eeg_asr_model,
                 self.asr_processed_samples, self.asr_last_processed_at,
-                self.asr_last_correction_at, self.reduction_feedback, self.last_error)
+                self.asr_last_correction_at, self.reduction_feedback, self.last_error,
+                self.motion_feedback)
 
     def status_snapshot(self):
         with self._control_lock:
             return self._status
 
     def run(self):
+        motion = None
         try:
             # Use LSL's measured host-clock correction before timestamps enter
             # the shared viewport, retained histories, or calibration capture.
@@ -122,6 +129,8 @@ class Receiver(QThread):
             if fs <= 0:
                 raise ValueError('Irregular-rate streams are not supported in MVP')
             count = len(self.selected_indices)
+            motion = MotionInput(self.motion_reference, fs, count) if self.motion_reference else None
+            motion_transform = motion.transform if motion and self.motion_reference.enabled else None
             names = list(self.selected_names)
             try:
                 units = stream_channel_units(inlet.info(timeout=2.), self.selected_indices)
@@ -132,7 +141,8 @@ class Receiver(QThread):
             units = self.conversion.units(units)
             self.output_units = list(units)
             self.source_configuration = source_configuration(
-                self.kind, fs, names, self.preprocessing, self.conversion.metadata(), units)
+                self.kind, fs, names, self.preprocessing, self.conversion.metadata(), units,
+                self.motion_reference.metadata() if motion_transform else None)
             if self.kind == 'EEG':
                 scale, unit = eeg_display_scale(units)
             else:
@@ -150,20 +160,30 @@ class Receiver(QThread):
                     self.asr_status = 'ASR active'
             proc = Processor(self.kind, fs, count, names, iaf_hz=self.iaf_hz,
                              preprocessing=self.preprocessing,
-                             sample_transform=cleaner.process if cleaner else None)
+                             sample_transform=cleaner.process if cleaner else None,
+                             timestamp_transform=motion_transform)
             tonic = TonicSCProcessor(unit=unit) if self.kind == 'EDA' else None
             if tonic is not None:
+                tonic_processing = dict(proc.preprocessing)
+                if motion_transform is not None:
+                    tonic_processing['motion_reference'] = self.motion_reference.metadata()
                 self.tonic_metadata = sc_pipeline_metadata(
-                    tonic, proc.preprocessing, self.conversion.metadata())
+                    tonic, tonic_processing, self.conversion.metadata())
             first_source_timestamp = None
             self._publish_status()
             self.stream_ready.emit(self.kind, names, float(fs))
             while self.active:
+                if motion is not None:
+                    motion.poll()
+                    self.motion_feedback = motion.telemetry()
                 # Bound delivery to one metric hop, including after a backlog.
                 samples, timestamps = inlet.pull_chunk(
                     timeout=.2, max_samples=max(1, round(fs * METRIC_HOP_SECONDS)))
                 if not samples:
+                    self._publish_status()
                     continue
+                if motion is not None:
+                    motion.poll()
                 iaf_hz, monitor = self._chunk_controls()
                 proc.iaf_hz = iaf_hz
                 selected = select_chunk(samples, self.selected_indices)
@@ -175,7 +195,8 @@ class Receiver(QThread):
                         and timestamps[0]-self.latest_source_timestamp > max(.25, 3/fs)):
                     cleaner.reset()
                     proc = Processor(self.kind, fs, count, names, iaf_hz=iaf_hz,
-                                     preprocessing=self.preprocessing, sample_transform=cleaner.process)
+                                     preprocessing=self.preprocessing, sample_transform=cleaner.process,
+                                     timestamp_transform=motion_transform)
                     first_source_timestamp = None
                 self.latest_source_timestamp = float(timestamps[-1])
                 if first_source_timestamp is None:
@@ -189,11 +210,19 @@ class Receiver(QThread):
                     self.asr_status = f'ASR bypassed after processing error: {exc}'
                     self.source_configuration = {key: value for key, value in self.source_configuration.items()
                                                  if key != 'asr_model_id'}
+                    # NLMS has already consumed these timestamps. Reuse its
+                    # captured output when retrying without ASR, never adapt twice.
+                    captured_motion = proc.last_motion_chunk
                     proc = Processor(self.kind, fs, count, names, iaf_hz=iaf_hz,
-                                     preprocessing=self.preprocessing)
+                                     preprocessing=self.preprocessing,
+                                     timestamp_transform=(lambda x, ts: captured_motion)
+                                     if motion_transform else None)
                     metric = proc.push(selected,timestamps=timestamps)
+                    proc.timestamp_transform = motion_transform
                     self._publish_status()
                     self.stream_ready.emit(self.kind, names, float(fs))
+                if motion is not None:
+                    self.motion_feedback = motion.telemetry()
                 reducer = proc.artifact_reducer
                 if reducer is not None:
                     previous = self.reduction_feedback
@@ -232,7 +261,8 @@ class Receiver(QThread):
                                 source_end, local_clock(), unit if self.kind == 'EDA' else
                                 'bpm' if name == 'HR' else 'a.u.',
                                 f'{self.kind}:{proc.preprocessing}:IAF={proc.iaf_hz if self.kind == "EEG" else "n/a"}'
-                                f':ASR={self.source_configuration.get("asr_model_id", "off")}').metadata()
+                                f':ASR={self.source_configuration.get("asr_model_id", "off")}'
+                                f':ACC={self.source_configuration.get("motion_reference", "off")}').metadata()
                     if observations:
                         observation = observations[-1]
                         metric['SCL'] = observation.value
@@ -251,6 +281,7 @@ class Receiver(QThread):
                     selected.copy(),
                     proc.last_filtered_chunk.copy(),
                     names, metric, float(fs), timestamps, computed_at,
+                    motion_cleaned=proc.last_motion_chunk,
                 ))
         except Exception as exc:
             logger.exception('Receiver failed (kind=%s)', self.kind)
@@ -258,6 +289,11 @@ class Receiver(QThread):
             self._publish_status()
             self.failure.emit(self.last_error)
         finally:
+            if motion is not None:
+                try:
+                    motion.close()
+                except Exception:
+                    logger.warning('ACC inlet cleanup failed', exc_info=True)
             if self.inlet is not None:
                 try:
                     self.inlet.close_stream()

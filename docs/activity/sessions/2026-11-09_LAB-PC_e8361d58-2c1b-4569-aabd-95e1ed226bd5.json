@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "session_id": "e8361d58-2c1b-4569-aabd-95e1ed226bd5",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "codex/portable-environment",
+  "head_at_start": "0a8b2f5ace05d6288ef8483c143b307a5c7da45b",
+  "updated_at": "2026-11-10T06:06:56.3270482+01:00",
+  "status": "completed",
+  "summary": "Audit completato con report A-H; 248 test core e 149 GUI (3 skip), pip check e compilazione verificati. Nessun refactoring per rischio di perdita dati confermato, come da criterio di arresto. Nessun commit o push.",
+  "intervals": [
+    {
+      "id": "e27e05ca-618d-4a21-8fbc-0dd712bdc9e3",
+      "started_at": "2026-11-09T22:29:29.5968591+01:00",
+      "ended_at": "2026-11-09T22:29:52.3713025+01:00",
+      "kind": "automatic",
+      "basis": "observed",
+      "description": "Lettura AGENTS.md, scelta checkout, stato Git e primo tentativo baseline nella sandbox",
+      "evidence": [
+        "REFACTORING_OVERNIGHT_REPORT.md"
+      ],
+      "source_event_id": null
+    },
+    {
+      "id": "3029ff93-01af-47f5-9808-756b6420bee8",
+      "started_at": "2026-11-10T05:55:56.7257889+01:00",
+      "ended_at": "2026-11-10T06:06:56.3270482+01:00",
+      "kind": "automatic",
+      "basis": "observed",
+      "description": "Audit statico, verifica baseline e prove sintetiche di persistenza; report",
+      "evidence": [
+        ".local/overnight-baseline-core.log",
+        ".local/overnight-baseline-gui.log",
+        ".local/overnight-audit.json",
+        "REFACTORING_OVERNIGHT_REPORT.md"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "Baseline core: 248 test, OK, 21.307 s.",
+    "Baseline GUI offscreen: 149 test, OK con 3 skip, 157.398 s.",
+    "Audit di 66 moduli; compilazione in memoria di 145 file Python; pip check OK.",
+    "Rischio di perdita dati confermato su file sintetico: save fallito tronca file precedente da 938 a 0 byte. Arresto modifiche codice secondo prompt.",
+    "Creato REFACTORING_OVERNIGHT_REPORT.md con evidenze P1/P2/P3, roadmap e tre refactoring candidati rinviati.",
+    "Diff dei file versionati e indice vuoti; AGENTS.md e registro preesistente conservati.",
+    "Processi delle suite e probe diagnostico terminati; nessuna attività di test lasciata intenzionalmente in background."
+  ],
+  "commits": [],
+  "open_items": [
+    "Correzione salvataggi atomici e validazione caricamento da approvare.",
+    "Lifecycle di chiusura e disaccoppiamento calibrazione/ASR da pianificare."
+  ],
+  "limitations": [
+    "Inizio registrato al primo timestamp osservato; lettura iniziale delle istruzioni precedente non cronometrata. Nessun commit o push autorizzato.",
+    "Intervallo originariamente aperto diviso: fine della prima fase da CreationTime del log baseline (primo tentativo); ripresa dal timestamp osservato 05:55:56. La lunga attesa tra i due estremi non è conteggiata come attività. Non è attestata attività continua notturna; la richiesta sandbox è rimasta in attesa. Alcune letture e avvio test attorno alla ripresa non hanno un timestamp iniziale autonomo."
+  ]
+}

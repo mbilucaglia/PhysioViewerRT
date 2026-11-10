@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "session_id": "a0960c00-c832-44be-9bcb-8dbf35afdf77",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": "01a1c4fd-7358-7012-8304-ec9c5f5d7e11",
+  "branch": "main",
+  "head_at_start": "2ff8a322460d04ffc29003426a4d8e96f5b9a20b",
+  "updated_at": "2026-11-10T14:34:06.4035826+01:00",
+  "status": "open",
+  "summary": "Pulizia automatica del solo contenitore vuoto dopo rilascio del lock Windows, durata massima 30 minuti",
+  "intervals": [
+    {
+      "basis": "observed",
+      "ended_at": null,
+      "id": "c525a67a-6c3a-4eec-b68c-0afbd405ac89",
+      "evidence": [
+        "C:\\Users\\brainlab.ext1\\Desktop\\GitHub Marco\\PhysioViewerRT\\.local\\consolidation-20261110\\finish-empty-directory-cleanup.ps1"
+      ],
+      "description": "Tentativi di rimozione non ricorsiva ogni 2 secondi, con controllo percorso e directory vuota",
+      "started_at": "2026-11-10T14:34:06.4035826+01:00",
+      "kind": "automatic",
+      "source_event_id": null
+    }
+  ],
+  "results": [],
+  "commits": [],
+  "open_items": [
+    "Attesa rilascio del lock Windows sul contenitore vuoto."
+  ],
+  "limitations": [
+    "Il processo non modifica il cwd persistente della chat; la fine deve essere verificata nel registro o in cleanup-status.json."
+  ]
+}

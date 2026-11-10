@@ -1,0 +1,55 @@
+{
+  "reporting_timezone": "Europe/Rome",
+  "session_id": "12287452-b1bd-47e0-839d-e0059abad195",
+  "updated_at": "2026-11-10T11:38:54.2406268+01:00",
+  "intervals": [
+    {
+      "basis": "observed",
+      "description": "Analisi, implementazione e verifica ACC",
+      "kind": "mixed",
+      "started_at": "2026-11-10T11:25:43.4220774+01:00",
+      "evidence": [
+        "physiolab/motion_reduction.py",
+        "physiolab/motion_lsl.py",
+        "physiolab/motion_widgets.py",
+        "tests/test_motion_reduction.py",
+        "tests_gui/test_motion_integration.py",
+        "docs/ACC_ADAPTIVE_FILTER.md",
+        ".local/acc-core-tests-final.log",
+        ".local/acc-gui-tests.log",
+        ".local/acc-final-integration.log",
+        ".local/acc-motion-final.log",
+        ".local/acc-sources.png"
+      ],
+      "source_event_id": null,
+      "id": "94e12d47-d81c-4acb-93f9-5625d5842285",
+      "ended_at": "2026-11-10T11:38:54.2406268+01:00"
+    }
+  ],
+  "thread_id": null,
+  "commits": [],
+  "schema_version": 1,
+  "branch": "codex/portable-environment",
+  "open_items": [
+    "Validare efficacia e latenze con sensori fisici.",
+    "Estendere formato calibrazioni con ACC e stato adattativo per replay/normalizzazione coerenti."
+  ],
+  "summary": "Supporto ACC LSL e cancellazione adattativa per modalità",
+  "project": "PhysioViewerRT",
+  "machine": "LAB-PC",
+  "results": [
+    "Implementati discovery ACC/IMU e mapping XYZ indipendente per EEG, PPG e SC; monitor valori e filtro NLMS opzionale.",
+    "Timestamp LSL clocksync, allineamento causale e bypass/reset per riferimenti obsoleti o non validi; grezzo preservato.",
+    "Compatibilita ASR conservata; normalizzazione baseline incompatibile esclusa anche per file legacy.",
+    "277 test core superati; suite GUI: 173 test, 3 skip previsti per backend nativo; 52 regressioni mirate superate; 2 test ACC finali superati.",
+    "Ruff superato; mypy superato sui 4 file configurati; git diff --check superato.",
+    "Verificato layout Windows nativo; corretta geometria editor QSpinBox e aggiunta regressione.",
+    "Primo test dei controlli corretto: StreamInfo non espone set_uid; test aggiornato con uid simulati.",
+    "Modifiche e registro solo locali, nessun commit o push."
+  ],
+  "status": "completed",
+  "limitations": [
+    "Inizio registrato al primo controllo temporale, dopo lettura del contesto."
+  ],
+  "head_at_start": "2ff8a322460d04ffc29003426a4d8e96f5b9a20b"
+}

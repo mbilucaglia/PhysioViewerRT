@@ -38,6 +38,7 @@ class ReceiverSnapshot:
     asr_last_correction_at: float | None
     reduction_feedback: tuple
     last_error: str | None
+    motion_feedback: tuple = ('ACC off', None)
 
     @property
     def source_configuration(self):

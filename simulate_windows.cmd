@@ -6,5 +6,5 @@ if not exist ".venv\Scripts\python.exe" (
   pause
   exit /b 1
 )
-".venv\Scripts\python.exe" simulate.py
+".venv\Scripts\python.exe" simulate.py %*
 pause

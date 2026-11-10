@@ -18,6 +18,13 @@ then `start_windows.cmd`. In Sources, refresh LSL, select the source and channel
 for each modality, and press Play. Raw Data shows the live waveforms; gain,
 channel count, sweep duration, and plot pause change the display only.
 
+Each modality also supports an optional ACC/IMU LSL reference, X/Y/Z mapping,
+and adaptive NLMS motion cancellation. See [ACC setup and limitations](docs/ACC_ADAPTIVE_FILTER.md).
+The simulator now publishes three matching `Simulated*_ACC` streams. Use
+`project.cmd simulate -- --artifacts none --motion strong` for coherent motion
+contamination, or `--motion none` to disable it. The default is moderate motion;
+`--seconds 80` ends the run automatically.
+
 The fourth Raw Data panel is **EEG topoplot**, with unfiltered signed voltage or
 Delta/Theta/Alpha/Beta/Gamma power. **… (Topoplot settings)** selects raw/processed input,
 analysis window, overlap, calibrated IAF for Alpha, and unfiltered persistence.

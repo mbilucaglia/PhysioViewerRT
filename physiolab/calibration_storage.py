@@ -1,4 +1,4 @@
-"""Schema-1 NPZ persistence; numerical models do not import this adapter."""
+"""Portable NPZ persistence; schema 2 adds captured input-stage NLMS output."""
 import json
 import os
 import tempfile
@@ -6,9 +6,10 @@ from datetime import datetime, timezone
 
 import numpy as np
 from .calibration_validation import DURATION_SECONDS, validate_calibration
+from .motion_recording import recorded_input, motion_configuration
 
 def save_calibration(path, kind, streams, analysis):
-    """Persist schema-1 NPZ data, replacing the destination only after writing.
+    """Persist NPZ data, replacing the destination only after writing.
 
     A same-directory temporary file protects an existing calibration against
     write failures. Replacement is the commit point; this is not a guarantee
@@ -17,7 +18,8 @@ def save_calibration(path, kind, streams, analysis):
     if kind not in ('EYC', 'BSL'):
         raise ValueError('Unknown calibration type.')
     meta = {
-        'schema': 1, 'type': kind, 'timestamp_utc': datetime.now(timezone.utc).isoformat(),
+        'schema': 2 if any(item.get('motion_reference') for item in streams.values()) else 1,
+        'type': kind, 'timestamp_utc': datetime.now(timezone.utc).isoformat(),
         'duration_requested_s': DURATION_SECONDS, 'streams': {},
         'analysis': analysis,
     }
@@ -38,6 +40,9 @@ def save_calibration(path, kind, streams, analysis):
                                      'units': list(item.get('units') or []),
                                      'samples': int(len(data)),
                                      'recorded_span_s': float(stamp[-1]-stamp[0])}
+        if item.get('motion_reference') is not None:
+            arrays[f'{modality}_motion_cleaned'] = recorded_input(item)
+            meta['streams'][modality]['motion_reference'] = motion_configuration(item['motion_reference'])
     if kind == 'EYC' and 'EEG' not in meta['streams']:
         raise ValueError('EYC EEG stream missing')
     if not meta['streams']:
@@ -72,7 +77,7 @@ def load_calibration(path, expected_kind):
         if 'metadata' not in fh:
             raise ValueError('Calibration metadata is missing')
         meta = json.loads(str(fh['metadata'].item()))
-        if (not isinstance(meta, dict) or meta.get('schema') != 1
+        if (not isinstance(meta, dict) or meta.get('schema') not in (1, 2)
                 or meta.get('type') != expected_kind):
             raise ValueError('Unexpected calibration type/schema')
         if not isinstance(meta.get('streams'), dict):
@@ -92,5 +97,11 @@ def load_calibration(path, expected_kind):
                                  'conversion': descriptor.get('conversion', {}),
                                  'source_units': descriptor.get('source_units', []),
                                  'units': descriptor.get('units', [])}
+            if descriptor.get('motion_reference') is not None:
+                key = f'{modality}_motion_cleaned'
+                if key not in fh:
+                    raise ValueError(f'{modality}: post-NLMS samples missing from calibration')
+                streams[modality]['motion_reference'] = descriptor['motion_reference']
+                streams[modality]['motion_cleaned'] = np.array(fh[key], dtype=float)
     validate_calibration(meta, streams, expected_kind)
     return meta, streams

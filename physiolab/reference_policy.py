@@ -7,6 +7,12 @@ def compatible_references(analysis, live_configurations, iaf_hz, *,
                           replay_error=None, tonic_configuration=None):
     references = dict(analysis.get('metrics', {}))
     configurations = analysis.get('source_configurations', {})
+    # ACC baselines are valid when recorded with the same input cleaning.
+    # Legacy baselines without provenance cannot establish that match.
+    for kind, live in live_configurations.items():
+        if (live and live.get('motion_reference')
+                and configurations.get(kind, {}).get('motion_reference') != live['motion_reference']):
+            references.pop(kind, None)
     for kind, baseline in configurations.items():
         live = live_configurations.get(kind)
         if live is not None and live != baseline:

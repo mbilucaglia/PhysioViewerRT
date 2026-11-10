@@ -82,10 +82,18 @@ def doctor(gui=False):
                    'detail': (pip.stdout + pip.stderr).strip()})
     if gui:
         child_env = dict(os.environ, QT_QPA_PLATFORM='offscreen')
-        code = ('from PySide6.QtWidgets import QApplication; '
+        # Closing is asynchronous: keep Qt alive until discovery/workers finish.
+        code = ('from PySide6.QtCore import QTimer; '
+                'from PySide6.QtWidgets import QApplication; '
                 'from physiolab.gui import MainWindow; '
-                'app=QApplication([]); w=MainWindow(); app.processEvents(); '
-                'w.close(); app.processEvents(); print("MainWindow constructed")')
+                'app=QApplication([]); app.setQuitOnLastWindowClosed(False); '
+                'w=MainWindow(); app.processEvents(); '
+                'poll=QTimer(); '
+                'poll.timeout.connect(lambda: app.quit() if w._closed else None); '
+                'poll.start(25); QTimer.singleShot(30000, lambda: app.exit(1)); '
+                'w.close(); status=app.exec(); '
+                'assert status == 0 and w._closed, "MainWindow shutdown timed out"; '
+                'print("MainWindow constructed and closed")')
         result = subprocess.run([sys.executable, '-B', '-c', code], cwd=ROOT,
                                 env=child_env, capture_output=True, text=True, timeout=90)
         checks.append({'name': 'Qt window (offscreen)', 'ok': result.returncode == 0,

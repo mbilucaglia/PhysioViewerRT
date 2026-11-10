@@ -1,5 +1,6 @@
 """Calibration sample capture state with no Qt, dialogs, or filesystem access."""
 from dataclasses import dataclass, field
+from copy import deepcopy
 
 import numpy as np
 
@@ -23,11 +24,13 @@ class CalibrationSession:
                    'source_units': list(metadata.get('source_units', [])),
                    'units': list(metadata.get('units', [])),
                    'chunks': list(metadata.get('chunks', [])),
+                   'motion_reference': deepcopy(metadata.get('motion_reference')),
+                   'motion_chunks': [],
                    'times': list(metadata.get('times', []))}
             for kind, metadata in self.streams.items()
         }
 
-    def append(self, kind, samples, timestamps, names, fs, now):
+    def append(self, kind, samples, timestamps, names, fs, now, motion_cleaned=None):
         if kind not in self.streams or now > self.deadline:
             return
         arr = np.asarray(samples, dtype=float)
@@ -35,6 +38,13 @@ class CalibrationSession:
         if arr.ndim != 2 or ts.ndim != 1 or len(arr) != len(ts) or not len(ts):
             return
         item = self.streams[kind]
+        motion = None
+        if item.get('motion_reference') is not None:
+            motion = np.asarray(motion_cleaned, dtype=float)
+            if motion.shape != arr.shape or not np.isfinite(motion).all():
+                self.errors.append(f'{kind}: missing or invalid post-NLMS samples')
+                return
+            motion, _ = samples_after_timestamp(motion, ts, item.get('start_lsl_timestamp'))
         if (item['channels'] != list(names) or item['fs'] != float(fs)
                 or arr.shape[1] != len(item['channels'])):
             self.errors.append(f'{kind} stream metadata changed')
@@ -43,6 +53,8 @@ class CalibrationSession:
         if len(ts):
             item['chunks'].append(arr.copy())
             item['times'].append(ts.copy())
+            if motion is not None:
+                item['motion_chunks'].append(motion.copy())
 
     def recorded_seconds(self, kind):
         item = self.streams.get(kind)
@@ -70,4 +82,7 @@ class CalibrationSession:
                 'source_units': list(item['source_units']),
                 'units': list(item['units']),
             }
+            if item.get('motion_reference') is not None:
+                streams[kind]['motion_reference'] = deepcopy(item['motion_reference'])
+                streams[kind]['motion_cleaned'] = np.concatenate(item['motion_chunks'])
         return streams

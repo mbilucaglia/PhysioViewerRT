@@ -61,6 +61,7 @@ from .asr_tasks import ASRFitTask, CalibrationReferenceTask
 from .render_policy import RAW_DISPLAY_POLICY
 from .desktop_widgets import CheckChannelDropdown, CalibrationScreen, ResponsiveSources
 from .source_conversion_widgets import SourceConversionControls
+from .motion_widgets import MotionControls
 from .topography_widgets import TopographyView
 
 from .calibration import (
@@ -291,6 +292,8 @@ class MainWindow(QMainWindow):
                     'conversion': worker.conversion.metadata(),
                     'source_units': list(view.source_units), 'units': list(view.output_units),
                     'start_lsl_timestamp': view.latest_source_timestamp}
+        if live.get('motion_reference') is not None:
+            metadata['motion_reference'] = deepcopy(live['motion_reference'])
         started = time.monotonic()
         session = CalibrationSession('ASR', {'EEG': metadata}, started+300.)
         monitor = ASRTrainingAccumulator(metadata['fs'], metadata['channels'], max(180., minimum+60.))
@@ -672,6 +675,7 @@ class MainWindow(QMainWindow):
         self.graphics_status_labels = {}
         self.artifact_choices = {}
         self.source_conversions = {}
+        self.motion_controls = {}
         for kind in ('EEG', 'EDA', 'PPG'):
             status = self._required_ui(f'{kind}GraphicsWarmupStatus', QLabel)
             status.hide()
@@ -682,6 +686,12 @@ class MainWindow(QMainWindow):
             conversion_position = (source_layout.indexOf(self._required_ui('EEGProcessingPanel', QWidget))+1
                                    if kind == 'EEG' else 2)
             source_layout.insertWidget(conversion_position, conversion)
+            motion = MotionControls()
+            motion.setObjectName(kind+'MotionControls')
+            self.motion_controls[kind] = motion
+            source_layout.insertWidget(conversion_position+1, motion)
+            motion.changed.connect(lambda k=kind: self.schedule_source_change(k))
+            motion.metadata_requested.connect(self.request_motion_metadata)
             combo = self._required_ui(f'{kind}StreamSelector', QComboBox)
             combo.clear()
             self.selectors[kind] = combo
@@ -771,6 +781,13 @@ class MainWindow(QMainWindow):
         self.raw_reduction_status = {kind:self._required_ui(kind+'ReductionStatus',QLabel)
                                      for kind in ('PPG','EDA')}
         self._last_reduction_indicators = {}
+        self.raw_motion_status = {}
+        for kind in ('EEG', 'PPG', 'EDA'):
+            label = QLabel('ACC off')
+            label.setObjectName(kind+'MotionStatus')
+            header = self._required_ui(kind+'PlotHeaderGroup0', QWidget)
+            header.layout().addWidget(label)
+            self.raw_motion_status[kind] = label
         self.raw_live_button = self._required_ui('rawFollowLive', QPushButton)
         set_action(self.raw_live_button, 'Live', 'live')
         self.raw_live_button.clicked.connect(self.resume_raw_live)
@@ -1193,6 +1210,15 @@ class MainWindow(QMainWindow):
         self.discovery_serial = self.queue_lsl_task('discover')
         self.statusBar().showMessage('Discovering LSL sources…')
 
+    def request_motion_metadata(self, info):
+        identifier = info.uid()
+        if identifier in self.channel_metadata_cache:
+            names, _ = self.channel_metadata_cache[identifier]
+            for controls in self.motion_controls.values():
+                controls.set_labels(identifier, names)
+        elif identifier not in self._metadata_requests:
+            self._metadata_requests[identifier] = self.queue_lsl_task('metadata', info)
+
     @Slot(object, object, object)
     def lsl_task_completed(self, token, result, error):
         if self._closing:
@@ -1202,6 +1228,8 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(f'LSL discovery failed: {error}')
                 return
             streams = result
+            for controls in self.motion_controls.values():
+                controls.set_streams(streams)
             for kind, combo in self.selectors.items():
                 old = combo.currentData()
                 uid = old.uid() if old is not None else None
@@ -1234,6 +1262,8 @@ class MainWindow(QMainWindow):
                     return
                 self.channel_metadata_cache[identifier] = result
                 names, warning = result
+                for controls in self.motion_controls.values():
+                    controls.set_labels(identifier, names)
                 for kind, combo in self.selectors.items():
                     info = combo.currentData()
                     if info is not None and info.uid() == identifier:
@@ -1292,6 +1322,10 @@ class MainWindow(QMainWindow):
         self.schedule_source_change(kind)
 
     def _receiver_processing_matches(self,kind,worker):
+        reference = getattr(worker, 'motion_reference', None)
+        signature = (reference.info.uid(), reference.indices, reference.enabled) if reference else None
+        if signature != self.motion_controls[kind].signature():
+            return False
         worker = receiver_view(worker)
         requested = validate_preprocessing(kind,preset=self.filter_choices[kind].currentData(),
             notch=self.filter_notches[kind].isChecked(),
@@ -1309,6 +1343,14 @@ class MainWindow(QMainWindow):
 
     def source_backend_available(self, kind):
         """Reject an unavailable processing choice before stopping reception."""
+        try:
+            reference = self.motion_controls[kind].reference()
+            info = self.selectors[kind].currentData()
+            if reference is not None and info is not None:
+                reference.validate_primary(info, self.channel_selectors[kind].selected_indices())
+        except ValueError as exc:
+            self.statusBar().showMessage(f'{modality_label(kind)}: {exc}')
+            return False
         choice = self.artifact_choices.get(kind)
         if choice is None:
             return True
@@ -1472,6 +1514,7 @@ class MainWindow(QMainWindow):
             worker = Receiver(info, kind, indices,
                               self.channel_selectors[kind].names,
                               preprocessing=settings,
+                              motion_reference=self.motion_controls[kind].reference(),
                               conversion=self.source_conversions[kind].conversion(),
                               eeg_asr_model=(self.asr_session.model
                                              if kind == 'EEG' and self.asr_session.enabled else None))
@@ -1859,7 +1902,8 @@ class MainWindow(QMainWindow):
         incoming.sort(key=lambda entry: entry[0])
         for acquired_at, kind, chunk in incoming:
             if self.capture is not None:
-                self.capture_samples(kind, chunk.raw, chunk.timestamps, chunk.names, chunk.fs)
+                self.capture_samples(kind, chunk.raw, chunk.timestamps, chunk.names, chunk.fs,
+                                     motion_cleaned=chunk.motion_cleaned)
             self.receive(kind, chunk.raw, chunk.filtered, chunk.names, chunk.metric,
                          chunk.fs, chunk.timestamps, metric_at=acquired_at, refresh_labels=False)
         if incoming and self.tabs.currentWidget() is self.metrics_page:
@@ -1901,6 +1945,16 @@ class MainWindow(QMainWindow):
         self._last_gui_tick=now
         self.refresh_asr_indicator(now)
         self.refresh_peripheral_indicators(now)
+        for kind, controls in self.motion_controls.items():
+            view = receiver_view(self.workers.get(kind))
+            controls.update_status(view)
+            state = getattr(view, 'motion_feedback', ('ACC off', None))[0]
+            label = self.raw_motion_status[kind]
+            label.setText('ACC off' if state == 'ACC off' else
+                          'ACC bypass' if 'bypass' in state else
+                          'ACC active' if state == 'ACC NLMS active' else 'ACC monitor')
+            label.setToolTip(controls.status.text())
+            label.setAccessibleName(state)
         if not self._closing:
             self.poll_receivers()
             # Avoid raw GL redraws/warmup while a menu is interacting, but
@@ -1957,9 +2011,10 @@ class MainWindow(QMainWindow):
         self.refresh_affect_references()
         self.statusBar().showMessage(f'{modality_label(kind)} ready: {len(channels)} channels at {fs:g} Hz')
 
-    def capture_samples(self, kind, samples, timestamps, channels, fs):
+    def capture_samples(self, kind, samples, timestamps, channels, fs, motion_cleaned=None):
         if self.capture is not None:
-            self.capture.append(kind, samples, timestamps, channels, fs, time.monotonic())
+            self.capture.append(kind, samples, timestamps, channels, fs, time.monotonic(),
+                                motion_cleaned=motion_cleaned)
 
     def _wait_for_calibration_dialog(self, dialog):
         """Keep the calibration sequence ordered without disabling the main window."""
@@ -2025,6 +2080,9 @@ class MainWindow(QMainWindow):
                 'chunks': [], 'times': [],
                 'start_lsl_timestamp': view.latest_source_timestamp,
             }
+            configuration = getattr(view, 'source_configuration', None) or {}
+            if configuration.get('motion_reference') is not None:
+                meta[modality]['motion_reference'] = deepcopy(configuration['motion_reference'])
         screen = CalibrationScreen(kind, self)
         self.capture = CalibrationSession(
             kind, meta, time.monotonic() + DURATION_SECONDS + 1)

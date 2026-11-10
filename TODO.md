@@ -1,5 +1,27 @@
 # PhysioViewerRT handoff — 3 November 2026
 
+## ACC adaptive cancellation — 10 November 2026
+
+- [x] Synthetic EEG/PPG/SC each publish a matching XYZ ACC stream; coherent
+      motion contamination uses the same sampled references and source clock.
+- [x] Independent `--motion`/`--artifacts` controls, seeded reproducibility,
+      optional finite run duration and Windows launcher argument forwarding.
+- [x] Quiet-to-motion testing exposed unstable near-zero-reference adaptation;
+      v3 gates low ACC energy and restarts warmup after quiet. Previous stored
+      v2 output remains readable; matching v3 calibration/training is required.
+
+- [x] Independent ACC/IMU LSL selection and X/Y/Z mapping for EEG, PPG, SC.
+- [x] Optional causal multireference NLMS, raw preservation, stale-reference
+      bypass, per-receiver state and inlet cleanup; no dependency changes.
+- [x] Apply NLMS before peripheral/ordinary filtering and ASR; calculate IAF,
+      BSL and ASR training from cleaned input with matching configuration.
+- [x] Schema-2 calibration stores original raw plus aligned post-NLMS samples;
+      replay and normalization use the recorded cleaned stage without double NLMS.
+- [ ] Validate placement, device latency and attenuation on physical sensors.
+- [ ] Optional future raw-ACC recording for offline retuning of the adaptive
+      algorithm (current replay preserves the actual live NLMS output).
+- Usage, pipeline and limitations: docs/ACC_ADAPTIVE_FILTER.md.
+
 ## Portable environments — 3 November 2026
 
 - [x] Add repository-relative setup/doctor/run/simulate/test commands and a

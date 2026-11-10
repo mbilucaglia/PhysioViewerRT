@@ -8,8 +8,8 @@ def recording_snapshot(streams):
     result = {}
     for kind, source in (streams or {}).items():
         stream = {name: deepcopy(value) for name, value in source.items()
-                  if name not in ('data', 'timestamps')}
-        for name in ('data', 'timestamps'):
+                  if name not in ('data', 'timestamps', 'motion_cleaned')}
+        for name in ('data', 'timestamps', 'motion_cleaned'):
             if name in source:
                 stream[name] = np.array(source[name], copy=True)
                 stream[name].setflags(write=False)

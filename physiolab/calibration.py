@@ -2,6 +2,7 @@
 import numpy as np
 from scipy.signal import welch
 from .eeg_bands import IAF_BAND_CONVENTION, derive_iaf_bands
+from .motion_recording import recorded_input
 
 from .calibration_validation import DURATION_SECONDS
 POSTERIOR = {
@@ -19,7 +20,7 @@ def posterior_indices(labels):
 
 def analyze_eyc(eeg, eeg_asr_model=None):
     """Posterior PSD: Hann Welch 1 s, 50% overlap; spectral CoG 7–13 Hz."""
-    x = np.asarray(eeg['data'], dtype=float)
+    x = recorded_input(eeg)
     fs = float(eeg['fs'])
     names = list(eeg['channels'])
     idx = posterior_indices(names)
@@ -52,6 +53,7 @@ def analyze_eyc(eeg, eeg_asr_model=None):
         raise ValueError('No reliable nonzero alpha-band PSD for IAF estimation.')
     cog = float(np.sum(freq[mask] * weight) / total)
     return {
+        'motion_reference': eeg.get('motion_reference'),
         'eeg_asr_model_id': eeg_asr_model.model_id if eeg_asr_model else None,
         'iaf_hz': cog, 'alpha_range_hz': [7, 13],
         'iaf_bands_hz': derive_iaf_bands(cog),
@@ -104,7 +106,7 @@ def analyze_bsl(streams, iaf_hz=10.0, eeg_asr_model=None):
         if kind not in ('EEG','EDA','PPG'):
             continue
         fs = float(item['fs'])
-        data = np.asarray(item['data'], dtype=float)
+        data = recorded_input(item)
         stamps = np.asarray(item.get('timestamps', []), dtype=float)
         if data.ndim != 2 or len(data) < fs or not np.isfinite(data).all():
             continue
@@ -116,7 +118,7 @@ def analyze_bsl(streams, iaf_hz=10.0, eeg_asr_model=None):
                          sample_transform=_eeg_transform(item, eeg_asr_model) if kind == 'EEG' else None)
         source_configurations[kind] = source_configuration(
             kind, fs, item['channels'], proc.preprocessing, item.get('conversion'),
-            item.get('units') or [''] * data.shape[1])
+            item.get('units') or [''] * data.shape[1], item.get('motion_reference'))
         if kind == 'EEG' and eeg_asr_model is not None:
             source_configurations[kind]['asr_model_id'] = eeg_asr_model.model_id
         hop = max(1, round(fs*.5))
@@ -154,7 +156,8 @@ def analyze_bsl(streams, iaf_hz=10.0, eeg_asr_model=None):
                 sequence['SCL'] = [(observation.window_end, observation.value)
                                    for observation in observations]
                 tonic_metadata = sc_pipeline_metadata(
-                    tonic, proc.preprocessing, item.get('conversion'))
+                    tonic, {**proc.preprocessing, **({'motion_reference': item['motion_reference']}
+                        if item.get('motion_reference') else {})}, item.get('conversion'))
 
     hr = series.get('PPG', {}).get('HR', [])
     scl = series.get('EDA', {}).get('SCL', [])
@@ -220,6 +223,6 @@ def save_calibration(path, kind, streams, analysis):
 
 
 def load_calibration(path, expected_kind):
-    """Load and validate a schema-1 recording through the NPZ adapter."""
+    """Load and validate legacy or ACC-stage recordings through the NPZ adapter."""
     from .calibration_storage import load_calibration as load
     return load(path, expected_kind)
