@@ -19,10 +19,37 @@ class LSLTask(QThread):
         super().__init__(parent)
         self.token, self.operation, self.info = token, operation, info
 
+    def request_stop(self):
+        self.requestInterruption()
+
     def run(self):
         try:
             if self.operation == 'discover':
                 result = discover()
+            elif self.operation == 'acc_zero':
+                import time
+                import numpy as np
+                from pylsl import StreamInlet, proc_clocksync, local_clock
+                from .motion_reduction import static_acc_calibration
+                reference = self.info
+                inlet = StreamInlet(reference.info, processing_flags=proc_clocksync)
+                values, stamps = [], []
+                started = local_clock()
+                try:
+                    deadline = time.monotonic()+12.
+                    while time.monotonic() < deadline:
+                        if self.isInterruptionRequested():
+                            raise ValueError('ACC calibration cancelled')
+                        x, t = inlet.pull_chunk(timeout=.1, max_samples=4096)
+                        if t:
+                            fresh = np.asarray(t) >= started
+                            values.extend(np.asarray(x)[fresh][:, reference.indices].tolist())
+                            stamps.extend(np.asarray(t)[fresh].tolist())
+                        if len(stamps)>1 and stamps[-1]-stamps[0]>=5.:
+                            break
+                    result = static_acc_calibration(values, stamps, reference.info.nominal_srate())
+                finally:
+                    inlet.close_stream()
             elif self.operation == 'metadata':
                 try:
                     result = full_channel_labels(self.info, timeout=2.0)

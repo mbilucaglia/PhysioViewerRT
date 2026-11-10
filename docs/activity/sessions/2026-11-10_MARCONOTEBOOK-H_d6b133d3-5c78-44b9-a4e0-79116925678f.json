@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "session_id": "d6b133d3-5c78-44b9-a4e0-79116925678f",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "80c6c65eda65149124568ad420914e05cba64e14",
+  "updated_at": "2026-11-10T16:03:48.924023+01:00",
+  "status": "completed",
+  "summary": "Aggiunta calibrazione statica ACC di 5 s, gate sul rumore misurato e visualizzazione scala stimata in mg; preservato lavoro esistente.",
+  "intervals": [
+    {
+      "id": "93078f9e-105d-4fc3-aae5-c8c71ea2ed2d",
+      "started_at": "2026-11-10T15:29:36+01:00",
+      "ended_at": "2026-11-10T15:42:44+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Analisi del percorso, test ACC core e GUI/LSL, avvii PhysioViewerRT e verifica UI.",
+      "evidence": [
+        "Richiesta utente in questa conversazione",
+        "Git status locale osservato all'inizio"
+      ],
+      "source_event_id": null
+    },
+    {
+      "id": "c520b8e5-2285-40bd-8a10-e980e6ba636e",
+      "started_at": "2026-11-10T15:45:03+01:00",
+      "ended_at": "2026-11-10T15:55:40+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Ispezione UI e discovery Muse; diagnosi e correzione etichette stale PyQtGraph; verifica topoplot Muse sintetico e test GUI mirati.",
+      "evidence": [
+        "Inventario UI successivo: PhysioViewerRT non visibile; discovery LSL locale precedente: Muse ACC 3 ch a 52 Hz e Muse EEG 4 ch a 256 Hz",
+        "Test mirati: 9 superati (etichette a parità di canali, renderer e topografia Muse sintetica)",
+        "Suite GUI completa interrotta durante test_calibration_io; output precedente include ERROR/FAIL, dettaglio non acquisito",
+        "git diff --check superato"
+      ],
+      "source_event_id": null
+    },
+    {
+      "id": "8de79829-ee8e-4060-8bc5-a9bcd4dbff8d",
+      "started_at": "2026-11-10T16:00:51.898003+01:00",
+      "ended_at": "2026-11-10T16:03:48.924023+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Calibrazione statica ACC",
+      "evidence": [
+        "Richiesta corrente"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "La componente lenta di gravità ACC è rimossa con EMA equivalente a passa-alto 0,5 Hz; X/Y/Z mostrano campioni grezzi, NLMS usa il riferimento centrato.",
+    "14 test core di motion reduction e simulazione superati.",
+    "7 test GUI/LSL di integrazione motion superati.",
+    "Tentati project.cmd run, start_windows.cmd e avvio diretto dalla .venv; PhysioViewerRT non è comparsa nell’inventario UI.",
+    "Modifiche limitate a physiolab/pyqtgraph_raw.py e ai test GUI; preservate le modifiche preesistenti.",
+    "Discovery LSL conferma stream Muse ACC 3 canali a 52 Hz attivo; screenshot Raw Data mostrava ACC off su EEG/PPG/SC.",
+    "Corretto il renderer PyQtGraph che conservava nomi e tick della sorgente precedente quando il numero dei canali restava uguale.",
+    "La mappa topografica sintetica con AF7/AF8/TP9/TP10 è disponibile dopo 1 s continuo a 256 Hz.",
+    "Calibrazione ACC cancellabile su LSLTask, invalidazione per sorgente/assi, offset e rumore inclusi nella provenienza.",
+    "16 test motion core/GUI superati; test GUI mirato ripetuto dopo gestione errori input: superato. git diff --check superato.",
+    "Discovery corrente non ha trovato stream ACC: unità hardware non verificate."
+  ],
+  "commits": [],
+  "open_items": [
+    "Verificare calibrazione statica e scala sul Muse reale dopo riavvio app.",
+    "Completare diagnosi topoplot live e test persistenza."
+  ],
+  "limitations": [
+    "Test hardware Muse non eseguito; la finestra Muse → LSL era minimizzata e PhysioViewerRT non è diventata visibile.",
+    "La suite core completa è stata interrotta dopo assenza prolungata di output durante i test di persistenza calibrazioni; la suite completa non è dichiarata superata.",
+    "La suite GUI completa è stata interrotta durante test_calibration_io dopo output anomalo ERROR/FAIL; soltanto i 9 test mirati risultano superati.",
+    "La finestra PhysioViewerRT non era visibile nell'ultimo inventario desktop; non è stata possibile una verifica hardware/live del topoplot.",
+    "Test motion_calibration esteso interrotto per assenza di avanzamento (processo proprio PID 4816); verifica persistenza incompleta.",
+    "Ruff/mypy non eseguiti: ambiente quality assente. Calibrazione hardware e validazione metrologica della scala non eseguite.",
+    "La scala stimata assume assi omogenei con gravità inclusa; non identifica le unità fisiche dichiarate dal produttore."
+  ]
+}

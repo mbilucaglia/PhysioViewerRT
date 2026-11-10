@@ -7,7 +7,9 @@ from .motion_reduction import MotionCanceller
 class MotionInput:
     def __init__(self, reference, fs, channels):
         self.reference = reference
-        self.canceller = MotionCanceller(fs, channels, reference.info.nominal_srate())
+        self.canceller = MotionCanceller(
+            fs, channels, reference.info.nominal_srate(),
+            reference.intervention_threshold_mg, reference.static_calibration)
         self.inlet = None
         self.error = None
 

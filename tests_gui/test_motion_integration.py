@@ -24,6 +24,26 @@ class MotionIntegrationTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def test_static_calibration_result_and_axis_invalidation(self):
+        with patch.object(MainWindow, 'refresh', lambda self: None):
+            window = MainWindow()
+        try:
+            controls = window.motion_controls['EEG']
+            info = StreamInfo('ACC', 'ACC', 3, 52, 'float32', 'zero-test')
+            with patch.object(window, 'queue_lsl_task', return_value=123):
+                controls.source.addItem('ACC', info)
+                controls.source.setCurrentIndex(1)
+                window.calibrate_acc('EEG', controls.reference())
+                result = ((0., 0., 1.), .0001)
+                window.lsl_task_completed(123, result, None)
+                self.assertEqual(controls.reference().static_calibration, result)
+                self.assertIn('1 g stimato', controls.calibration_status.text())
+                controls.axes[0].setCurrentIndex(1)
+                self.assertIsNone(controls.static_calibration)
+        finally:
+            window.close()
+            self.app.processEvents()
+
     def test_asr_training_and_reference_replay_share_the_cleaned_input(self):
         eeg = motion_fixtures.MotionCalibrationTests.eeg()
         expected = Processor('EEG', eeg['fs'], 2, eeg['channels'], preprocessing=eeg['preprocessing'])
@@ -138,7 +158,12 @@ class MotionIntegrationTests(unittest.TestCase):
                 control.source.setCurrentIndex(2)
                 control.set_labels('mixed-test', ['PPG', 'other', 'Acc Z', 'Acc X', 'Acc Y', 'aux'])
                 control.enabled.setChecked(True)
+                control.intervention_threshold.setValue(12.)
                 self.assertEqual(control.reference().indices, (3, 4, 2))
+                self.assertEqual(control.reference().metadata()['intervention_threshold_mg'], 12.)
+                self.assertIn('Acc X', control.axes[0].currentText())
+                self.assertIn('Acc Y', control.axes[1].currentText())
+                self.assertIn('Acc Z', control.axes[2].currentText())
                 changed.assert_called_with('PPG')
             self.assertIsNone(window.motion_controls['EEG'].reference())
             signature = control.signature()
@@ -148,8 +173,8 @@ class MotionIntegrationTests(unittest.TestCase):
             window.show()
             self.app.processEvents()
             for axis in control.axes:
-                self.assertGreater(axis.lineEdit().width(), 15)
-            control.axes[0].setValue(control.axes[1].value())
+                self.assertGreater(axis.width(), 15)
+            control.axes[0].setCurrentIndex(control.axes[0].findData(control.axes[1].currentData()))
             with self.assertRaises(ValueError):
                 control.reference()
         finally:

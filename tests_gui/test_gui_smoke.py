@@ -418,6 +418,21 @@ class GuiSmokeTests(unittest.TestCase):
         np.testing.assert_allclose(self.window.curves['EEG'][2].getData()[1],[8,6,4])
         self.assertEqual(self.window.plots['EEG'].getAxis('left')._tickLevels,[[(0.,'F3'),(6.,'F4')]])
 
+    def test_pyqtgraph_replaces_labels_when_source_changes_with_same_channel_count(self):
+        from physiolab.render_contracts import PreparedFrame, ViewSpec
+        backend=self.window.raw_controller.backends['pyqtgraph']['EEG']
+        times=np.array([0.,.1,.2])
+        raw=np.zeros((3,2))
+        view=ViewSpec(0.,0.,-1.,1.,3.,2)
+        for names in (('AF7','AF8'),('TP9','TP10')):
+            frame=PreparedFrame(times,raw,raw.copy(),np.zeros(2),np.ones(2),names)
+            backend.present(frame,view,10.)
+            self.assertEqual(self.window.plots['EEG'].getAxis('left')._tickLevels,
+                             [[(0.,names[0]),(6.,names[1])]])
+            self.assertEqual([curve.opts['name'] for curve in backend.curves],
+                             [f'{name} {trace}' for name in names
+                              for trace in ('raw','processed')])
+
     def test_refresh_preserves_channel_selection_for_unchanged_source(self):
         info = FakeInfo('same-source', channels=4)
         self.window.channel_metadata_cache[info.uid()] = (['a', 'b', 'c', 'd'], '')

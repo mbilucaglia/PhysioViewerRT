@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "session_id": "e9098cd5-a073-4cc2-837c-bf334ea45bf0",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "80c6c65eda65149124568ad420914e05cba64e14",
+  "updated_at": "2026-11-10T15:24:49+01:00",
+  "status": "completed",
+  "summary": "Verificata la pipeline di cancellazione adattiva basata su accelerometro e aggiunti selettori X/Y/Z con etichette di canale e soglia d’intervento regolabile.",
+  "intervals": [
+    {
+      "id": "2d0b59f4-00a9-4330-bf57-dfd7c64ed149",
+      "started_at": "2026-11-10T15:17:16+01:00",
+      "ended_at": "2026-11-10T15:24:49+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Analisi e aggiornamento dei controlli ACC, soglia esplicita e verifiche mirate su algoritmo, GUI e LSL.",
+      "evidence": ["Richiesta utente del 2026-11-10", "Stato Git e SHA iniziale rilevati all’avvio"],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "19 test mirati su motion reduction, simulazione e integrazione GUI/LSL superati.",
+    "git diff --check superato.",
+    "Selettori X/Y/Z mostrano le etichette LSL e conservano gli indici per compatibilità.",
+    "Soglia d’intervento regolabile, default 5 mg; valori diversi sono registrati nella configurazione di acquisizione."
+  ],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "Test su accelerometro hardware non eseguito: la riduzione misurata su simulazione non certifica il dispositivo o il montaggio dell’utente.",
+    "Un test aggiuntivo di calibrazione non ha potuto scrivere il file .npz temporaneo per un PermissionError nell’ambiente sandbox; suite calibrazioni non dichiarata superata.",
+    "Sono presenti modifiche locali preesistenti in .gitignore, muse_lsl/, run_muse_lsl.cmd, setup_muse_lsl.cmd e un altro registro; preservate senza modificarle."
+  ]
+}

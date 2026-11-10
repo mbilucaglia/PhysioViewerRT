@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 import re
 import numpy as np
-from .motion_recording import MOTION_ALGORITHM
+from .motion_recording import MOTION_ALGORITHM, validate_static_calibration
 
 
 def is_acc_stream(info):
@@ -25,24 +25,55 @@ def acc_axes(labels):
     return tuple(result)
 
 
+def static_acc_calibration(values, timestamps, fs: float) -> tuple[tuple[float, ...], float]:
+    """Estimate static offset and conservative residual energy from 5 fresh seconds."""
+    x, t = np.asarray(values, dtype=float), np.asarray(timestamps, dtype=float)
+    if (x.shape != (len(t), 3) or len(t) < max(4, int(4.8*fs))
+            or not np.isfinite(x).all() or not np.isfinite(t).all()
+            or t[-1]-t[0] < 4.8 or np.any(np.diff(t) <= 0)
+            or np.any(np.diff(t) > 3/fs)):
+        raise ValueError('ACC calibration requires 5 continuous seconds of valid samples')
+    zero = np.median(x, axis=0)
+    gravity = float(np.linalg.norm(zero))
+    if gravity < 1e-6:
+        raise ValueError('ACC calibration requires a gravity-bearing accelerometer')
+    residual = np.linalg.norm(x-zero, axis=1)
+    if np.quantile(residual, .95) > .05*gravity:
+        raise ValueError('Too much movement: stay still and repeat ACC calibration')
+    return tuple(float(v) for v in zero), float((1.5*np.quantile(residual, .99))**2)
+
+
 @dataclass(frozen=True)
 class MotionReference:
     info: object
     indices: tuple
     enabled: bool = False
+    intervention_threshold_mg: float = 5.
+    static_calibration: tuple | None = None
 
     def __post_init__(self):
+        validate_static_calibration(self.static_calibration)
         if (len(self.indices) != 3 or len(set(self.indices)) != 3
                 or any(not isinstance(i, int) or i < 0 or i >= self.info.channel_count()
                        for i in self.indices)):
             raise ValueError('Select three distinct ACC channels (X, Y, Z)')
         if not np.isfinite(self.info.nominal_srate()) or self.info.nominal_srate() <= 0:
             raise ValueError('ACC requires a regular positive sampling rate')
+        if (not np.isfinite(self.intervention_threshold_mg)
+                or self.intervention_threshold_mg <= 0):
+            raise ValueError('ACC intervention threshold must be finite and positive')
 
     def metadata(self):
-        return dict(algorithm=MOTION_ALGORITHM, source_id=self.info.source_id() or self.info.uid(),
-                    channels=list(self.indices),
-                    fs=float(self.info.nominal_srate()), enabled=self.enabled)
+        metadata = dict(algorithm=MOTION_ALGORITHM, source_id=self.info.source_id() or self.info.uid(),
+                        channels=list(self.indices),
+                        fs=float(self.info.nominal_srate()), enabled=self.enabled)
+        # Preserve compatibility with recordings created before the default
+        # 5 mg threshold was user-configurable; that was already the fixed gate.
+        if self.intervention_threshold_mg != 5.:
+            metadata['intervention_threshold_mg'] = float(self.intervention_threshold_mg)
+        if self.static_calibration is not None:
+            metadata["static_calibration"] = [list(self.static_calibration[0]), self.static_calibration[1]]
+        return metadata
 
     def validate_primary(self, info, indices):
         same = (info.uid() == self.info.uid() if info.uid() and self.info.uid()
@@ -58,10 +89,16 @@ class MotionCanceller:
     centered primary signal while subtraction preserves its original baseline.
     mu=0.03, 150 ms FIR history (at most 64 taps per axis), 1 s warmup.
     """
-    def __init__(self, fs, channels, reference_fs):
+    def __init__(self, fs, channels, reference_fs, intervention_threshold_mg=5., static_calibration=None):
+        validate_static_calibration(static_calibration)
+        self.static_calibration = static_calibration
         self.fs, self.channels = float(fs), int(channels)
         if min(self.fs, reference_fs) <= 0 or not np.isfinite([fs, reference_fs]).all():
             raise ValueError('Sampling rates must be finite and positive')
+        if (not np.isfinite(intervention_threshold_mg)
+                or intervention_threshold_mg <= 0):
+            raise ValueError('ACC intervention threshold must be finite and positive')
+        self.intervention_threshold_mg = float(intervention_threshold_mg)
         self.taps = max(2, min(64, round(.15 * fs)))
         self.max_age = min(.25, 3. / reference_fs)
         self.capacity = max(4, int(reference_fs * 40))
@@ -116,11 +153,20 @@ class MotionCanceller:
                 self.reset()
             self.last_time = stamp
             ref = self.values[idx]
+            gravity = np.linalg.norm(ref)
+            if self.static_calibration is not None:
+                zero, noise_energy = self.static_calibration
+                gravity = np.linalg.norm(zero)
+                ref = ref - np.asarray(zero)
             if self.reference_mean is None:
                 self.reference_mean, self.target_mean = ref.copy(), x[i].copy()
-                # ~5 milli-g when gravity is present, in the publisher's units.
+                # Express the minimum as a fraction of measured gravity so it
+                # works whether the stream reports m/s² or g.
                 # Do not normalize adaptation by a vanishing ACC residual.
-                self.reference_floor = max(1e-8, (.005*np.linalg.norm(ref))**2)*self.delay.size
+                threshold = self.intervention_threshold_mg / 1000.
+                self.reference_floor = max(1e-8, (threshold*gravity)**2)*self.delay.size
+            if self.static_calibration is not None:
+                self.reference_floor = max((self.intervention_threshold_mg*gravity/1000.)**2, noise_energy)*self.taps
             self.reference_mean += (1-np.exp(-2*np.pi*.5/self.fs))*(ref-self.reference_mean)
             self.target_mean += (1-np.exp(-2*np.pi*.1/self.fs))*(x[i]-self.target_mean)
             self.delay[1:] = self.delay[:-1]

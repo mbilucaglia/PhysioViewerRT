@@ -1,0 +1,2 @@
+# Keep Muse's BLE/LSL runtime isolated from PhysioViewerRT's locked environment.
+muselsl==2.5.3

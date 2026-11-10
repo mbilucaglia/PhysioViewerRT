@@ -13,6 +13,7 @@ class PyQtGraphRawPlot:
         self.curves=[]
         self.latest_sample_time=-np.inf
         self.channel_count=0
+        self.channel_names=()
         self.history_seconds=history_seconds
         self._caption_duration=None
 
@@ -33,16 +34,18 @@ class PyQtGraphRawPlot:
             self.plot.setXRange(view.left,view.right,padding=0)
             return True
         n=frame.raw.shape[1]
-        if len(self.curves)!=2*n:
+        names=tuple(frame.names)
+        if len(self.curves)!=2*n or names!=self.channel_names:
             self.plot.clear(); self.curves=[]
             self.plot.enableAutoRange(axis='y',enable=False)
             self.plot.setYRange(*RAW_DISPLAY_POLICY.bounds(n),padding=0)
-            self.plot.getAxis('left').setTicks([list(zip(RAW_DISPLAY_POLICY.offsets(n),map(str,frame.names)))])
-            for i,name in enumerate(frame.names):
+            self.plot.getAxis('left').setTicks([list(zip(RAW_DISPLAY_POLICY.offsets(n),names))])
+            for i,name in enumerate(names):
                 color=pg.intColor(i,hues=max(n,3))
                 for suffix,style in (('raw',Qt.PenStyle.SolidLine),('processed',Qt.PenStyle.DashLine)):
                     self.curves.append(self.plot.plot(name=f'{name} {suffix}',
                         pen=pg.mkPen(color,width=1,style=style),antialias=False))
+            self.channel_names=names
         self.plot.setXRange(view.left,view.right,padding=0)
         # pyqtgraph's mask describes the edge STARTING at i; the contract's
         # mask describes the edge ENDING at i. Preserve real timestamp gaps.
@@ -59,6 +62,7 @@ class PyQtGraphRawPlot:
 
     def reset(self):
         self.plot.clear(); self.curves=[]; self.channel_count=0
+        self.channel_names=()
         self.latest_sample_time=-np.inf
 
     def close(self): self.reset()

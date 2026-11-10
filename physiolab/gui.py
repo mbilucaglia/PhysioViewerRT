@@ -142,6 +142,7 @@ class MainWindow(QMainWindow):
         self.source_change_timers = {}
         self.channel_metadata_cache = {}
         self.lsl_tasks = {}
+        self.acc_calibrations = {}
         self._metadata_requests = {}
         self.lsl_task_serial = 0
         self.discovery_serial = 0
@@ -692,6 +693,7 @@ class MainWindow(QMainWindow):
             source_layout.insertWidget(conversion_position+1, motion)
             motion.changed.connect(lambda k=kind: self.schedule_source_change(k))
             motion.metadata_requested.connect(self.request_motion_metadata)
+            motion.calibration_requested.connect(lambda ref, k=kind: self.calibrate_acc(k, ref))
             combo = self._required_ui(f'{kind}StreamSelector', QComboBox)
             combo.clear()
             self.selectors[kind] = combo
@@ -1210,6 +1212,19 @@ class MainWindow(QMainWindow):
         self.discovery_serial = self.queue_lsl_task('discover')
         self.statusBar().showMessage('Discovering LSL sources…')
 
+    def calibrate_acc(self, kind, reference):
+        if reference is None or self._closing:
+            return
+        controls = self.motion_controls[kind]
+        for token, item in self.acc_calibrations.items():
+            if item[0] == kind:
+                self.lsl_tasks[token].request_stop()
+                return
+        token = self.queue_lsl_task('acc_zero', reference)
+        self.acc_calibrations[token] = (kind, reference.info.uid(), reference.indices, controls.calibration_revision)
+        controls.calibrate.setText('Annulla calibrazione ACC')
+        controls.calibration_status.setText('Stai fermo: acquisizione di 5 s continui…')
+
     def request_motion_metadata(self, info):
         identifier = info.uid()
         if identifier in self.channel_metadata_cache:
@@ -1222,6 +1237,25 @@ class MainWindow(QMainWindow):
     @Slot(object, object, object)
     def lsl_task_completed(self, token, result, error):
         if self._closing:
+            return
+        if token in self.acc_calibrations:
+            kind, uid, axes, revision = self.acc_calibrations.pop(token)
+            controls = self.motion_controls[kind]
+            controls.calibrate.setText('Calibra zero ACC — Stai fermo (5 s)')
+            current = controls.source.currentData()
+            if (current is None or current.uid() != uid or controls.calibration_revision != revision
+                    or tuple(a.currentData() for a in controls.axes) != axes):
+                return
+            if error:
+                controls.calibration_status.setText(error)
+            else:
+                controls.static_calibration = result
+                gravity = float(np.linalg.norm(result[0]))
+                controls.calibration_status.setText(
+                    'Zero ACC calibrato | X/Y/Z: '+', '.join(f'{v:.4g}' for v in result[0])
+                    + f' | 1 g stimato = {gravity:.4g} unità stream'
+                    + f' | rumore limite = {1000*np.sqrt(result[1])/gravity:.2f} mg')
+                controls.changed.emit()
             return
         if token == self.discovery_serial:
             if error:
@@ -1323,7 +1357,10 @@ class MainWindow(QMainWindow):
 
     def _receiver_processing_matches(self,kind,worker):
         reference = getattr(worker, 'motion_reference', None)
-        signature = (reference.info.uid(), reference.indices, reference.enabled) if reference else None
+        signature = (reference.info.uid(), reference.indices, reference.enabled,
+                     reference.intervention_threshold_mg) if reference else None
+        if reference is not None and reference.static_calibration is not None:
+            signature += (reference.static_calibration,)
         if signature != self.motion_controls[kind].signature():
             return False
         worker = receiver_view(worker)

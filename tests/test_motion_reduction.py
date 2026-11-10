@@ -6,6 +6,32 @@ from physiolab.reference_policy import compatible_references
 
 
 class MotionReductionTests(unittest.TestCase):
+    def test_static_calibration_is_scale_invariant_and_quiet_noise_bypasses(self):
+        from physiolab.motion_reduction import static_acc_calibration
+        fs = 100
+        t = np.arange(501)/fs
+        rng = np.random.default_rng(123)
+        acc = np.array([.2, .1, .97])+rng.normal(0, .003, (len(t), 3))
+        for scale in (1., 9.80665, 1000.):
+            baseline = static_acc_calibration(acc*scale, t, fs)
+            c = MotionCanceller(fs, 1, fs, static_calibration=baseline)
+            c.append(acc*scale, t)
+            primary = np.sin(t)[:, None]
+            np.testing.assert_array_equal(c.process(primary, t), primary)
+            self.assertEqual(c.status, 'ACC monitoring: low motion')
+            motion = acc*scale
+            motion[:, 0] += scale*.2*np.sin(2*np.pi*3*t)
+            c.append(motion, t+6)
+            c.process(primary, t+6)
+            self.assertGreater(c.trained, 0)
+
+    def test_static_calibration_rejects_missing_samples_and_large_motion(self):
+        from physiolab.motion_reduction import static_acc_calibration
+        for x, t in ((np.ones((5,3)), np.arange(5)/100),
+                     (np.column_stack((np.sin(np.arange(501)/10), np.zeros(501), np.ones(501))), np.arange(501)/100)):
+            with self.assertRaises(ValueError):
+                static_acc_calibration(x, t, 100)
+
     def test_acc_rejects_legacy_normalization_references(self):
         baseline = dict(metrics={'EEG': {'AWI': {'mean': 1, 'std': 1}},
                                 'PPG': {'HR': {'mean': 60, 'std': 5}}})
@@ -76,6 +102,18 @@ class MotionReductionTests(unittest.TestCase):
         c.append([[1, 2, 3]], [10.])
         np.testing.assert_array_equal(c.process([[8.]], [10.]), [[8.]])
         self.assertEqual(c.trained, 0)
+
+    def test_explicit_intervention_threshold_can_hold_nlms_in_bypass(self):
+        fs = 100
+        stamps = np.arange(500)/fs
+        reference = np.column_stack((.02*np.sin(2*np.pi*2*stamps),
+                                     .02*np.cos(2*np.pi*2*stamps),
+                                     np.full(len(stamps), 9.81)))
+        primary = (1.+.1*np.sin(2*np.pi*2*stamps))[:, None]
+        canceller = MotionCanceller(fs, 1, fs, intervention_threshold_mg=1000.)
+        canceller.append(reference, stamps)
+        np.testing.assert_array_equal(canceller.process(primary, stamps), primary)
+        self.assertEqual(canceller.trained, 0)
 
     def test_processor_cleans_input_before_reducer_and_retains_paired_raw(self):
         calls = []

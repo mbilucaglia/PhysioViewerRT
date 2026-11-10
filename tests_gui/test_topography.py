@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QHBoxLayout
 
 from physiolab.gui import MainWindow
 from physiolab.eeg_montage import COORDINATES_MM
+from physiolab.topography import TopographySettings, calculate_topography
 
 
 class TopographyGuiTests(unittest.TestCase):
@@ -39,6 +40,15 @@ class TopographyGuiTests(unittest.TestCase):
         self.window.append_raw_chunk('EEG', x, 2*x, ['F3','F4','P3','P4','Cz'], 256., t)
         if not self.state.paused:
             self.state.source_bounds['EEG'] = (t[-1]-100.-5., t[-1]-100.)
+
+    def test_muse_four_channel_map_is_available_after_one_continuous_second(self):
+        fs = 256.
+        t = np.arange(256, dtype=float) / fs
+        signals = np.column_stack([np.sin(2*np.pi*10*t + phase)
+                                   for phase in (0., .2, .4, .6)])
+        chunk = (t, signals, signals, ('AF7', 'AF8', 'TP9', 'TP10'), fs)
+        result = calculate_topography((chunk,), float(t[-1]), TopographySettings())
+        self.assertEqual(result['labels'], ['AF7', 'AF8', 'TP9', 'TP10'])
 
     def wait_map(self, predicate=lambda result: result is not None):
         deadline = time.monotonic() + 5.

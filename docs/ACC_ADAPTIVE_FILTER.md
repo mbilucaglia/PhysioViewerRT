@@ -155,3 +155,31 @@ La classe `SyntheticPhysiology` mantiene `motion_level='none'` come default
 per compatibilità con fixture e benchmark esistenti; `simulate.py` abilita
 esplicitamente il movimento. `generate_acc()` avanza un clock separato per
 riferimento; `motion_artifact()` espone la contaminazione nota per i confronti.
+
+
+## Calibrazione statica ACC
+
+In Sources selezionare riferimento e assi, quindi **Calibra zero ACC — Stai fermo (5 s)**.
+Il pulsante permette di annullare; la chiusura richiede cancellazione cooperativa.
+Si raccolgono campioni nuovi, continui e finiti su un worker, con timeout di 12 s.
+La mediana X/Y/Z definisce lo zero statico; 1,5 volte il percentile 99 della
+norma dei residui definisce il limite di rumore a riposo. Movimento eccessivo
+(95° percentile oltre il 5% della gravità misurata) richiede di ripetere la prova.
+Questo controllo non distingue ogni movimento lento dal rumore: restare fermi.
+
+La norma del vettore statico stima **1 g nelle unità dello stream**.
+La UI mostra tale fattore e il limite di rumore in mg (1000 mg = 1 g).
+Non è una verifica metrologica: presuppone accelerometro con gravità inclusa,
+assi nella stessa scala e offset strumentali piccoli rispetto a g; non usare
+giroscopi o accelerazione già privata della gravità. Le unità originali non
+sono determinate automaticamente da questa misura.
+
+Per il riferimento calibrato il gate usa l'energia media della norma XYZ
+sulla storia FIR: la soglia effettiva è almeno il massimo tra soglia scelta
+e rumore calibrato; resta inoltre il gate relativo adattativo preesistente.
+Lo zero viene sottratto prima della rimozione lenta della componente DC.
+I campioni raw e la loro visualizzazione restano nelle unità originarie.
+
+La calibrazione vive nella sessione, si invalida cambiando sorgente o assi,
+e viene inclusa nella provenienza delle registrazioni con ACC attivo.
+Le registrazioni precedenti restano leggibili.
