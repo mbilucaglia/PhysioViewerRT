@@ -28,19 +28,41 @@ class UiConsistencyTests(unittest.TestCase):
         self.assertFalse(button.icon().isNull())
         self.assertEqual(button.icon().pixmap(16,16).toImage(),action_icon(name).pixmap(16,16).toImage())
 
-    def test_expand_restore_symbols_and_captions_match_across_views(self):
+    def test_expand_restore_icons_and_accessible_names_match_across_views(self):
         buttons=[self.window.raw_focus_buttons['EEG'],
                  self.window.affect_view.findChild(QPushButton,'circumplexExpand'),
-                 self.window.findChild(QToolButton,'metricsTrendExpand')]
+                 self.window.findChild(QToolButton,'metricsTrendExpand'),
+                 self.window.topography.expand]
         for button in buttons:
-            self.assertEqual(button.text(),'Expand')
+            self.assertEqual(button.text(),'')
+            self.assertEqual(button.accessibleName(),'Expand')
             self.assertIcon(button,'expand')
             button.click()
-            self.assertEqual(button.text(),'Restore')
+            self.assertEqual(button.text(),'')
+            self.assertEqual(button.accessibleName(),'Restore')
             self.assertIcon(button,'collapse')
             button.click()
-            self.assertEqual(button.text(),'Expand')
+            self.assertEqual(button.text(),'')
+            self.assertEqual(button.accessibleName(),'Expand')
         self.assertFalse(self.window.metric_arrangement.panels['values'].isHidden())
+
+    def test_move_and_center_actions_are_icon_only(self):
+        moves = [self.window.findChild(QToolButton, name) for name in (
+            'EEGMove', 'PPGMove', 'EDAMove', 'metricsTrendMove', 'metricsValuesMove',
+            'circumplexMove', 'eiMove')]
+        moves += [self.window.findChild(QToolButton, f'{kind}MetricMove')
+                  for kind in ('EEG', 'EDA', 'PPG', 'EI')]
+        moves.append(self.window.topography.move)
+        for button in moves:
+            self.assertEqual(button.text(), '')
+            self.assertEqual(button.accessibleName(), 'Move')
+            self.assertIcon(button, 'move')
+        centers = [*self.window.raw_center_buttons.values(),
+                   self.window.findChild(QToolButton, 'metricsYCenter')]
+        for button in centers:
+            self.assertEqual(button.text(), '')
+            self.assertEqual(button.accessibleName(), 'Center')
+            self.assertIcon(button, 'center')
 
     def test_play_pause_symbols_and_captions_match_across_views(self):
         for button in [self.window.findChild(QPushButton,'rawPlotPause'),
@@ -72,7 +94,8 @@ class UiConsistencyTests(unittest.TestCase):
         self.window.metric_arrangement.swap('trends','values')
         self.assertIsNone(self.window.metric_panel_focus)
         self.assertTrue(all(not pane.isHidden() for pane in self.window.metric_arrangement.panels.values()))
-        self.assertEqual(button.text(),'Expand')
+        self.assertEqual(button.text(),'')
+        self.assertEqual(button.accessibleName(),'Expand')
 
 
     def test_metrics_vertical_controls_fit_and_zoom_without_changing_history(self):
@@ -94,6 +117,12 @@ class UiConsistencyTests(unittest.TestCase):
         window.findChild(QToolButton,'metricsYIn').click()
         zoomed=window.metric_plot.viewRange()[1]
         self.assertAlmostEqual(zoomed[1]-zoomed[0],.8*(bounds[1]-bounds[0]))
+        window.metric_controller.set_y_range(20., 24.)
+        center = window.findChild(QToolButton, 'metricsYCenter')
+        center.click()
+        self.assertIcon(center, 'center')
+        zoomed = window.metric_plot.viewRange()[1]
+        np.testing.assert_allclose(zoomed, (3., 7.))
         self.assertIs(window.metric_state.history,history)
         self.assertIcon(window.findChild(QToolButton,'metricsYFit'),'autoscale')
         window.metric_renderer_choice.setCurrentIndex(1)

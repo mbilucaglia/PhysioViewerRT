@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "session_id": "7b22d111-0acb-4299-a374-d7948a8390e1",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-05T16:11:35+01:00",
+  "status": "completed",
+  "summary": "Fixed over-aggressive multi-channel decimation that left correlated EEG traces as long straight joins during timebase changes.",
+  "intervals": [
+    {
+      "id": "7b22d111-0acb-4299-a374-d7948a8390e1",
+      "source_event_id": "7b22d111-0acb-4299-a374-d7948a8390e1",
+      "started_at": "2026-11-05T15:58:54+01:00",
+      "ended_at": "2026-11-05T16:11:35+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Inspect the attached EEG timebase recording, quantify sparse point selection for correlated channels, add adaptive extrema binning, and verify native timebase transitions.",
+      "evidence": [
+        "User-provided recording Registrazione 2026-11-05 155756.mp4, decoded locally with VLC scene snapshots",
+        "Correlated 32-channel 9 Hz case before fix: 91 of 1500 points, maximum sample gap 0.5 s",
+        "Correlated 32-channel 9 Hz case after fix: 1090 points, maximum sample gap 0.0508 s",
+        "34 focused unit and GUI regression tests passed",
+        "Native Windows/OpenGL validator passed 30 renderer/channel/timebase transitions and 21 alternating 5 s/300 s checks with no errors",
+        "Codex turn 2026-11-05"
+      ]
+    }
+  ],
+  "results": [
+    "The video shows EEG becoming sparsely connected during window changes. The committed bin estimate divided the point budget by channel count, assuming per-channel extrema had unique timestamps. Correlated channels often share extrema, so the selected timestamp union could be far below budget and produce multi-cycle straight joins.",
+    "Raw preparation now begins with a finer source-time grid and reduces it only when the actual union of retained extrema exceeds the point budget. This common preparation path covers all raw modalities and renderer backends.",
+    "Added a correlated 32-channel EEG regression that checks both retained sample density and the point budget. Focused suites and native Windows/OpenGL transition and memory validation passed."
+  ],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "The numerical regression uses a deterministic correlated EEG-like signal. No commit or push was made; existing local modifications were preserved."
+  ]
+}

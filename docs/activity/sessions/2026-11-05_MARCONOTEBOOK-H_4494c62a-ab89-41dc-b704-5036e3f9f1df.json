@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "session_id": "4494c62a-ab89-41dc-b704-5036e3f9f1df",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-05T16:21:14+01:00",
+  "status": "open",
+  "summary": "Evaluate and prototype literature-based PPG ZLE and SC Haar SWT-Laplace artifact preprocessing in the GUI.",
+  "intervals": [
+    {
+      "id": "4494c62a-ab89-41dc-b704-5036e3f9f1df",
+      "source_event_id": "4494c62a-ab89-41dc-b704-5036e3f9f1df",
+      "started_at": "2026-11-05T16:21:14+01:00",
+      "ended_at": null,
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Inspect the primary algorithms and the current project-local SC/PPG processing and plotting paths; implement suitable opt-in preprocessing and verify it if integration is safe.",
+      "evidence": [
+        "User request: PPG ZLE based on Park et al. 2017 and SC Haar SWT with Laplace coefficient rejection based on Shukla et al. 2018",
+        "Codex turn 2026-11-05"
+      ]
+    }
+  ],
+  "results": [],
+  "commits": [],
+  "open_items": [
+    "Inspect implementation state, reproduce algorithm behavior, and report or integrate GUI controls with verification."
+  ],
+  "limitations": []
+}

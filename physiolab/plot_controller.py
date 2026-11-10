@@ -13,6 +13,7 @@ from .raw_render_worker import RawRenderWorker
 from .raw_snapshot import build_raw_source
 from .render_contracts import ViewSpec
 from .render_policy import RAW_DISPLAY_POLICY
+from .eeg_montage import scalp_display_order
 from .amplitude_display import visible_gain
 from .pyqtgraph_raw import PyQtGraphRawPlot
 from .vispy_raw import VisPyRawPlot
@@ -80,7 +81,12 @@ class PlotController(QObject):
 
     def set_window(self,seconds):
         self.state.set_window(seconds)
-        self.change(replay=True)
+        if self.mode=='vispy' and self.state.follow_live and not self.state.paused:
+            for backend in self.backends['vispy'].values():
+                backend.set_sweep_duration(self.state.view_seconds)
+            self.change()
+        else:
+            self.change(replay=True)
 
     def set_paused(self,paused):
         self.state.set_paused(paused)
@@ -94,11 +100,17 @@ class PlotController(QObject):
         span=self.state.settings.bounded_view_seconds(high-low)
         low=high-span
         zoom=abs(span-self.state.view_seconds)>max(.001,.001*self.state.view_seconds)
+        live_zoom=self.state.follow_live and zoom and not self.state.paused
         self.state.set_window(span)
         if not (self.state.follow_live and zoom):
             self.state.follow_live=False
             self.state.source_bounds={kind:(low,high) for kind in self.state.history}
-        self.change(replay=True)
+        if self.mode=='vispy' and live_zoom:
+            for backend in self.backends['vispy'].values():
+                backend.set_sweep_duration(self.state.view_seconds)
+            self.change()
+        else:
+            self.change(replay=True)
 
     def defer_interaction(self): self.state.interacting_until=time.monotonic()+.16
 
@@ -141,28 +153,40 @@ class PlotController(QObject):
                     self.expired.add(kind)
         if not self.visible or not self.state.dirty or now<self.state.interacting_until: return
         self.draw()
-        self.warm()
 
-    def warm(self):
-        """Link one spare channel pair per tick, without touching active data.
+    def warm(self, selections):
+        """Prepare one selected source's spare channel batch before Raw Data.
 
-        Reserve only the displayed count in each of the two transactional banks.
-        Linking all new shaders at a timebase commit causes long native stalls.
+        Selections carry channel counts and nominal rates, so this can run
+        before Play. Never add an offscreen draw to the live presentation loop.
         """
-        if self.mode!='vispy' or self.state.paused or os.environ.get('QT_QPA_PLATFORM')=='offscreen': return
+        if (self.closed or self.visible or self.mode!='vispy' or self.state.paused
+                or os.environ.get('QT_QPA_PLATFORM')=='offscreen'):
+            return
         candidates=[]
-        for kind in self.visible:
-            chunks=self.state.history[kind]
-            if not chunks: continue
-            count=min(chunks[-1][1].shape[1],self.channel_limit if kind=='EEG' else RAW_DISPLAY_POLICY.max_single_channels)
+        for kind,(count,fs) in selections.items():
+            count = self.warmup_channel_count(kind, count)
             backend=self.backends[self.mode][kind]
-            if backend.reserved_channel_count<2*count:
-                candidates.append((count,kind,backend,chunks[-1][4]))
+            if count>0 and fs>0 and backend.reserved_channel_count<2*count:
+                candidates.append((count,kind,backend,fs))
         for count,kind,backend,fs in sorted(candidates,key=lambda item:item[0]):
             start=time.perf_counter()
-            if backend.warm_channels(2*count,self.state.view_seconds,fs):
+            duration=min(self.state.view_seconds,self.state.settings.default_view_seconds)
+            if backend.warm_channels(2*count,duration,fs):
                 self.performance.measure('raw_warmup_'+kind,time.perf_counter()-start)
                 break
+
+    @staticmethod
+    def warmup_channel_count(kind, count):
+        return count if kind == 'EEG' else min(count, RAW_DISPLAY_POLICY.max_single_channels)
+
+    def warmup_progress(self, kind, count):
+        """Return completed selected channels and any warmup failure."""
+        if self.mode != 'vispy' or count <= 0 or os.environ.get('QT_QPA_PLATFORM') == 'offscreen':
+            return None
+        total = self.warmup_channel_count(kind, count)
+        backend = self.backends['vispy'][kind]
+        return min(total, backend.reserved_channel_count // 2), total, backend.warmup_failed
 
     def empty_view(self,kind):
         state=self.state
@@ -197,7 +221,13 @@ class PlotController(QObject):
             if gpu and command is None: low=high-RAW_DISPLAY_POLICY.history_cycles*state.view_seconds
             latest=backend.latest_sample_time
             source=build_raw_source(chunks,left=low,right=high,origin=state.origin,
-                reference=ref,vispy=gpu and command is None,
+                # Center is an explicit request to derive a fresh display
+                # reference from the visible history. Passing the latched
+                # reference here makes prepare_raw_window reuse it, so the
+                # command appears to succeed while leaving the signal at its
+                # old baseline (and every later timebase replay preserves it).
+                reference=None if command=='center' else ref,
+                vispy=gpu and command is None,
                 latest=latest if np.isfinite(latest) else None,
                 replay_history=replay or command is not None,sweep_seconds=state.view_seconds,
                 max_channels=count,shared_scale=state.display_scales.get(kind),
@@ -243,6 +273,7 @@ class PlotController(QObject):
                     if outcome.status=='no_data': self.empty_view(kind)
                 continue
             if kind not in self.visible: state.dirty=True; continue
+            display_frame = self._ordered_display_frame(kind, frame)
             if source.command=='center':
                 old_centers,old_scales=state.initial_references[kind]
                 centers=old_centers.copy(); n=frame.raw.shape[1]
@@ -250,7 +281,16 @@ class PlotController(QObject):
                 else: centers[:n]=frame.centers
                 state.signals.set_reference(kind,centers,old_scales)
                 state.center_requests.discard(kind)
-                self.change(replay=True)
+                backend = self.backends[self.mode][kind]
+                shifted = False
+                if self.mode == 'vispy':
+                    try:
+                        shifted = backend.recenter(display_frame.centers, state.view_seconds)
+                    except Exception as exc:
+                        self.status.emit(f'{kind} recentering failed: {exc}')
+                if not shifted:
+                    backend.invalidate_history()
+                self.change()
                 continue
             if source.command=='fit':
                 gain=visible_gain(frame,state.view_seconds,self.show_raw,self.show_filtered,source.right)
@@ -263,7 +303,7 @@ class PlotController(QObject):
                           self.gains[kind],self.show_raw,self.show_filtered)
             start=time.perf_counter()
             try:
-                ready=self.backends[self.mode][kind].present(frame,view,source.chunks[-1][4])
+                ready=self.backends[self.mode][kind].present(display_frame,view,source.chunks[-1][4])
             except Exception as exc:
                 self.status.emit(f'{kind} drawing failed: {type(exc).__name__}: {exc}')
                 attempts=self.failures.get(kind,0)+1
@@ -278,6 +318,23 @@ class PlotController(QObject):
                 self.failures.pop(kind,None)
                 self.presented_timing[kind]=(response.queued_at,response.ready_at,time.perf_counter())
                 self.frame_presented.emit(kind)
+
+    @staticmethod
+    def _ordered_display_frame(kind, frame):
+        if kind != 'EEG' or len(frame.names) < 2:
+            return frame
+        order = scalp_display_order(frame.names)
+        if order == tuple(range(len(frame.names))):
+            return frame
+
+        def ordered(values):
+            result = np.take(values, order, axis=-1)
+            result.setflags(write=False)
+            return result
+
+        return replace(frame, raw=ordered(frame.raw), filtered=ordered(frame.filtered),
+                       centers=ordered(frame.centers), scales=ordered(frame.scales),
+                       names=tuple(frame.names[index] for index in order))
 
     def close(self):
         self.closed=True; self.scheduler.stop()

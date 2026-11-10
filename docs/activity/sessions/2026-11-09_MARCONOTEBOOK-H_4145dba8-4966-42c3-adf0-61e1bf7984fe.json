@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "session_id": "4145dba8-4966-42c3-adf0-61e1bf7984fe",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "afe41954f8b8bbbfc4889cbc28d7cc2c3a65572d",
+  "updated_at": "2026-11-09T15:21:07+01:00",
+  "status": "completed",
+  "summary": "Rifinire il topoplot EEG, aggiungere bande derivate da IAF secondo Borghini et al. (2019), salvare le bande nel file EYC e aggiungere normalizzazione 0–1.",
+  "intervals": [
+    {
+      "started_at": "2026-11-09T14:46:13+01:00",
+      "source_event_id": null,
+      "evidence": [
+        "Richiesta dell utente in questa conversazione"
+      ],
+      "id": "3d72202a-a096-4de0-bb2a-b5a2bf0bbf39",
+      "ended_at": "2026-11-09T14:53:07+01:00",
+      "basis": "observed",
+      "kind": "interactive",
+      "description": "Ispezionare documentazione, implementazione e attività residue del topoplot EEG; proseguire con il controllo pertinente."
+    },
+    {
+      "id": "150ef848-2f0a-48cc-b0c3-62d30b67803f",
+      "kind": "mixed",
+      "basis": "observed",
+      "source_event_id": null,
+      "evidence": [
+        "Richiesta dettagliata dell utente in questa conversazione",
+        "Diff locale su physiolab/topography.py, physiolab/topography_widgets.py, physiolab/eeg_bands.py, physiolab/calibration.py e physiolab/gui.py",
+        "Aggiornati docs/EEG_TOPOGRAPHY.md e TODO.md"
+      ],
+      "started_at": "2026-11-09T14:58:52+01:00",
+      "ended_at": "2026-11-09T15:21:07+01:00",
+      "description": "Implementati layout compatto del topoplot, finestra fissa 1 s/50%, persistenza esposta, colorbar orizzontale, bande IAF salvate nell analisi EYC secondo Borghini et al. (2019) e normalizzazione min–max/relative power. Aggiornata la documentazione e TODO."
+    }
+  ],
+  "results": [
+    "Confermato che main a afe4195 contiene l implementazione topoplot pubblicata il 6 novembre: pannello RAW, bande/IAF, montaggio standard 10-5, interpolazione sferica e controlli colore.",
+    "TODO.md non contiene un intervento di sviluppo topoplot ancora pianificato; l unico passaggio specifico rimasto e la validazione nativa con etichette/dispositivi EEG reali.",
+    "Interrotto il tentativo di aprire il viewer dopo lo steering dell utente; nessun processo avviato dalla sessione e rimasto attivo.",
+    "IAF bands: Delta [0, IAF−6), Theta [IAF−6, IAF−2), Alpha [IAF−2, IAF+2), Beta [IAF+2, IAF+16), Gamma [IAF+16, IAF+25) Hz. EYC metadata analysis stores iaf_bands_hz and iaf_band_convention.",
+    "Normalization offers per-frame electrode min–max and selected-band/total 1–45 Hz power; fixed 1 s window and 50% overlap; horizontal colorbar under the scalp."
+  ],
+  "commits": [],
+  "open_items": [
+    "Validazione visiva con dispositivo EEG reale e relativi nomi canale."
+  ],
+  "limitations": [
+    "La sessione precedente includeva solo ispezione e un tentativo di avvio UI, poi interrotto su richiesta dell utente.",
+    "Non sono stati eseguiti test né verifiche UI/dispositivo in questa sessione, secondo il perimetro di lavoro concordato. Le modifiche sono locali e non sono state committate o pubblicate."
+  ]
+}

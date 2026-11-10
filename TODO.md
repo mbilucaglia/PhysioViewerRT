@@ -14,12 +14,35 @@
 - [x] Fast-forward the canonical local checkout to include the published rendering
       fixes and portable setup. Repeat setup/doctor there: all 14 checks passed.
       Both existing calibration files retained their exact SHA-256 hashes.
-- [ ] On the other PC, pull the setup commit on the correct working branch and
-      run setup_windows.cmd --non-interactive, then project.cmd doctor --gui.
-      Open this repository as the primary Codex project folder. This PC was not
-      accessible during preparation; do not describe it as configured or tested.
-- [ ] Confirm native GPU rendering, LSL networking and real-device playback on
-      each PC. Offscreen checks do not certify these hardware-specific paths.
+- [x] On MARCONOTEBOOK-H, pulled the setup commit on main and ran
+      setup_windows.cmd --non-interactive, then project.cmd doctor --gui. This
+      repository is open as the primary Codex project folder. See the local
+      validation record below.
+- [ ] Confirm real-device playback and cross-device LSL networking on each PC.
+      MARCONOTEBOOK-H native GPU and synthetic local LSL checks passed; offscreen
+      checks and synthetic streams do not establish physical-device playback.
+
+### MARCONOTEBOOK-H follow-up — 5 November 2026
+
+- [x] Fast-forwarded main to 8c5053d and applied the pinned Windows/Python 3.12
+      setup. All 14 doctor checks passed, including native Qt/OpenGL window
+      construction in offscreen mode.
+- [x] On the committed 8c5053d source, native VisPy/PyQtGraph rendering passed
+      30 timebase/channel transitions and 21 process-memory snapshots without
+      errors. Graphics layers stayed at 136; after the first transition the
+      retained ring arrays stayed at 203,788,800 bytes. Across the ten 300-second
+      snapshots, working set ranged from 914,817,024 to 965,332,992 bytes.
+- [x] Local synthetic LSL, 60-second 32-channel playback, no reducers: draw p95
+      was 80.6/83.9/82.8 ms and p99 107.5/110.0/111.0 ms for EEG/EDA/PPG.
+      With both peripheral Hampel reducers: p95 86.9/92.0/91.0 ms and p99
+      137.4/139.0/135.4 ms. The 30-second 8-channel/both-Hampel trial measured
+      p95 39.6/41.4/41.4 ms and p99 54.6/50.8/50.6 ms. Cursor lead was zero;
+      local synthetic data advanced throughout. These are single-run diagnostics,
+      not acceptance tests or physical-device evidence.
+- [ ] Agree p95/p99 budgets for the intended workload, then repeat under real
+      device streams and perform the sustained memory soak. No LSL source was
+      active during this session; cross-device networking and hardware playback
+      remain unverified.
 
 
 ## Wavelet dependency failure on another PC — 27 October 2026
@@ -618,6 +641,7 @@ The measures, statistical assumptions and presentation still need discussion.
 - [x] Remove editable vertical-gain values from Raw Data plot headers. Keep
       minus/Fit/plus buttons and bounded internal gain state; source-conversion
       gain/offset controls remain acquisition settings, independent of this view.
+
 ## Local checkout handoff — 3 November 2026
 
 - **Launch from `PhysioViewerRT`**, the canonical local checkout. Its `main`
@@ -635,3 +659,20 @@ The measures, statistical assumptions and presentation still need discussion.
 - See [rendering refactor validation and remaining checks](docs/RENDERING_REFACTOR.md).
   Close any app running from `PhysioViewerRT-refactor` before removing that
   duplicate checkout. Local calibration recordings remain in their original paths.
+
+## EEG topoplot refinements — 9 November 2026
+
+- [x] Keep the topoplot toolbar compact: remove the separate options dialog,
+      fix its analysis window at 1 s / 50% overlap, expose persistence and IAF,
+      and place Move, Expand, −, Fit, +, Auto together in the header.
+- [x] Place a slim vertical color scale in a separate gutter beside the scalp,
+      with three quiet reference labels and the active unit. Keep it outside the
+      plot area so it does not take height from the map.
+- [x] Normalize every band or voltage topoplot vector to 0–1 with min–max.
+      Save Borghini et al. (2019) IAF-derived band boundaries with IAF in EYC
+      analysis metadata, and use them in the topoplot.
+- [x] Restore the false-colour map palette and align Move, Expand, Center, and
+      topoplot colour commands across the tab headers in the order Move, Expand,
+      −, Fit, +, Auto; remove Gain text while preserving its layout space.
+- [ ] Validate the updated view with a real EEG device and its channel labels.
+      No tests or device checks were run in this implementation session.

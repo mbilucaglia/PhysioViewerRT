@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "session_id": "9e404fe4-75d0-44e2-b99e-24e873eb34d5",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "afe41954f8b8bbbfc4889cbc28d7cc2c3a65572d",
+  "updated_at": "2026-11-09T16:10:17+01:00",
+  "status": "completed",
+  "summary": "Correggere il crash all avvio causato dall enum Qt usato per i pulsanti icon-only.",
+  "intervals": [
+    {
+      "id": "af1bff13-c3e4-4796-82d1-c4c6c946d06f",
+      "started_at": "2026-11-09T16:09:23+01:00",
+      "ended_at": "2026-11-09T16:10:17+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Sostituiti tutti i riferimenti QToolButton.ToolButtonStyle con Qt.ToolButtonStyle nei controlli di move/expand/center/fit.",
+      "evidence": ["Traceback fornito dall utente"],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "Corretto il punto del traceback in ui_icons.set_panel_expanded e tutte le occorrenze dello stesso enum in gui.py e topography_widgets.py.",
+    "rg non rileva più riferimenti a QToolButton.ToolButtonStyle; git diff --check pulito."
+  ],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "Non avviata l applicazione né eseguiti test."
+  ]
+}

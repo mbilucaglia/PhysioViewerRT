@@ -30,6 +30,7 @@ class VisPyMetricPlot:
         self._bounds = (-5., 0.)
         self._duration = 5.
         self._latest = -np.inf
+        self._sweep_time = None
         self._y_limits = (-1., 1.)
         self._signature = None
         self._auto_y = True
@@ -175,26 +176,32 @@ class VisPyMetricPlot:
         else:
             self.set_y_range(-1., 1.)
 
-    def set_xrange(self, left, right):
+    def set_xrange(self, left, right, *, sweep_time=None):
         duration = float(right-left)
         if duration <= 0:
             return
         self._bounds = (float(left), float(right))
-        self.engine.set_axis_labels(duration=duration)
+        self._sweep_time = sweep_time
         if not np.isclose(duration, self._duration):
             self._duration = duration
+            self.engine.set_axis_labels(duration=duration)
             self._configure_layers()
-        # Cursor remains at the last true measurement, never ahead of data.
-        if np.isfinite(self._latest):
-            self.engine.set_sweep_cursor(
-                (self._latest % self._duration)/self._duration)
+        self._update_cursor()
+
+    def _update_cursor(self):
+        if not np.isfinite(self._latest):
+            self.engine.set_sweep_cursor(np.nan)
+            return
+        # In live view the blue line is time. Measured markers and curves
+        # still end at their actual timestamps; no values are extrapolated.
+        head = self._latest if self._sweep_time is None else self._sweep_time
+        self.engine.set_sweep_cursor((head % self._duration)/self._duration)
 
     def refresh_axes(self):
         if np.isfinite(self._latest):
             for _, dots in self._layers.values():
                 dots.expire_points(self._latest)
-            self.engine.set_sweep_cursor(
-                (self._latest % self._duration)/self._duration)
+        self._update_cursor()
         self.canvas.update()
 
     def close(self):

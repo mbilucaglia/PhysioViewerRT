@@ -1,20 +1,27 @@
 """EEG topography view with one bounded background calculation at a time."""
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 import time
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QRectF
-from PySide6.QtGui import QPainter
+from PySide6.QtCore import QDir, QLineF, QPointF, QRectF, Qt
+from PySide6.QtGui import QLinearGradient, QPainter, QPen
+from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QToolButton,
-    QDoubleSpinBox, QCheckBox, QDialog, QFormLayout,
+    QWidget, QVBoxLayout, QLabel, QComboBox, QToolButton, QSizePolicy,
+    QDoubleSpinBox, QCheckBox,
 )
 
 from .topography import TopographySettings, calculate_topography
-from .eeg_montage import MONTAGE_NAME
 from .display_units import DEFAULT_EEG_DISPLAY_STEP
-from .settings import DEFAULT_VIEWER_SETTINGS
+from .ui_icons import set_panel_expanded
+
+DESIGNER_DIRECTORY = Path(__file__).resolve().parent.parent / 'designer'
+TOPOGRAPHY_UI_PATH = DESIGNER_DIRECTORY / 'TopographyView.ui'
+TOPOGRAPHY_PALETTE = ('#440154', '#3b528b', '#21918c', '#5ec962', '#fde725')
+ANALYSIS_WINDOW_SECONDS = 1.0
+ANALYSIS_OVERLAP = 0.5
 
 
 class SmoothTopographyImage(pg.ImageItem):
@@ -25,9 +32,78 @@ class SmoothTopographyImage(pg.ImageItem):
         painter.restore()
 
 
+class TopographyColorScale(QWidget):
+    """Compact vertical color scale in its own gutter beside the scalp."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._levels = (0., 1.)
+        self._colors = [pg.mkColor(color) for color in TOPOGRAPHY_PALETTE]
+        self.setFixedWidth(58)
+        self.setMinimumHeight(90)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        self.setToolTip('Topoplot color scale')
+
+    def levels(self):
+        return self._levels
+
+    def setLevels(self, levels):
+        levels = tuple(float(value) for value in levels)
+        if levels == self._levels:
+            return
+        self._levels = levels
+        self.update()
+
+    def setColors(self, colors):
+        colors = [pg.mkColor(color) for color in colors]
+        if colors == self._colors:
+            return
+        self._colors = colors
+        self.update()
+
+    @staticmethod
+    def _number(value):
+        if abs(value) < 1e-14:
+            return '0'
+        return f'{value:.3g}'
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        font = painter.font()
+        font.setPointSizeF(8.)
+        painter.setFont(font)
+        painter.setPen(QPen(pg.mkColor('#77768f')))
+
+        top, bottom = 4., float(self.height() - 12)
+        if bottom <= top:
+            return
+        left, bar_width = 4., 9.
+        gradient = QLinearGradient(0., bottom, 0., top)
+        count = max(2, len(self._colors))
+        for index, color in enumerate(self._colors):
+            gradient.setColorAt(index / (count - 1), color)
+        painter.setPen(QPen(pg.mkColor('#dfe1ef'), .7))
+        painter.setBrush(gradient)
+        painter.drawRoundedRect(QRectF(left, top, bar_width, bottom - top), 2., 2.)
+
+        low, high = self._levels
+        middle = 0. if low < 0. < high else (low + high) / 2.
+        ticks = ((high, top), (middle, (top + bottom) / 2.), (low, bottom))
+        painter.setPen(QPen(pg.mkColor('#a2a0b2'), .7))
+        for value, y in ticks:
+            painter.drawLine(QLineF(QPointF(13., y), QPointF(16., y)))
+        painter.setPen(QPen(pg.mkColor('#77768f')))
+        labels = (self._number(high), self._number(middle), self._number(low))
+        for label, y in zip(labels, (top, (top + bottom) / 2., bottom)):
+            painter.drawText(18, int(y - 7), self.width() - 18, 14,
+                             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, label)
+
+
 class TopographyView(QWidget):
-    def __init__(self, parent=None, extrapolate_control=None, *, colour_controls=None,
-                 colour_step=DEFAULT_VIEWER_SETTINGS.gain_step):
+    """Designer-owned controls with a programmatic plot and async calculation."""
+
+    def __init__(self, parent=None, colour_step=1.2):
         super().__init__(parent)
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='eeg-topography')
         self._closing = False
@@ -38,89 +114,58 @@ class TopographyView(QWidget):
         self._next_tick = 0.
         self.result = None
         self._sensor_key = None
-        self._colour_levels = None
-        self._colour_context = None
-        self._colour_source_identity = None
-        self._colour_step = colour_step
+        self._colour_levels = (0., 1.)
+        self._colour_step = float(colour_step)
+        self._persistent_grid = None
+        self._persistent_end = None
+        self._persistent_key = None
+        self._load_designer_controls()
+        self._bind_controls()
+        self._build_plot()
+        self._connect_controls()
+        set_panel_expanded(self.expand, False)
+        self.settings_changed()
+
+    def _load_designer_controls(self):
+        if not TOPOGRAPHY_UI_PATH.is_file():
+            raise FileNotFoundError(f'Topography Designer layout not found: {TOPOGRAPHY_UI_PATH}')
+        loader = QUiLoader()
+        loader.setWorkingDirectory(QDir(str(DESIGNER_DIRECTORY)))
+        self.designer_ui = loader.load(str(TOPOGRAPHY_UI_PATH), self)
+        if self.designer_ui is None:
+            raise RuntimeError(f'Qt Designer could not load {TOPOGRAPHY_UI_PATH}')
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(3)
-        header = QHBoxLayout()
-        header.addWidget(QLabel('EEG topoplot'))
-        self.band = QComboBox()
-        self.band.setObjectName('topographyBand')
-        self.band.addItems(['Unfiltered', 'Delta', 'Theta', 'Alpha', 'Beta', 'Gamma'])
-        self.band.setCurrentText('Alpha')
-        header.addWidget(self.band, 1)
-        options = QToolButton()
-        options.setObjectName('topographySettings')
-        options.setText('…')
-        options.setToolTip('Topoplot settings')
-        options.setAccessibleName('Topoplot settings')
-        header.addWidget(options)
-        self.move = QToolButton()
-        self.move.setText('Move')
-        self.expand = QToolButton()
-        self.expand.setText('Expand')
-        self.expand.setCheckable(True)
-        header.addWidget(self.move)
-        header.addWidget(self.expand)
-        layout.addLayout(header)
-        self.options = QDialog(self)
-        self.options.setWindowTitle('EEG topoplot settings')
-        form = QFormLayout(self.options)
-        if colour_controls is None:
-            colour_row = QHBoxLayout()
-            colour_controls = {name: QToolButton() for name in ('minus', 'fit', 'plus')}
-            for name, text in (('minus', '−'), ('fit', 'Fit'), ('plus', '+')):
-                colour_controls[name].setText(text)
-                colour_row.addWidget(colour_controls[name])
-            colour_controls['auto'] = QCheckBox('Auto')
-            colour_controls['auto'].setChecked(True)
-            colour_row.addWidget(colour_controls['auto'])
-            form.addRow('Colour scale', colour_row)
-        self.colour_minus = colour_controls['minus']
-        self.colour_fit = colour_controls['fit']
-        self.colour_plus = colour_controls['plus']
-        self.colour_auto = colour_controls['auto']
-        self.extrapolate = extrapolate_control
-        if self.extrapolate is None:
-            self.extrapolate = QCheckBox('Full scalp · extrapolate beyond electrodes')
-            self.extrapolate.setChecked(True)
-            form.addRow(self.extrapolate)
-        self.source = QComboBox()
-        self.source.addItem('Processed EEG', 'processed')
-        self.source.addItem('Raw EEG', 'raw')
-        form.addRow('Band-power input', self.source)
-        self.iaf = QCheckBox('Use calibrated IAF ±2 Hz for Alpha')
-        self.iaf.setChecked(True)
-        form.addRow(self.iaf)
-        self.iaf_status = QLabel('No calibrated IAF · Alpha uses 8–13 Hz')
-        form.addRow(self.iaf_status)
-        self.window = self._spin(.25, 10., 2., .25, ' s')
-        self.overlap = self._spin(0., 95., 50., 5., ' %')
-        self.persistence = self._spin(0., 2., .15, .05, ' s')
-        self.window.setObjectName('topographyWindow')
-        self.overlap.setObjectName('topographyOverlap')
-        self.persistence.setObjectName('topographyPersistence')
-        form.addRow('Analysis window', self.window)
-        form.addRow('Window overlap', self.overlap)
-        form.addRow('Unfiltered persistence (τ)', self.persistence)
-        explanation = QLabel(
-            'Band views show absolute power; unfiltered shows signed raw voltage.\n'
-            'Persistence averages recent raw voltages with exponential decay; 0 = latest sample.\n'
-            'Update step = window × (1 − overlap). RAW pause freezes the map.\n'
-            f'{MONTAGE_NAME} · includes 10-10 and 10-20; template coordinates.\n'
-            'Spherical splines give a smooth scalp field; circles mark available channels.\n'
-            'Full scalp extrapolates beyond electrode coverage; these regions are estimated.\n'
-            'Uncheck Full scalp to limit the map to the area enclosed by electrodes.\n'
-            'Uses all selected EEG channels and the source reference. Display settings only.')
-        explanation.setWordWrap(True)
-        form.addRow(explanation)
-        self.options.resize(490, 330)
-        options.clicked.connect(self.options.show)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.designer_ui)
+
+    def _control(self, name, widget_type):
+        widget = self.designer_ui.findChild(widget_type, name)
+        if widget is None:
+            raise RuntimeError(f'TopographyView.ui is missing {widget_type.__name__} "{name}"')
+        return widget
+
+    def _bind_controls(self):
+        self.band = self._control('topographyBand', QComboBox)
+        self.source = self._control('topographySource', QComboBox)
+        self.source.setItemData(0, 'processed')
+        self.source.setItemData(1, 'raw')
+        self.move = self._control('topographyMove', QToolButton)
+        self.expand = self._control('topographyExpand', QToolButton)
+        self.colour_minus = self._control('topographyColourMinus', QToolButton)
+        self.colour_fit = self._control('topographyColourFit', QToolButton)
+        self.colour_plus = self._control('topographyColourPlus', QToolButton)
+        self.colour_auto = self._control('topographyColourAuto', QCheckBox)
+        self.iaf = self._control('topographyUseIaf', QCheckBox)
+        self.iaf_status = self._control('topographyIafStatus', QLabel)
+        self.persistence_label = self._control('topographyPersistenceLabel', QLabel)
+        self.persistence = self._control('topographyPersistence', QDoubleSpinBox)
+        self.extrapolate = self._control('topographyExtrapolate', QCheckBox)
+        self.status = self._control('topographyStatus', QLabel)
+        self.plot_host = self._control('topographyPlotHost', QWidget)
+        self.colorbar_host = self._control('topographyColorbarHost', QWidget)
+
+    def _build_plot(self):
         self.plot = pg.PlotWidget(background='w')
-        self.plot.setMinimumSize(100, 90)
         self.plot.hideAxis('left')
         self.plot.hideAxis('bottom')
         self.plot.setAspectLocked(True)
@@ -129,59 +174,59 @@ class TopographyView(QWidget):
         self.plot.setXRange(-1.12, 1.12, padding=0)
         self.plot.setYRange(-1.05, 1.18, padding=0)
         self.image = SmoothTopographyImage(axisOrder='row-major')
+        self._palette = list(TOPOGRAPHY_PALETTE)
+        self._color_map = pg.ColorMap(np.linspace(0., 1., len(self._palette)),
+                                      [pg.mkColor(color) for color in self._palette])
+        self.image.setColorMap(self._color_map)
         self.plot.addItem(self.image)
+        self._add_head_outline()
+        self._add_sensor_markers()
+        self.colorbar = TopographyColorScale()
+        self.colorbar.setColors(self._palette)
+        self.plot_host.layout().addWidget(self.plot)
+        self.colorbar_host.layout().addWidget(
+            self.colorbar, 0, Qt.AlignmentFlag.AlignVCenter)
+
+    def _add_head_outline(self):
         a = np.linspace(0, 2*np.pi, 150)
         self.plot.plot(np.cos(a), np.sin(a), pen=pg.mkPen('#45445e', width=1.5))
         self.plot.plot([-.12, 0., .12], [.99, 1.15, .99], pen=pg.mkPen('#45445e', width=1.5))
         for side in (-1, 1):
             self.plot.plot(side*np.array([1., 1.08, 1.08, 1.]), [.18, .12, -.12, -.18],
                            pen=pg.mkPen('#45445e', width=1.5))
+
+    def _add_sensor_markers(self):
         self.sensors = pg.ScatterPlotItem(
             size=6, symbol='o', pen=pg.mkPen('#262735', width=1.),
             brush=(255, 255, 255, 170), hoverable=True,
             tip=lambda x, y, data: str(data))
         self.sensors.setZValue(1.)
         self.plot.addItem(self.sensors)
-        self.colorbar = pg.ColorBarItem(values=(0, 1), interactive=False, width=12)
-        self.colorbar.setImageItem(self.image, insert_in=self.plot.getPlotItem())
-        layout.addWidget(self.plot, 1)
-        self.status = QLabel('Waiting for EEG samples')
-        self.status.setWordWrap(True)
-        self.status.setStyleSheet('font-size: 10px; color: #56536c;')
-        layout.addWidget(self.status)
+
+    def _connect_controls(self):
         for widget in (self.band, self.source):
             widget.currentIndexChanged.connect(self.settings_changed)
-        for widget in (self.window, self.overlap, self.persistence):
-            widget.valueChanged.connect(self.settings_changed)
+        self.persistence.valueChanged.connect(self.settings_changed)
         self.iaf.toggled.connect(self.settings_changed)
         self.extrapolate.toggled.connect(self.settings_changed)
         self.colour_minus.clicked.connect(lambda: self.adjust_colours(self._colour_step))
         self.colour_plus.clicked.connect(lambda: self.adjust_colours(1/self._colour_step))
         self.colour_fit.clicked.connect(self.fit_colours)
         self.colour_auto.toggled.connect(self.set_colour_auto)
-        self.settings_changed()
-
-    @staticmethod
-    def _spin(low, high, value, step, suffix):
-        widget = QDoubleSpinBox()
-        widget.setRange(low, high)
-        widget.setDecimals(2)
-        widget.setSingleStep(step)
-        widget.setValue(value)
-        widget.setSuffix(suffix)
-        return widget
 
     def settings(self):
         return TopographySettings(self.band.currentText(), self.source.currentData(),
-                                  self.window.value(), self.overlap.value()/100.,
+                                  ANALYSIS_WINDOW_SECONDS, ANALYSIS_OVERLAP,
                                   self.persistence.value(), self.iaf.isChecked(),
                                   self.extrapolate.isChecked())
 
     def settings_changed(self, *_):
         unfiltered = self.band.currentText() == 'Unfiltered'
-        self.persistence.setEnabled(unfiltered)
+        self.persistence.setEnabled(True)
+        self.persistence_label.setEnabled(True)
         self.source.setEnabled(not unfiltered)
-        self.iaf.setEnabled(self.band.currentText() == 'Alpha')
+        if unfiltered:
+            self.iaf.setEnabled(False)
         self.reset()
 
     def reset(self):
@@ -189,6 +234,9 @@ class TopographyView(QWidget):
         self._key = None
         self._last_end = None
         self._next_tick = 0.
+        self._persistent_grid = None
+        self._persistent_end = None
+        self._persistent_key = None
         self.clear('Waiting for EEG samples')
 
     def clear(self, message):
@@ -198,14 +246,43 @@ class TopographyView(QWidget):
         self._sensor_key = None
         self.status.setText(message)
         self.status.setToolTip(message)
+        self.status.show()
         for button in (self.colour_minus, self.colour_fit, self.colour_plus):
             button.setEnabled(False)
+        self.colour_auto.setEnabled(False)
 
     def _apply_colour_levels(self):
-        if self.result is not None and self._colour_levels is not None:
-            # ColorBarItem propagates levels to the linked image immediately,
-            # including a paused map. Numerical data and worker state are untouched.
-            self.colorbar.setLevels(self._colour_levels)
+        self.colorbar.setLevels(self._colour_levels)
+        self.image.setLevels(self._colour_levels)
+
+    def _display_grid(self, result, config):
+        """Apply visual persistence to band maps; voltage already uses τ in its estimator."""
+        current = np.asarray(result['grid'], dtype=float)
+        sensor_key = (result['band'], config.source,
+                      tuple(result['labels']), tuple(result['positions']))
+        tau = float(config.persistence)
+        if (result['band'] != 'Unfiltered' and tau > 0.
+                and self._persistent_grid is not None
+                and self._persistent_key == sensor_key
+                and self._persistent_end is not None):
+            dt = float(result['end']) - self._persistent_end
+            if dt > 0.:
+                alpha = 1. - np.exp(-dt / tau)
+                previous = self._persistent_grid
+                valid = np.isfinite(current) & np.isfinite(previous)
+                current = current.copy()
+                current[valid] = previous[valid] + alpha * (current[valid] - previous[valid])
+                finite = np.isfinite(current)
+                low = float(np.min(current[finite]))
+                high = float(np.max(current[finite]))
+                if high > low:
+                    current[finite] = (current[finite] - low) / (high - low)
+                else:
+                    current[finite] = .5
+        self._persistent_grid = current.copy()
+        self._persistent_end = float(result['end'])
+        self._persistent_key = sensor_key
+        return current
 
     def set_colour_auto(self, enabled):
         if enabled and self.result is not None:
@@ -220,19 +297,27 @@ class TopographyView(QWidget):
         self._apply_colour_levels()
 
     def adjust_colours(self, factor):
-        if self.result is None or self._colour_levels is None:
+        if self.result is None:
             return
         self.colour_auto.setChecked(False)
-        maximum = float(np.clip(self._colour_levels[1]*factor, 1e-300, 1e300))
-        self._colour_levels = (-maximum if self.result['band'] == 'Unfiltered' else 0., maximum)
+        high = float(np.clip(self._colour_levels[1]*factor, .05, 5.))
+        self._colour_levels = (0., high)
         self._apply_colour_levels()
 
-    def tick(self, state, iaf=None):
+    def tick(self, state, iaf=None, iaf_bands=None):
         if self._closing or not self.isVisible():
             return
         config = self.settings()
-        self.iaf_status.setText(f'Calibrated IAF: {iaf:.2f} Hz' if iaf is not None else
-                               'No calibrated IAF · Alpha uses 8–13 Hz')
+        valid_iaf = (iaf is not None and np.isfinite(iaf) and 6. <= iaf <= 16.)
+        self.iaf.setEnabled(not (self.band.currentText() == 'Unfiltered') and valid_iaf)
+        use_individual = (valid_iaf and self.iaf.isChecked()
+                          and self.band.currentText() != 'Unfiltered')
+        self.iaf_status.setText(f'{iaf:.1f} Hz' if valid_iaf else 'No IAF')
+        self.iaf_status.setToolTip(
+            (f'Calibrated IAF: {iaf:.2f} Hz. '
+             + ('Using the saved IAF-derived band boundaries.' if use_individual
+                else 'Using the fixed canonical band boundaries.'))
+            if valid_iaf else 'No calibrated IAF loaded; canonical fixed bands are used.')
         history = state.visible_history('EEG')
         if not history or state.origin is None:
             if self._key is not None:
@@ -241,11 +326,8 @@ class TopographyView(QWidget):
         end = min(state.viewport('EEG')[1] + state.origin, float(history[-1][0][-1]))
         scales = np.asarray(state.display_scales.get('EEG', DEFAULT_EEG_DISPLAY_STEP))
         factors = DEFAULT_EEG_DISPLAY_STEP / scales
-        colour_source = (state.signals.generations['EEG'], tuple(factors.ravel()), state.units['EEG'])
-        if colour_source != self._colour_source_identity:
-            self._colour_levels = None
-            self._colour_source_identity = colour_source
-        key = (state.signals.generations['EEG'], config, iaf,
+        band_key = tuple((name, tuple(values)) for name, values in sorted((iaf_bands or {}).items()))
+        key = (state.signals.generations['EEG'], config, iaf, band_key,
                tuple(factors.ravel()), state.units['EEG'], state.paused, state.follow_live,
                end if state.paused or not state.follow_live else None)
         if key != self._key:
@@ -271,41 +353,28 @@ class TopographyView(QWidget):
         self._next_tick = now + .05  # Hard presentation budget: at most 20 maps/s.
         self._pending_revision = self._revision
         self._future = self._pool.submit(calculate_topography, chunks, end, config,
-                                         factors, state.units['EEG'], iaf)
+                                         factors, state.units['EEG'], iaf, iaf_bands)
 
-    def present(self, result, config, origin, paused):
+    def present(self, result, config, _origin, _paused):
         self.result = result
-        signed = result['band'] == 'Unfiltered'
-        source = 'raw' if signed else config.source
-        colour_context = (result['quantity'], source)
-        if self.colour_auto.isChecked() or self._colour_levels is None or colour_context != self._colour_context:
+        if self.colour_auto.isChecked() or self._colour_levels is None:
             self._colour_levels = tuple(result['levels'])
-        self._colour_context = colour_context
         for button in (self.colour_minus, self.colour_fit, self.colour_plus):
             button.setEnabled(True)
-        colors = (['#2166ac', '#67a9cf', '#f7f7f7', '#ef8a62', '#b2182b'] if signed else
-                  ['#440154', '#3b528b', '#21918c', '#5ec962', '#fde725'])
-        cmap = pg.ColorMap(np.linspace(0., 1., len(colors)), [pg.mkColor(c) for c in colors])
-        self.colorbar.setColorMap(cmap)
-        self.image.setImage(result['grid'], autoLevels=False, levels=self._colour_levels)
+        self.colour_auto.setEnabled(True)
+        display_grid = self._display_grid(result, config)
+        self.image.setImage(display_grid, autoLevels=False, levels=self._colour_levels)
+        # ImageItem.setRect() derives its transform from the assigned image size.
+        # It must run after setImage(), otherwise the map is scaled as a 1x1 image.
         self.image.setRect(QRectF(-1., -1., 2., 2.))
-        self._apply_colour_levels()
-        estimated = result['extrapolated']
+        self.colorbar.setLevels(self._colour_levels)
         sensor_key = (tuple(result['labels']), tuple(result['positions']))
         if sensor_key != self._sensor_key:
             xy = np.asarray(result['positions'])
             self.sensors.setData(xy[:, 0], xy[:, 1], data=result['labels'])
             self._sensor_key = sensor_key
-        summary = (f'{result["quantity"]} · {source} · t={result["end"]-origin:.2f} s\n'
-                   f'{len(result["labels"])} electrodes · step {config.hop:g} s'
-                   + (' · spline extrapolation' if estimated.any() else ' · spherical spline')
-                   + (' · paused' if paused else '')
-                   + (f' · excluded {len(result["excluded"])}' if result['excluded'] else ''))
-        self.status.setText(summary)
-        self.status.setToolTip(summary + f'\n{MONTAGE_NAME} · source reference retained'
-                               + '\nSpherical-spline field; circles mark available channels (hover for names).'
-                               + '\nFull-scalp areas outside electrode coverage are estimates; no synthetic channels.'
-                               + '\nExcluded: ' + (', '.join(result['excluded']) or 'none'))
+        self.status.clear()
+        self.status.hide()
 
     def shutdown(self):
         if self._closing:

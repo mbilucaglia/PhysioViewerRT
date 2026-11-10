@@ -24,26 +24,30 @@ class TopographyTests(unittest.TestCase):
         amplitudes = np.arange(1., 6.)
         x = np.sin(2*np.pi*10*self.t[:, None])*amplitudes
         result = calculate_topography(self.chunks(x), self.t[-1], self.config, scales=1e6, unit='µV')
-        np.testing.assert_allclose(result['values'], amplitudes**2/2 * 1e12, rtol=.015)
-        self.assertEqual(result['levels'][0], 0.)
+        np.testing.assert_allclose(result['absolute_values'], amplitudes**2/2 * 1e12, rtol=.015)
+        np.testing.assert_allclose(result['values'], [0., .125, 1/3, .625, 1.], rtol=.015)
+        self.assertEqual(result['levels'], (0., 1.))
         self.assertTrue(np.isnan(result['grid'][0, 0]))
-        self.assertIn('µV²', result['quantity'])
+        self.assertIn('min–max normalized', result['quantity'])
         beta = calculate_topography(self.chunks(x), self.t[-1], replace(self.config, band='Beta'))
-        self.assertLess(beta['values'].max(), .001)
+        self.assertLess(beta['absolute_values'].max(), .001)
 
     def test_iaf_and_source_selection(self):
         self.assertEqual(band_limits('Alpha', 9.), (7., 11.))
         self.assertEqual(band_limits('Alpha'), (8., 13.))
-        self.assertEqual(band_limits('Theta', 9.), (4., 8.))
+        self.assertEqual(band_limits('Theta', 9.), (3., 7.))
+        self.assertEqual(band_limits('Theta', 9., use_iaf=False), (4., 8.))
         x = np.tile(np.sin(2*np.pi*12*self.t)[:, None], (1, 5))
         chunks = self.chunks(x, 2*x)
         canonical = calculate_topography(chunks, self.t[-1], self.config)
         shifted = calculate_topography(chunks, self.t[-1], self.config, iaf=9.)
         processed = calculate_topography(chunks, self.t[-1], replace(self.config, source='processed'))
-        self.assertLess(shifted['values'].max(), .001)
-        np.testing.assert_allclose(processed['values'], 4*canonical['values'])
+        self.assertLess(shifted['absolute_values'].max(), .001)
+        np.testing.assert_allclose(processed['absolute_values'], 4*canonical['absolute_values'])
+        np.testing.assert_allclose(processed['values'], canonical['values'])
         fixed = calculate_topography(chunks, self.t[-1], replace(self.config, use_iaf=False), iaf=9.)
         np.testing.assert_allclose(fixed['values'], canonical['values'])
+        np.testing.assert_allclose(fixed['absolute_values'], canonical['absolute_values'])
 
     def test_full_scalp_fills_only_head_and_marks_extrapolated_area(self):
         x = np.sin(2*np.pi*10*self.t[:, None])*np.arange(1., 6.)
@@ -73,35 +77,44 @@ class TopographyTests(unittest.TestCase):
             self.assertTrue(np.isfinite(finite).all())
             self.assertGreaterEqual(finite.min(), result['levels'][0])
             self.assertLessEqual(finite.max(), result['levels'][1])
-            np.testing.assert_array_equal(result['values'], vector)
+            np.testing.assert_array_equal(result['absolute_values'], vector)
             if np.ptp(vector) == 0:
-                np.testing.assert_allclose(finite, vector[0])
+                np.testing.assert_allclose(result['values'], .5)
+                np.testing.assert_allclose(finite, .5)
+            else:
+                np.testing.assert_allclose(result['values'], [0., 2/3, 1/3, 1., 4/9])
 
-    def test_log_power_map_is_positive_unit_invariant_and_zero_safe(self):
+    def test_normalized_power_map_is_bounded_unit_invariant_and_zero_safe(self):
         x = np.sin(2*np.pi*10*self.t[:, None])*np.arange(1., 6.)
         normal = calculate_topography(self.chunks(x), self.t[-1], self.config)
         converted = calculate_topography(self.chunks(x), self.t[-1], self.config, scales=1e6)
-        np.testing.assert_allclose(converted['grid'], normal['grid']*1e12, rtol=1e-6, equal_nan=True)
-        self.assertGreater(np.nanmin(normal['grid']), 0.)
+        np.testing.assert_allclose(converted['absolute_values'], normal['absolute_values']*1e12)
+        np.testing.assert_allclose(converted['grid'], normal['grid'], rtol=1e-6, atol=1e-7, equal_nan=True)
+        self.assertGreaterEqual(np.nanmin(normal['grid']), 0.)
+        self.assertLessEqual(np.nanmax(normal['grid']), 1.)
         zero = calculate_topography(self.chunks(np.zeros_like(x)), self.t[-1], self.config)
-        np.testing.assert_array_equal(zero['grid'][np.isfinite(zero['grid'])], 0.)
+        np.testing.assert_array_equal(zero['absolute_values'], 0.)
+        np.testing.assert_array_equal(zero['grid'][np.isfinite(zero['grid'])], .5)
 
     def test_unfiltered_persistence_is_packet_independent_and_signed(self):
         x = np.zeros((1024, 5))
         x[-1] = [-1, -2, 0, 2, 1]
         config = replace(self.config, band='Unfiltered', persistence=0., source='processed')
         instant = calculate_topography(self.chunks(x, 100*x), self.t[-1], config)
-        np.testing.assert_array_equal(instant['values'], x[-1])
+        np.testing.assert_array_equal(instant['absolute_values'], x[-1])
+        np.testing.assert_array_equal(instant['values'], [.25, 0., .5, 1., .75])
         config = replace(config, persistence=.2)
         a = calculate_topography(self.chunks(x, split=13), self.t[-1], config)
         b = calculate_topography(self.chunks(x, split=512), self.t[-1], config)
         np.testing.assert_allclose(a['values'], b['values'])
-        self.assertLess(abs(a['values'][0]), .03)
-        self.assertLess(a['values'][0], 0.)
-        self.assertEqual(a['levels'][0], -a['levels'][1])
+        np.testing.assert_allclose(a['absolute_values'], b['absolute_values'])
+        self.assertLess(abs(a['absolute_values'][0]), .03)
+        self.assertLess(a['absolute_values'][0], 0.)
+        self.assertEqual(a['levels'], (0., 1.))
         # No future samples can leak into a historical map.
         earlier = calculate_topography(self.chunks(x), self.t[-2], config)
-        np.testing.assert_array_equal(earlier['values'], 0.)
+        np.testing.assert_array_equal(earlier['absolute_values'], 0.)
+        np.testing.assert_array_equal(earlier['values'], .5)
 
     def test_channel_mapping_exclusions_and_degenerate_montage(self):
         self.assertEqual(electrode_key('EEG T3-REF'), 't7')

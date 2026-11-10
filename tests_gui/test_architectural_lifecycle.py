@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from PySide6.QtCore import QThread, Signal, QTimer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QDialog
 from physiolab.gui import MainWindow
 from physiolab.task_lifecycle import OperationCancelled
 from physiolab.worker import Receiver
@@ -88,6 +88,31 @@ class ArchitecturalLifecycleTests(unittest.TestCase):
             timer.stop()
             release.set()
             self.pump(lambda: window._closed)
+
+    def test_nonmodal_calibration_close_unwinds_and_rejects_nested_operation(self):
+        window = self.window()
+        dialog = QDialog(window)
+        observed = []
+
+        def close_from_gui():
+            observed.append((dialog.isModal(), self.app.activeModalWidget(),
+                             dialog in window._operation_dialogs))
+            with patch('physiolab.gui.QFileDialog.getOpenFileName') as choose:
+                window.load_existing('EYC')
+                choose.assert_not_called()
+            window.close()
+
+        try:
+            QTimer.singleShot(0, close_from_gui)
+            result = window._wait_for_calibration_dialog(dialog)
+            self.assertEqual(result, QDialog.DialogCode.Rejected)
+            self.assertEqual(observed, [(False, None, True)])
+            self.assertIsNone(window._calibration_dialog)
+            self.assertFalse(window._operation_dialogs)
+            self.pump(lambda: window._closed)
+        finally:
+            dialog.deleteLater()
+            window.close()
 
     def test_discovery_coalesces_burst_and_closes_without_pending_restart(self):
         window = self.window()

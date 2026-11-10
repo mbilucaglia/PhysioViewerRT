@@ -137,7 +137,7 @@ class ResponsiveSources(QObject):
 
 
 class CalibrationScreen(QDialog):
-    """Fullscreen 60-second calibration prompt. Esc cancels recording."""
+    """Movable 60-second calibration prompt. Esc cancels recording."""
 
     def __init__(self, kind, parent=None):
         super().__init__(parent)
@@ -177,11 +177,13 @@ class CalibrationScreen(QDialog):
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.tick)
+        self.finished.connect(self.timer.stop)
 
     def showEvent(self, event):
         super().showEvent(event)
-        self.started_at = time.monotonic()
-        self.timer.start()
+        if self.started_at is None:
+            self.started_at = time.monotonic()
+            self.timer.start()
 
     def tick(self):
         remaining = max(0, DURATION_SECONDS - (time.monotonic() - self.started_at))

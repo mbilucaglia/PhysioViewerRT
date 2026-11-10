@@ -12,8 +12,20 @@ from .display_units import ARBITRARY_UNIT
 from .render_contracts import PreparedFrame
 
 
+def _sweep_slot_rate(duration):
+    # The ring represents one displayed sweep with a fixed vertex budget.
+    # Decouple its capacity from the source sample rate so changing timebase
+    # does not resize every OpenGL buffer.
+    duration = float(duration)
+    if not np.isfinite(duration) or duration <= 0:
+        raise ValueError('Sweep duration must be finite and positive')
+    return (RAW_DISPLAY_POLICY.max_points - 1e-6) / duration
+
+
 class VisPyRawPlot:
     """Incremental EEG/EDA/PPG GPU sweep using the common circular renderer."""
+
+    WARMUP_PAIRS_PER_TICK = 4
 
     def __init__(self, kind):
         from .vispy_plot_engine import VisPyPlotEngine
@@ -39,6 +51,7 @@ class VisPyRawPlot:
         self._latest = -np.inf
         self._last_axis_duration = None
         self._warmup_failed = False
+        self._centering_reference = None
         # Keep the public layer attributes for widget smoke tests.
         self.raw_line = self.filtered_line = None
 
@@ -67,6 +80,34 @@ class VisPyRawPlot:
             self.vertical_gain = gain
             self._apply_gain()
             self.canvas.update()
+
+    def set_sweep_duration(self, duration):
+        """Apply a timebase change by retiming the committed sweep in place."""
+        duration = float(duration)
+        if not np.isfinite(duration) or duration <= 0:
+            raise ValueError('Sweep duration must be finite and positive')
+        if self._pending_layers is not None:
+            return False
+        if self._configuration is None:
+            self.sweep_duration = duration
+            self.engine.set_axis_labels(duration=duration, bounds=(0., 1.))
+            self._last_axis_duration = duration
+            return False
+        count = len(self.layers['raw'])
+        rate = _sweep_slot_rate(duration)
+        if self._configuration == (count, duration, rate):
+            return True
+        for group in self.layers.values():
+            for layer in group:
+                layer.reconfigure_preserving_history(duration, rate)
+        self._configuration = (count, duration, rate)
+        self.sweep_duration = duration
+        self.engine.set_axis_labels(duration=duration, bounds=(0., 1.))
+        self._last_axis_duration = duration
+        self.set_sweep_head(self._latest if not hasattr(self, '_sweep_head')
+                            else self._sweep_head)
+        self.canvas.update()
+        return True
 
     def _apply_gain(self):
         """Scale each existing trace around its channel offset in the shader.
@@ -128,7 +169,7 @@ class VisPyRawPlot:
         self._configuration = None
 
     def warm_channels(self, count, duration, nominal_fs):
-        """Prepare one spare channel pair per idle tick, including driver linking.
+        """Prepare a small batch of spare channel pairs per idle tick.
 
         The offscreen draw uses empty geometry and never commits a display frame.
         Existing channel resources and their samples remain untouched.
@@ -137,35 +178,50 @@ class VisPyRawPlot:
                 or len(self._layer_pool['raw']) >= count):
             return False
         from .incremental_sweep import IncrementalSweepLayer
-        rate = RAW_DISPLAY_POLICY.display_rate(nominal_fs, duration)
-        pair = []
+        # Match set_frame's fixed-capacity slots so every timebase reuses
+        # the warmed VBO allocation as well as its linked shader program.
+        rate = _sweep_slot_rate(duration)
+        pairs = []
+        batch_size = min(self.WARMUP_PAIRS_PER_TICK,
+                         count - len(self._layer_pool['raw']))
         try:
-            for key, color in (('raw', '#db3232'), ('filtered', '#171717')):
-                layer = IncrementalSweepLayer(self.view.scene, duration, rate, color)
-                pair.append(layer)
-                layer.visual.visible = True
+            for _ in range(batch_size):
+                pair = []
+                pairs.append(pair)
+                for key, color in (('raw', '#db3232'), ('filtered', '#171717')):
+                    layer = IncrementalSweepLayer(self.view.scene, duration, rate, color)
+                    pair.append(layer)
+                    layer.visual.visible = True
             # VisPy links programs lazily at draw time, not node construction.
-            # A tiny framebuffer avoids reading back a full hidden plot image.
+            # Link this batch in one tiny offscreen draw, avoiding a full hidden
+            # plot readback and amortizing the per-call framebuffer cost.
             self.canvas.render(size=(1, 1))
             self.engine.label_gutter.fontMetrics().height()
         except Exception:
-            for layer in pair:
-                layer.close()
+            for pair in pairs:
+                for layer in pair:
+                    layer.close()
             # Warmup is optional; normal first-use rendering remains available.
             import logging
             logging.getLogger(__name__).warning('Raw GPU warmup failed', exc_info=True)
             self._warmup_failed = True
             return False
         finally:
-            for layer in pair:
-                layer.visual.visible = False
-        for key, layer in zip(('raw', 'filtered'), pair):
-            self._layer_pool[key].append(layer)
+            for pair in pairs:
+                for layer in pair:
+                    layer.visual.visible = False
+        for pair in pairs:
+            for key, layer in zip(('raw', 'filtered'), pair):
+                self._layer_pool[key].append(layer)
         return True
 
     @property
     def reserved_channel_count(self):
         return len(self._layer_pool['raw'])
+
+    @property
+    def warmup_failed(self):
+        return self._warmup_failed
 
     def _ensure_layers(self, count, duration, rate):
         """Stage a new GPU configuration without displaying partial channels.
@@ -221,6 +277,24 @@ class VisPyRawPlot:
                 or not np.isfinite(self._latest)
                 or self._pending_layers is not None)
 
+    def recenter(self, centers, duration):
+        """Translate the committed sweep; keep timestamps and edge topology."""
+        if self._centering_reference is None:
+            return False
+        previous, scales = self._centering_reference
+        count = len(scales)
+        if centers.shape != previous.shape or self.history_needs_replay(count, duration):
+            return False
+        shifts = ((previous - centers) / scales
+                  / RAW_DISPLAY_POLICY.span(count))
+        raw_shift, filtered_shift = (shifts if shifts.ndim == 2 else (shifts, shifts))
+        for key, offsets in (('raw', raw_shift), ('filtered', filtered_shift)):
+            for layer, offset in zip(self.layers[key], offsets):
+                layer.translate_y(float(offset))
+        self._centering_reference = (centers, scales)
+        self.canvas.update()
+        return True
+
     @property
     def channel_count(self):
         return self._target_channels
@@ -258,17 +332,9 @@ class VisPyRawPlot:
         n = raw.shape[1]
         if not len(times) or not n:
             return
-        # Preserve original sample slots for irregular extrema selections.
-        # A reduced display rate would silently discard narrow peaks again.
-        if nominal_fs is not None and nominal_fs > 0:
-            rate = float(nominal_fs)
-        elif self._configuration and self._configuration[:2] == (n, duration):
-            rate = self._configuration[2]
-        else:
-            diffs = np.diff(times)
-            diffs = diffs[np.isfinite(diffs) & (diffs > 0)]
-            rate = (float(max(1., round(1. / np.median(diffs), 3))) if len(diffs)
-                    else self._configuration[2] if self._configuration else 1.)
+        # Times and gap topology stay at source resolution in PreparedFrame;
+        # ring slots use a fixed display budget independent of sample rate.
+        rate = _sweep_slot_rate(duration)
         target_layers, ready = self._ensure_layers(n, duration, rate)
         # Only the new tail is processed. Previous samples supplied by the
         # worker are ignored in each ring after their first insertion.
@@ -281,12 +347,22 @@ class VisPyRawPlot:
                     layer.visual.visible = bool(enabled)
                 # Keep hidden layers current too: toggling Raw/Filtered back
                 # on must not expose missing sweep bins or require a rebuild.
-                if layer.ring.last_time >= float(times[-1]):
+                last_time = layer.ring.last_time
+                if last_time >= float(times[-1]):
                     continue
-                normalized = (values[:, i] - lower) / (upper-lower)
-                layer.append(times, normalized, connect=connect)
+                start = (0 if not np.isfinite(last_time) else
+                         int(np.searchsorted(times, last_time, side='right')))
+                if start >= len(times):
+                    continue
+                normalized = (values[start:, i] - lower) / (upper-lower)
+                layer.append(times[start:], normalized,
+                             connect=None if connect is None else connect[start:])
         if self._pending_layers is not None:
-            if not ready:
+            complete = all(
+                layer.ring.last_time >= float(times[-1])
+                for group in target_layers.values() for layer in group
+            )
+            if not ready or not complete:
                 return
             self._commit_layers(target_layers, (n, duration, rate))
             for layer_name, enabled in (('raw', show_raw),
@@ -324,7 +400,10 @@ class VisPyRawPlot:
         self.set_vertical_gain(view.gain)
         self.set_frame(frame,0.,view.duration,show_raw=view.show_raw,
                        show_filtered=view.show_filtered,sweep_head=view.right,nominal_fs=fs)
-        return not self.history_needs_replay(view.channels,view.duration)
+        ready = not self.history_needs_replay(view.channels,view.duration)
+        if ready:
+            self._centering_reference = (frame.centers, frame.scales)
+        return ready
 
     def close(self):
         self._drop_layers()

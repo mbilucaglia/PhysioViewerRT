@@ -1,5 +1,7 @@
 # Roadmap architetturale verificata — PhysioViewerRT
 
+**Stato attuale:** completata l'integrazione con main `0450512`, con audit e test ripetuti: 270 core OK, 171 GUI OK con 3 skip superati anche nativamente. Vedere [il report di integrazione](docs/REFACTORING_MAIN_INTEGRATION.md). La rettifica e le sezioni seguenti sono il resoconto storico delle fasi precedenti.
+
 **Rettifica dopo verifica remota del 10 novembre 2026:** questa roadmap e la sua implementazione sono state costruite su `0a8b2f5`, senza fetch preliminare. Il remoto verificato successivamente è `0450512`, avanti di cinque commit, con modifiche funzionali anche nei moduli interessati. L'implementazione locale non è ancora riconciliata o validata sulla versione aggiornata. Vedere la rettifica in [ARCHITECTURAL_REFACTOR_RESULTS.md](docs/ARCHITECTURAL_REFACTOR_RESULTS.md). Le indicazioni di completamento sotto si riferiscono soltanto alla vecchia base locale.
 
 Analisi del 10 novembre 2026, LAB-PC. **Aggiornamento: B01–B17 implementati localmente dopo l'autorizzazione complessiva dell'utente.** Risultati, decisioni e verifiche finali sono in [ARCHITECTURAL_REFACTOR_RESULTS.md](docs/ARCHITECTURAL_REFACTOR_RESULTS.md). L'audit e i blocchi seguenti conservano evidenze e criteri della proposta originale: descrivono lo stato prima dell'implementazione, non difetti tutti ancora presenti. Le voci di approvazione dei blocchi sono state risolte nell'autorizzazione complessiva, come documentato nei risultati.

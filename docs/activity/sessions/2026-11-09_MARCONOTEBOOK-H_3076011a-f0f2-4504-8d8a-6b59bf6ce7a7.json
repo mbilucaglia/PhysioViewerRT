@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "session_id": "3076011a-f0f2-4504-8d8a-6b59bf6ce7a7",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "afe41954f8b8bbbfc4889cbc28d7cc2c3a65572d",
+  "updated_at": "2026-11-09T15:39:15+01:00",
+  "status": "completed",
+  "summary": "Rifinire la colorbar del topoplot con una scala verticale discreta a lato, simile alla scala dei segnali, evitando che riduca l area verticale della mappa.",
+  "intervals": [
+    {
+      "id": "97f04eef-1745-4f5f-a792-dea029ac9178",
+      "started_at": "2026-11-09T15:35:48+01:00",
+      "ended_at": "2026-11-09T15:39:15+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Sostituita la colorbar orizzontale dentro PlotItem con una scala verticale sobria in una colonna laterale indipendente.",
+      "evidence": ["Richiesta dell utente in questa conversazione"],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "Aggiunto TopographyColorScale: barra verticale stretta, unità e tre valori di riferimento, con colori coordinati alla mappa; collocata nella colonna laterale fuori dall area del plot. La scala resta sincronizzata con i livelli colore e la mappa.",
+    "Aggiornati docs/EEG_TOPOGRAPHY.md e TODO.md. git diff --check pulito."
+  ],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "Non eseguite verifiche native UI o test in questa sessione; l aspetto visivo finale non e stato verificato in esecuzione."
+  ]
+}

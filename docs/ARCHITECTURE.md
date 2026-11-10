@@ -16,7 +16,8 @@ gated on the outstanding performance/device validation described in the handoff.
 The November architecture pass adds pure reference/training policies and one
 calibration coordinator, immutable receiver telemetry, bounded replay/discovery,
 and asynchronous application shutdown and NPZ I/O. See
-[the implementation and validation results](ARCHITECTURAL_REFACTOR_RESULTS.md).
+[the implementation results](ARCHITECTURAL_REFACTOR_RESULTS.md) and
+[the integration with current main and repeated audit](REFACTORING_MAIN_INTEGRATION.md).
 `calibration_storage` owns schema-1 persistence; `calibration_validation` validates
 loaded recordings before activation. Public save/load functions in `calibration`
 remain lazy compatibility wrappers. `TaskLifecycle` retains Qt tasks until their
@@ -249,8 +250,9 @@ for pre-Hampel/Off/Hampel measurements and regression coverage.
 The earlier 250 ms presentation delay and receiver policy were restored after
 the 50 ms/fastest-source experiment regressed user playback. The short-block
 PPG/SC change and per-frame shader panning are removed. Denoising, baseline
-processing and metric cadence are unchanged. Each VisPy cursor is clamped to
-that modality's latest committed sample, even when a shared viewport is ahead.
+processing and metric cadence are unchanged. Each Raw Data cursor is clamped to
+that modality's latest committed sample. In live Metrics, the blue cursor shows
+elapsed sweep time while traces and markers still stop at their actual data.
 No cursor advance is used as proof that new waveform geometry was drawn.
 
 SignalHistory latches an initial reference from the first `ceil(fs * 0.25)` real
@@ -260,13 +262,14 @@ of the displayed subset and viewport history pruning. PPG/SC retain separate
 initial raw/processed DC offsets; EEG uses the selected startup trace anchor.
 Playback drift, Fit, trace toggles and display-count changes reuse those
 references. A new acquisition resets them. Center explicitly computes new
-baselines for currently displayed channels from visible samples and performs
-one history replay. Fit adjusts gain only. This behavior is common to the CPU
-and GPU presentations and does not change acquired samples or metric inputs.
+baselines for currently displayed channels from visible samples. On a committed
+GPU sweep it translates the existing vertices vertically, preserving timestamps
+and connections. A pending geometry change or the CPU renderer uses a history
+replay. Fit adjusts gain only. Neither changes acquired samples or metric inputs.
 
 Fixed peripheral references allow incremental snapshot tails, like EEG, instead
-of full-window copies/median calculations at every frame. Explicit Center and
-other genuine geometry resets request a full history replay once. Sweep rings
+of full-window copies/median calculations at every frame. Geometry resets
+request a full history replay once. Sweep rings
 retain initial sample-bin phase anchoring, so half-bin timestamp jitter does
 not create false gaps. Actual gaps and sweep-cycle boundaries remain separate.
 

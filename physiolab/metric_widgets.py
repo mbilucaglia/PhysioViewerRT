@@ -2,7 +2,7 @@
 from PySide6.QtWidgets import QWidget, QCheckBox, QGridLayout, QVBoxLayout, QLabel, QFrame, QHBoxLayout, QToolButton
 from PySide6.QtCore import Qt
 from .panel_arrangement import PanelArrangement
-from .ui_icons import action_icon
+from .ui_icons import set_action
 from PySide6.QtGui import QColor, QIcon, QPixmap
 from .metric_catalog import metric_color
 from .modality_labels import modality_label
@@ -73,11 +73,16 @@ def build_metric_readouts(host, definitions, columns=4):
             header = QHBoxLayout()
             header.addWidget(heading)
             button = QToolButton()
-            button.setText('Move')
-            button.setIcon(action_icon('move'))
-            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            set_action(button, '', 'move')
+            button.setAccessibleName('Move')
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            button.setToolTip('Move this metric card.')
             header.addWidget(button)
             group.insertLayout(0, header)
+        set_action(button, '', 'move')
+        button.setAccessibleName('Move')
+        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        button.setToolTip('Move this metric card.')
         cards[kind], move_buttons[kind], titles[kind] = card, button, heading.text()
         for name in names:
             label = QLabel(f'{name}: —')

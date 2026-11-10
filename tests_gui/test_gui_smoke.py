@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 
 from physiolab.gui import MainWindow
 from physiolab.ingress import ChunkMailbox
@@ -521,6 +521,9 @@ class GuiSmokeTests(unittest.TestCase):
         from PySide6.QtWidgets import QHBoxLayout, QDoubleSpinBox, QPushButton
         for kind in ('EEG', 'PPG', 'EDA'):
             gain = self.window.raw_vertical_gains[kind]
+            gain_label = self.window.findChild(QLabel, kind+'AmplitudeLabel')
+            self.assertEqual(gain_label.text(), '')
+            self.assertGreater(gain_label.minimumWidth(), 0)
             header = self.window.findChild(QHBoxLayout, f'{kind}PlotHeader')
             self.assertEqual(header.indexOf(self.window.raw_autoscale_buttons[kind]),
                              header.indexOf(gain)+1)
@@ -598,8 +601,9 @@ class GuiSmokeTests(unittest.TestCase):
             def set_y_auto(self, enabled):
                 self.auto_y = enabled
 
-            def set_xrange(self, left, right):
+            def set_xrange(self, left, right, *, sweep_time=None):
                 self.bounds = (left, right)
+                self.sweep_time = sweep_time
 
             def refresh_axes(self):
                 pass
@@ -616,12 +620,15 @@ class GuiSmokeTests(unittest.TestCase):
         self.window.metric_state.history[key].extend([
             (current - 1., .2), (current - .5, .4), (current, .6)
         ])
-        with patch('physiolab.metric_plot_controller.VisPyMetricPlot', FakeMetricGpu):
+        with patch('physiolab.metric_plot_controller.VisPyMetricPlot', FakeMetricGpu), \
+                patch('physiolab.gui.QMessageBox.warning') as warning:
             self.window.metric_renderer_choice.setCurrentIndex(1)
+            warning.assert_not_called()  # Report fake/API drift instead of hanging offscreen.
             self.assertEqual(self.window.metric_renderer_mode, 'vispy')
             self.assertEqual(self.window.metric_plot_stack.currentIndex(), 1)
             self.window.refresh_metric_plot()
             gpu = self.window.vispy_metric_plot
+            self.assertIsNotNone(gpu.sweep_time)
             self.assertEqual(len(gpu.data[key][2]), 3)
             self.window.metric_checks[key].setChecked(False)
             self.assertFalse(gpu.data[key][4]['visible'])

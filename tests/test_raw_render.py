@@ -35,6 +35,24 @@ class RawRenderTests(unittest.TestCase):
         self.assertTrue(np.isfinite(raw).all())
         self.assertTrue(np.isfinite(processed).all())
 
+    def test_correlated_eeg_keeps_dense_shared_extrema_within_point_budget(self):
+        fs=256.
+        times=np.arange(int(20*fs))/fs
+        phases=np.arange(32)*.001
+        raw=np.sin(2*np.pi*9*times[:,None]+phases)
+        filtered=.8*raw
+        history=((times,raw,filtered,tuple(f'C{i}' for i in range(32)),fs),)
+
+        frame=prepare_raw_window(
+            history,0.,20.,0.,max_points=1500,max_channels=32,
+            decimation_span=20.,
+        )
+
+        intervals=np.diff(frame.times)
+        self.assertGreater(len(frame.times),800)
+        self.assertLessEqual(len(frame.times),1500)
+        self.assertLessEqual(float(intervals.max()),.06)
+
     def test_centering_anchors_raw_only_to_raw_and_cleaned_or_both_to_cleaned(self):
         times = np.arange(256)/128.
         waveform = np.sin(2*np.pi*4*times)[:,None]

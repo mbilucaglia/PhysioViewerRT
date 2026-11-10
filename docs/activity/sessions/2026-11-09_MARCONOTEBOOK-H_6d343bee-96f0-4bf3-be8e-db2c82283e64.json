@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "session_id": "6d343bee-96f0-4bf3-be8e-db2c82283e64",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "afe41954f8b8bbbfc4889cbc28d7cc2c3a65572d",
+  "updated_at": "2026-11-09T16:20:21+01:00",
+  "status": "completed",
+  "summary": "Indagare il rallentamento del contatore GPU di warming canali e gli scatti visivi; rendere visibili i comandi topoplot segnalati nello screenshot.",
+  "intervals": [
+    {
+      "id": "e79ebb0b-77ee-4bc0-aff5-0bf6713b4e0a",
+      "started_at": "2026-11-09T16:12:47+01:00",
+      "ended_at": "2026-11-09T16:20:21+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Ottimizzato il rendering topoplot, raggruppato il warmup GPU in batch e corrette le dimensioni/icone dei pulsanti e delle combobox rispetto allo screenshot.",
+      "evidence": ["Feedback dell utente e screenshot allegato"],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "La LUT e i colori della colorbar vengono configurati una volta alla creazione della vista; ogni frame aggiorna solo immagine e scala, evitando ricostruzioni ripetute.",
+    "I pulsanti topoplot usano icone SVG leggibili a 18 px e le larghezze dei selettori mostrano i testi Alpha e Processed per intero.",
+    "Il warmup VisPy prepara fino a 4 coppie canale per tick con un unico draw offscreen; il contatore avanza di 2 canali per tick invece di uno per singolo pair.",
+    "Aggiornato il controllo esistente di lifecycle del warmup. git diff --check e parsing XML Designer riusciti."
+  ],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "Non eseguiti test né verifiche native delle prestazioni; il miglioramento percepito di warmup e fluidità va confermato nell applicazione."
+  ]
+}

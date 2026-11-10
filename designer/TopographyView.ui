@@ -1,0 +1,202 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ui version="4.0">
+ <class>TopographyView</class>
+ <widget class="QWidget" name="topographyControlsRoot">
+  <property name="styleSheet">
+   <string>QToolButton { padding: 0px; }
+QLabel#topographyTitle { color: #35335b; font-weight: 600; }
+QLabel#topographyIafStatus { color: #77768f; font-size: 9px; }
+QLabel#topographyStatus { color: #56536c; font-size: 10px; }</string>
+  </property>
+  <layout class="QVBoxLayout" name="topographyRootLayout">
+   <property name="leftMargin"><number>8</number></property>
+   <property name="topMargin"><number>5</number></property>
+   <property name="rightMargin"><number>8</number></property>
+   <property name="bottomMargin"><number>4</number></property>
+   <property name="spacing"><number>4</number></property>
+   <item>
+    <layout class="QHBoxLayout" name="topographyHeaderLayout">
+     <property name="spacing"><number>5</number></property>
+     <item>
+      <widget class="QLabel" name="topographyTitle">
+       <property name="text"><string>Topoplot</string></property>
+      </widget>
+     </item>
+     <item><spacer name="topographyHeaderSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>24</width><height>20</height></size></property></spacer></item>
+     <item>
+      <widget class="QToolButton" name="topographyMove">
+       <property name="minimumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="maximumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="icon"><iconset><normaloff>../assets/icons/move.svg</normaloff></iconset></property>
+       <property name="iconSize"><size><width>22</width><height>22</height></size></property>
+       <property name="toolTip"><string>Move the topoplot to another panel position.</string></property>
+       <property name="accessibleName"><string>Move</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="topographyExpand">
+       <property name="checkable"><bool>true</bool></property>
+       <property name="minimumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="maximumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="icon"><iconset><normaloff>../assets/icons/expand.svg</normaloff></iconset></property>
+       <property name="iconSize"><size><width>22</width><height>22</height></size></property>
+       <property name="toolTip"><string>Expand this panel to fill the workspace.</string></property>
+       <property name="accessibleName"><string>Expand</string></property>
+      </widget>
+     </item>
+     <item><spacer name="topographyActionSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeType"><enum>QSizePolicy::Fixed</enum></property><property name="sizeHint" stdset="0"><size><width>8</width><height>20</height></size></property></spacer></item>
+     <item>
+      <widget class="QToolButton" name="topographyColourMinus">
+       <property name="minimumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="maximumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="icon"><iconset><normaloff>../assets/icons/minus.svg</normaloff></iconset></property>
+       <property name="iconSize"><size><width>22</width><height>22</height></size></property>
+       <property name="toolTip"><string>Widen the normalized colour range.</string></property>
+       <property name="accessibleName"><string>Widen colour scale</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="topographyColourFit">
+       <property name="minimumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="maximumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="icon"><iconset><normaloff>../assets/icons/autoscale.svg</normaloff></iconset></property>
+       <property name="iconSize"><size><width>22</width><height>22</height></size></property>
+       <property name="toolTip"><string>Fit the colour range to 0–1.</string></property>
+       <property name="accessibleName"><string>Fit colour range</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="topographyColourPlus">
+       <property name="minimumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="maximumSize"><size><width>32</width><height>32</height></size></property>
+       <property name="icon"><iconset><normaloff>../assets/icons/plus.svg</normaloff></iconset></property>
+       <property name="iconSize"><size><width>22</width><height>22</height></size></property>
+       <property name="toolTip"><string>Narrow the normalized colour range.</string></property>
+       <property name="accessibleName"><string>Narrow colour scale</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="topographyColourAuto">
+       <property name="text"><string>Auto</string></property>
+       <property name="checked"><bool>true</bool></property>
+       <property name="toolTip"><string>Use the full normalized 0–1 range for each map.</string></property>
+       <property name="accessibleName"><string>Automatic colour scale</string></property>
+       <property name="minimumHeight"><number>32</number></property>
+       <property name="maximumHeight"><number>32</number></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="topographyControlsLayout">
+     <property name="spacing"><number>6</number></property>
+     <item>
+      <widget class="QComboBox" name="topographyBand">
+       <property name="minimumSize"><size><width>90</width><height>32</height></size></property>
+       <property name="maximumSize"><size><width>90</width><height>32</height></size></property>
+       <property name="currentIndex"><number>3</number></property>
+       <item><property name="text"><string>Unfiltered</string></property></item>
+       <item><property name="text"><string>Delta</string></property></item>
+       <item><property name="text"><string>Theta</string></property></item>
+       <item><property name="text"><string>Alpha</string></property></item>
+       <item><property name="text"><string>Beta</string></property></item>
+       <item><property name="text"><string>Gamma</string></property></item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="topographySource">
+       <property name="minimumSize"><size><width>108</width><height>32</height></size></property>
+       <property name="maximumSize"><size><width>108</width><height>32</height></size></property>
+       <property name="toolTip"><string>Select processed or raw EEG for band power.</string></property>
+       <item><property name="text"><string>Processed</string></property></item>
+       <item><property name="text"><string>Raw</string></property></item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="topographyUseIaf">
+       <property name="text"><string>IAF</string></property>
+       <property name="checked"><bool>true</bool></property>
+       <property name="toolTip"><string>Use the calibrated individual alpha frequency to place all EEG band limits.</string></property>
+       <property name="accessibleName"><string>Use IAF-derived EEG bands</string></property>
+       <property name="minimumHeight"><number>32</number></property>
+       <property name="maximumHeight"><number>32</number></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="topographyIafStatus">
+       <property name="minimumSize"><size><width>74</width><height>32</height></size></property>
+       <property name="maximumHeight"><number>32</number></property>
+       <property name="toolTip"><string>No calibrated IAF loaded; canonical fixed bands are used.</string></property>
+       <property name="text"><string>No IAF</string></property>
+      </widget>
+     </item>
+     <item><spacer name="topographyControlsSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>30</width><height>20</height></size></property></spacer></item>
+     <item><widget class="QLabel" name="topographyPersistenceLabel"><property name="minimumHeight"><number>32</number></property><property name="maximumHeight"><number>32</number></property><property name="text"><string>τ [s]</string></property><property name="toolTip"><string>Time constant for temporal persistence of the displayed topoplot.</string></property><property name="accessibleName"><string>Persistence time constant</string></property></widget></item>
+     <item>
+      <widget class="QDoubleSpinBox" name="topographyPersistence">
+       <property name="minimumSize"><size><width>92</width><height>32</height></size></property>
+       <property name="maximumSize"><size><width>92</width><height>32</height></size></property>
+       <property name="toolTip"><string>Exponential persistence time constant; 0 disables persistence.</string></property>
+       <property name="decimals"><number>2</number></property>
+       <property name="minimum"><double>0.000000000000000</double></property>
+       <property name="maximum"><double>2.000000000000000</double></property>
+       <property name="singleStep"><double>0.050000000000000</double></property>
+       <property name="value"><double>0.150000000000000</double></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QWidget" name="topographyMapHost">
+     <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Expanding"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property>
+     <layout class="QHBoxLayout" name="topographyMapLayout">
+      <property name="leftMargin"><number>0</number></property>
+      <property name="topMargin"><number>0</number></property>
+      <property name="rightMargin"><number>0</number></property>
+      <property name="bottomMargin"><number>0</number></property>
+      <property name="spacing"><number>3</number></property>
+      <item>
+       <widget class="QWidget" name="topographyPlotHost">
+        <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Expanding"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property>
+        <property name="minimumSize"><size><width>100</width><height>90</height></size></property>
+        <layout class="QVBoxLayout" name="topographyPlotHostLayout">
+         <property name="leftMargin"><number>0</number></property>
+         <property name="topMargin"><number>0</number></property>
+         <property name="rightMargin"><number>0</number></property>
+         <property name="bottomMargin"><number>0</number></property>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="topographyColorbarHost">
+        <property name="minimumSize"><size><width>58</width><height>90</height></size></property>
+        <property name="maximumSize"><size><width>58</width><height>16777215</height></size></property>
+        <layout class="QVBoxLayout" name="topographyColorbarLayout">
+         <property name="leftMargin"><number>0</number></property>
+         <property name="topMargin"><number>0</number></property>
+         <property name="rightMargin"><number>0</number></property>
+         <property name="bottomMargin"><number>0</number></property>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="topographyStatus">
+     <property name="wordWrap"><bool>true</bool></property>
+     <property name="text"><string>Waiting for EEG samples</string></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="topographyExtrapolate">
+     <property name="text"><string>Full scalp</string></property>
+     <property name="checked"><bool>true</bool></property>
+     <property name="toolTip"><string>Extend the smooth spherical-spline field to the head boundary. Areas beyond available electrode circles are estimated. Uncheck to show only the area enclosed by electrodes.</string></property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources />
+ <connections />
+</ui>

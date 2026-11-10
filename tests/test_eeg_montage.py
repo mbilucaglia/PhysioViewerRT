@@ -60,8 +60,12 @@ class StandardMontageTests(unittest.TestCase):
         for index, name in enumerate(subset):
             original = result['labels'].index(name)
             self.assertEqual(small['positions'][index], result['positions'][original])
-            self.assertAlmostEqual(small['values'][index], result['values'][original])
+            # Min-max display values depend on the available electrode set;
+            # measured power and coordinates must survive subset/reordering.
+            self.assertAlmostEqual(small['absolute_values'][index], result['absolute_values'][original])
         reverse = calculate_topography(((t, x[:, ::-1], x[:, ::-1], tuple(subset[::-1]), 256.),), t[-1], config)
+        np.testing.assert_allclose(reverse['values'][::-1], small['values'])
+        np.testing.assert_allclose(reverse['absolute_values'][::-1], small['absolute_values'])
         np.testing.assert_allclose(reverse['grid'], small['grid'], rtol=1e-6, equal_nan=True)
 
     def test_dense_interpolation_cache_is_bounded(self):

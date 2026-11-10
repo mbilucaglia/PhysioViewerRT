@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "session_id": "28cc6992-da5c-49af-a6f5-f1421b90a156",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "afe41954f8b8bbbfc4889cbc28d7cc2c3a65572d",
+  "updated_at": "2026-11-09T16:03:15+01:00",
+  "status": "completed",
+  "summary": "Ripristinare la palette a colori del topoplot, normalizzare sempre 0–1 e uniformare comandi e pulsanti nelle tab secondo le indicazioni dell utente.",
+  "intervals": [
+    {
+      "id": "eca5d460-5697-453a-842a-ebcea3cc4254",
+      "started_at": "2026-11-09T15:44:10+01:00",
+      "ended_at": "2026-11-09T16:03:15+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Ripristinata la palette colori sull immagine; applicata normalizzazione min–max a ogni mappa 0–1; uniformati pulsanti Move/Expand/Center a icone, tolto il testo Gain mantenendo spazio e sistemati i comandi colore nell header topoplot.",
+      "evidence": ["Richiesta dell utente in questa conversazione"],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "La scala personalizzata aggiornava i propri colori, mentre ImageItem non riceveva il ColorMap: la mappa appariva in scala di grigi. Ogni rendering ora assegna lo stesso ColorMap all immagine e alla scala verticale.",
+    "Tutti i vettori topoplot, sia di banda sia di voltaggio non filtrato, sono normalizzati per frame min–max a 0–1. Rimosse le opzioni di normalizzazione. La colorbar usa 0–1 in Auto; il controllo manuale colore resta disponibile nel header.",
+    "Move, Expand e Center sono ora simboli senza testo nelle tab; Gain è vuoto ma mantiene la larghezza; il topoplot ordina i controlli Move, Expand, −, Fit (icona autoscale), +, Auto.",
+    "Aggiornati documentazione e verifiche esistenti; git diff --check, parsing XML Designer e JSON del registro riusciti."
+  ],
+  "commits": [],
+  "open_items": [],
+  "limitations": [
+    "Non eseguiti test né anteprima UI nativa in questa sessione; la resa visiva nel viewer resta da verificare."
+  ]
+}

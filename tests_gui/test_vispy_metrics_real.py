@@ -19,6 +19,33 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def test_center_shifts_eeg_geometry_without_rebuilding_the_sweep(self):
+        from physiolab.render_contracts import PreparedFrame, ViewSpec
+        from physiolab.render_policy import RAW_DISPLAY_POLICY
+        plot = VisPyRawPlot('EEG')
+        self.addCleanup(plot.close)
+        times = np.r_[np.arange(30), np.arange(40, 75)] / 256.
+        raw = np.column_stack((np.sin(120*times), 6.+np.cos(100*times)))
+        frame = PreparedFrame(times, raw, raw, np.zeros(2), np.ones(2),
+                              ('F3', 'F4'), np.r_[False, np.diff(times) < .005])
+        view = ViewSpec(0, 0, times[-1]-5., times[-1], 5., 2)
+        self.assertTrue(plot.present(frame, view, 256.))
+        layers = tuple(plot.layers['raw'])
+        positions = [layer.ring.positions.copy() for layer in layers]
+        stamps = [layer.ring.stamps.copy() for layer in layers]
+        centers = np.array([2., -3.])
+        self.assertTrue(plot.recenter(centers, 5.))
+        self.assertEqual(tuple(plot.layers['raw']), layers)
+        for index, layer in enumerate(layers):
+            before = positions[index]
+            valid = before[..., 0] >= 0.
+            self.assertTrue(valid.any())
+            np.testing.assert_array_equal(layer.ring.stamps, stamps[index])
+            np.testing.assert_array_equal(layer.ring.positions[..., 0], before[..., 0])
+            np.testing.assert_array_equal(layer.ring.positions[~valid], before[~valid])
+            np.testing.assert_allclose(layer.ring.positions[..., 1][valid],
+                before[..., 1][valid]-centers[index]/RAW_DISPLAY_POLICY.span(2), atol=1e-7)
+
     def test_reserved_channels_commit_without_progressive_frame_roundtrips(self):
         from unittest.mock import patch
         plot = VisPyRawPlot('EEG')
@@ -26,12 +53,12 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
         # Native driver linking is exercised by the transition benchmark;
         # this lifecycle check also runs on CI without an OpenGL context.
         with patch.object(plot.canvas, 'render') as render:
-            for count in range(1, 9):
+            for count in (4, 8):
                 self.assertTrue(plot.warm_channels(8, 5., 64.))
                 self.assertEqual(plot.reserved_channel_count, count)
                 self.assertFalse(plot.configured)
             self.assertFalse(plot.warm_channels(8, 5., 64.))
-            self.assertEqual(render.call_count, 8)
+            self.assertEqual(render.call_count, 2)
         programs = tuple(layer.visual.shared_program for layer in plot._layer_pool['raw'])
         times = np.arange(64) / 64.
         values = np.ones((64, 8)) + 6*np.arange(8)
@@ -155,6 +182,90 @@ class RealVisPyMetricsConstructionTests(unittest.TestCase):
                                 for program in programs))
             self.assertEqual(plot.reserved_channel_count,8)
             self.assertTrue(all(layer.ring.last_time == times[-1]
+                                for layer in plot.layers['raw']))
+        finally:
+            plot.close()
+
+    def test_timebase_retimes_committed_geometry_without_history_replay(self):
+        from unittest.mock import patch
+        plot = VisPyRawPlot('EEG')
+        try:
+            times = np.arange(0., 5., 1./64.)
+            values = np.sin(2.*np.pi*times)[:, None]
+            connect = np.r_[False, np.diff(times) < .02]
+            plot.set_frame((times, values, values, np.zeros(1), np.ones(1),
+                            ('F3',), connect),
+                           0., 5., nominal_fs=64.)
+            raw_layer = plot.layers['raw'][0]
+            filtered_layer = plot.layers['filtered'][0]
+            old_stamps = raw_layer.ring.stamps.copy()
+            old_values = raw_layer.ring.values.copy()
+            with patch.object(raw_layer.visual, 'replace_positions') as upload_raw, \
+                 patch.object(filtered_layer.visual, 'replace_positions') as upload_filtered:
+                self.assertTrue(plot.set_sweep_duration(10.))
+            self.assertIs(plot.layers['raw'][0], raw_layer)
+            self.assertIs(plot.layers['filtered'][0], filtered_layer)
+            self.assertFalse(plot.history_needs_replay(1, 10.))
+            self.assertEqual(raw_layer.ring.duration, 10.)
+            self.assertEqual(raw_layer.ring.capacity, len(old_stamps))
+            old_valid = np.isfinite(old_stamps)
+            new_valid = np.isfinite(raw_layer.ring.stamps)
+            np.testing.assert_array_equal(np.sort(raw_layer.ring.stamps[new_valid]),
+                                          np.sort(old_stamps[old_valid]))
+            for stamp, value in zip(old_stamps[old_valid], old_values[old_valid]):
+                slot = np.flatnonzero(raw_layer.ring.stamps == stamp)[0]
+                self.assertAlmostEqual(raw_layer.ring.values[slot], value)
+            valid_x = raw_layer.ring.positions[..., 0]
+            valid_x = valid_x[valid_x >= 0.]
+            self.assertTrue(len(valid_x))
+            self.assertLessEqual(float(np.max(valid_x)), .5 + 1e-6)
+            upload_raw.assert_called_once()
+            upload_filtered.assert_called_once()
+        finally:
+            plot.close()
+
+    def test_correlated_eeg_keeps_centering_and_short_segments_after_retime(self):
+        from unittest.mock import patch
+        from physiolab.raw_render import prepare_raw_window
+        from physiolab.render_policy import RAW_DISPLAY_POLICY
+        fs = 256.
+        times = np.arange(20*int(fs))/fs
+        phases = np.arange(32)*.001
+        raw = np.sin(2*np.pi*9*times[:, None]+phases)
+        frame = prepare_raw_window(
+            [(times, raw, .8*raw, tuple(f'C{i}' for i in range(32)), fs)],
+            0., 20., 0., reference=(np.zeros(8), np.ones(8)),
+            max_points=1800, max_channels=8, decimation_span=20.)
+        plot = VisPyRawPlot('EEG')
+        try:
+            for _ in range(10):
+                plot.set_frame(frame, 0., 5., nominal_fs=fs)
+                if plot.configured:
+                    break
+            self.assertTrue(plot.configured)
+            old_center = frame.centers.copy()
+            old_layers = tuple(plot.layers['raw'])
+            patches = [patch.object(layer.visual, 'replace_positions')
+                       for group in plot.layers.values() for layer in group]
+            for item in patches:
+                item.start()
+            try:
+                self.assertTrue(plot.set_sweep_duration(10.))
+            finally:
+                for item in patches:
+                    item.stop()
+            np.testing.assert_array_equal(frame.centers, old_center)
+            self.assertEqual(tuple(plot.layers['raw']), old_layers)
+            maximum = 0.
+            for layer in plot.layers['raw']:
+                positions = layer.ring.positions
+                drawn = positions[np.all(positions[..., 0] >= 0., axis=1)]
+                if len(drawn):
+                    maximum = max(maximum, float(np.max(np.abs(
+                        drawn[:, 1, 0]-drawn[:, 0, 0])*10.)))
+            self.assertGreater(maximum, 0.)
+            self.assertLessEqual(maximum, .06)
+            self.assertTrue(all(layer.ring.duration == 10.
                                 for layer in plot.layers['raw']))
         finally:
             plot.close()

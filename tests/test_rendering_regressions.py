@@ -31,6 +31,25 @@ class RenderingRegressions(unittest.TestCase):
         self.assertEqual(float(frame[1].max()),100.)
         self.assertEqual(float(frame[2].min()),-70.)
 
+    def test_correlated_eeg_does_not_create_long_gpu_line_segments(self):
+        fs = 256.
+        times = np.arange(int(20 * fs)) / fs
+        phases = np.arange(32) * .001
+        raw = np.sin(2 * np.pi * 9 * times[:, None] + phases)
+        filtered = .8 * raw
+        frame = prepare_raw_window(
+            [(times, raw, filtered, tuple(f'C{i}' for i in range(32)), fs)],
+            0., 20., 0., max_points=1500, max_channels=32,
+            decimation_span=20.,
+        )
+
+        ring = SweepRing(21., fs)
+        ring.append(frame.times, frame.raw[:, 0], connect=frame.connect)
+        drawn = ring.positions[np.any(ring.positions != -10., axis=(1, 2))]
+        segment_seconds = (drawn[:, 1, 0] - drawn[:, 0, 0]) * ring.duration
+        self.assertGreater(len(drawn), 800)
+        self.assertLessEqual(float(segment_seconds.max()), .06)
+
     def test_gap_expires_old_line_slots(self):
         ring=SweepRing(5.,10.)
         ring.append(np.arange(50)/10.,np.ones(50))

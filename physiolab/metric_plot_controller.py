@@ -75,7 +75,7 @@ class MetricPlotController:
         self.mode=mode
         self.current.set_y_auto(self.auto_y)
         if not self.auto_y and self.manual_y is not None: self.current.set_y_range(*self.manual_y)
-        self.current.set_xrange(*self.bounds)
+        self._apply_bounds()
         self.changed()
 
     def set_auto(self,enabled):
@@ -93,16 +93,31 @@ class MetricPlotController:
         center,half=(low+high)/2.,(high-low)*factor/2.
         self.set_y_range(center-half,center+half)
 
-    def fit_y(self):
-        self.set_auto(False)
+    def _visible_y_limits(self):
         values=[]; left,right=self.bounds
         for x,y,mx,my in self.series.values():
             for t,v in ((x,y),(mx,my)):
                 values.extend(v[(t>=left)&(t<=right)&np.isfinite(v)])
-        if values:
-            low,high=float(np.min(values)),float(np.max(values)); pad=max(.1,(high-low)*.08)
+        return (float(np.min(values)), float(np.max(values))) if values else None
+
+    def fit_y(self):
+        self.set_auto(False)
+        limits = self._visible_y_limits()
+        if limits is not None:
+            low,high=limits; pad=max(.1,(high-low)*.08)
             self.set_y_range(low-pad,high+pad)
         else: self.set_y_range(-1.,1.)
+
+    def center_y(self):
+        limits = self._visible_y_limits()
+        if limits is None:
+            return False
+        low, high = self.current.y_range
+        half = (high - low) / 2.
+        center = sum(limits) / 2.
+        self.set_auto(False)
+        self.set_y_range(center-half, center+half)
+        return True
 
     def set_window(self,seconds):
         self.duration=self.settings.bounded_view_seconds(seconds)
@@ -133,7 +148,14 @@ class MetricPlotController:
         if self.follow_live and not self.paused:
             elapsed=time.monotonic()-self.origin
             self.bounds=(elapsed-self.duration,elapsed)
-        if self.backends: self.current.set_xrange(*self.bounds)
+        if self.backends: self._apply_bounds()
+
+    def _apply_bounds(self):
+        if self.mode == 'vispy':
+            self.current.set_xrange(*self.bounds,
+                                    sweep_time=self.bounds[1] if self.follow_live else None)
+        else:
+            self.current.set_xrange(*self.bounds)
 
     def refresh(self,*,normalization,references,smoothing,seconds,interpolation,markers,visible):
         if not self.backends: return

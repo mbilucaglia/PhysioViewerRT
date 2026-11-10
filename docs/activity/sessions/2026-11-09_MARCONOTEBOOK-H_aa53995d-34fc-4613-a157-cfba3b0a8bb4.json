@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "session_id": "aa53995d-34fc-4613-a157-cfba3b0a8bb4",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "afe41954f8b8bbbfc4889cbc28d7cc2c3a65572d",
+  "updated_at": "2026-11-09T16:50:25+01:00",
+  "status": "completed",
+  "summary": "Uniformare dimensioni dei controlli Topoplot e rendere chiaro e funzionante il controllo τ [s] per persistenza.",
+  "intervals": [
+    {
+      "id": "2cc832c1-8e87-4b2b-93c4-7a51db42635f",
+      "started_at": "2026-11-09T16:47:09+01:00",
+      "ended_at": "2026-11-09T16:50:25+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Diagnosi dell'interfaccia mostrata nello screenshot e correzione della persistenza e delle misure dei controlli topoplot.",
+      "evidence": ["Richiesta utente del 2026-11-09", "physiolab/topography_widgets.py", "physiolab/topography.py"],
+      "source_event_id": null
+    }
+  ],
+  "results": ["Azioni SVG rese non ritagliate rimuovendo il padding orizzontale della regola QToolButton, mantenendo misura icona e pulsante coerenti.", "Altezza unificata a 38 px per selettori, checkbox, label e controllo τ; unità resa esplicita come τ [s].", "τ resta attivo: nel modo Unfiltered filtra i campioni di voltaggio; sulle bande filtra temporalmente i campi normalizzati successivi.", "Documentazione aggiornata e aspettativa del test GUI esistente allineata; git diff --check superato."],
+  "commits": [],
+  "open_items": ["Verifica visiva dell'allineamento e della risposta τ nell'app non eseguita."],
+  "limitations": ["Non sono stati eseguiti test automatici o avviata l'app in questa sessione."]
+}

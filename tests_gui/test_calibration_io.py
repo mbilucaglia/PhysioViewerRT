@@ -15,6 +15,7 @@ from physiolab.gui import MainWindow
 from physiolab.calibration_tasks import CalibrationIOTask
 from physiolab.calibration import save_calibration, load_calibration
 from physiolab.task_lifecycle import OperationCancelled
+from physiolab.eeg_bands import IAF_BAND_CONVENTION, derive_iaf_bands
 
 
 class CalibrationIOTests(unittest.TestCase):
@@ -53,7 +54,7 @@ class CalibrationIOTests(unittest.TestCase):
     def test_slow_save_runs_off_gui_and_duplicate_request_is_rejected(self):
         entered, release = threading.Event(), threading.Event()
         gui_thread = threading.get_ident()
-        calls, ticks, duplicate_errors = [], [], []
+        calls, ticks, duplicate_errors, navigation = [], [], [], []
 
         def slow_save(*args):
             calls.append(threading.get_ident())
@@ -66,6 +67,10 @@ class CalibrationIOTests(unittest.TestCase):
             if entered.is_set():
                 ticks.append(threading.get_ident())
                 if len(ticks) == 1:
+                    dialog = self.window._calibration_dialog
+                    self.window.tabs.setCurrentWidget(self.window.raw_page)
+                    navigation.append((dialog.isModal(), self.app.activeModalWidget(),
+                                       self.window.tabs.currentWidget() is self.window.raw_page))
                     try:
                         self.window._run_calibration_io('save', path, 'EYC', self.streams, {})
                     except OperationCancelled as error:
@@ -87,6 +92,7 @@ class CalibrationIOTests(unittest.TestCase):
                 self.assertGreaterEqual(len(ticks), 3)
                 self.assertEqual(set(ticks), {gui_thread})
                 self.assertEqual(len(duplicate_errors), 1)
+                self.assertEqual(navigation, [(False, None, True)])
                 self.assertTrue(path.exists())
         finally:
             release.set()
@@ -137,3 +143,35 @@ class CalibrationIOTests(unittest.TestCase):
             error.assert_called_once()
             self.assertIs(self.window.loaded_eyc, previous)
             self.assertEqual(self.window.iaf_hz, 10.)
+
+    def test_eyc_bands_survive_background_analysis_storage_and_coordinator_replay(self):
+        times = np.arange(60 * 128) / 128.
+        streams = {'EEG': {'data': np.sin(2*np.pi*10*times)[:, None],
+                          'timestamps': times, 'fs': 128., 'channels': ['O1']}}
+        analysis = self.window.analyze_calibration_background('EYC', streams)
+        expected = derive_iaf_bands(analysis['iaf_hz'])
+        self.assertEqual(analysis['iaf_bands_hz'], expected)
+        self.assertEqual(analysis['iaf_band_convention'], IAF_BAND_CONVENTION)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'bands.npz'
+            self.window._run_calibration_io('save', path, 'EYC', streams, analysis)
+            loaded = self.window._run_calibration_io('load', path, 'EYC')
+            with patch.object(self.window, '_apply_asr_metric_references'):
+                self.window.apply_calibration('EYC', loaded.metadata, str(path), loaded.streams)
+            # Exercise the real replay path after committing the loaded state.
+            self.window._apply_asr_metric_references()
+            deadline = time.monotonic() + 5
+            while self.window.eeg_reference_tasks and time.monotonic() < deadline:
+                self.app.processEvents()
+                threading.Event().wait(.001)
+            self.assertFalse(self.window.eeg_reference_tasks)
+            self.assertIsNone(self.window.eeg_reference_error)
+            self.assertEqual(self.window.loaded_eyc['analysis']['iaf_bands_hz'], expected)
+            self.window.show()
+            self.window.tabs.setCurrentWidget(self.window.raw_page)
+            self.window.set_raw_focus('TOPO', True)
+            self.app.processEvents()
+            with patch.object(self.window.topography, 'tick') as tick:
+                self.window.render_frame()
+            tick.assert_called_once()
+            self.assertEqual(tick.call_args.args[2], expected)

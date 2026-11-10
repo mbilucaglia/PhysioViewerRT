@@ -22,7 +22,7 @@ class ASRTrainingDialogTests(unittest.TestCase):
                 'accepted_seconds':60., 'rejected_seconds':10.}, 72., fitting=True)
             self.assertIn('Checking ASR fit', dialog.fit_status.text())
             self.assertEqual(dialog.bar.value(), 100)
-            self.assertTrue(dialog.isModal())
+            self.assertFalse(dialog.isModal())
         finally:
             dialog.close()
 
@@ -59,7 +59,8 @@ class AdaptiveTrainingLifecycleTests(unittest.TestCase):
         old = SimpleNamespace(settings=SimpleNamespace(cutoff=20.))
         window.asr_session.model = old
         try:
-            with patch.object(ASRTrainingDialog, 'exec', return_value=ASRTrainingDialog.DialogCode.Rejected):
+            with patch.object(window, '_wait_for_calibration_dialog',
+                              return_value=ASRTrainingDialog.DialogCode.Rejected):
                 window.train_eeg_asr()
             self.assertIs(window.asr_session.model, old)
             self.assertIsNone(worker.asr_training_monitor)
@@ -84,7 +85,7 @@ class AdaptiveTrainingLifecycleTests(unittest.TestCase):
         proc.push(data)
         filtered = proc.last_preprocessed_chunk
         attempts = []
-        original_exec = ASRTrainingDialog.exec
+        original_wait = window._wait_for_calibration_dialog
         def fit(eeg, settings):
             attempts.append(len(eeg['data'])/128.)
             if len(attempts) == 1:
@@ -103,11 +104,11 @@ class AdaptiveTrainingLifecycleTests(unittest.TestCase):
             timer.start(10)
             QTimer.singleShot(15000, dialog.reject)
             try:
-                return original_exec(dialog)
+                return original_wait(dialog)
             finally:
                 timer.stop()
         try:
-            with patch.object(ASRTrainingDialog,'exec',run), \
+            with patch.object(window,'_wait_for_calibration_dialog',run), \
                  patch('physiolab.asr_tasks.fit_training_asr',side_effect=fit), \
                  patch.object(window,'set_eeg_asr_enabled') as enabled, \
                  patch.object(window,'show_asr_training_report'):

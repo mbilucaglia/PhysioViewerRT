@@ -9,6 +9,28 @@ from physiolab.vispy_metrics import VisPyMetricPlot
 
 
 class MetricReconfigurationTests(unittest.TestCase):
+    def test_live_sweep_moves_between_measurements_and_freezes_on_pause(self):
+        from unittest.mock import Mock, patch
+        from physiolab.metric_plot_controller import MetricPlotController
+        from physiolab.settings import DEFAULT_VIEWER_SETTINGS
+        plot = self.plot
+        controller = MetricPlotController(Mock(history={}), DEFAULT_VIEWER_SETTINGS)
+        controller.backends['vispy'] = plot
+        controller.mode = 'vispy'
+        controller.origin = 100.
+        t = np.array([0., .5, 1.])
+        plot.set_series(self.key, t, t, t, t)
+        plot.refresh_axes()
+        for elapsed in (1.1, 1.2, 1.3):
+            with patch('physiolab.metric_plot_controller.time.monotonic', return_value=100.+elapsed):
+                controller.advance()
+            np.testing.assert_allclose(plot.engine.sweep_cursor._pos[:, 0], elapsed/5.)
+            self.assertEqual(plot._layers[self.key][1].ring.last_time, 1.)
+        controller.set_paused(True)
+        with patch('physiolab.metric_plot_controller.time.monotonic', return_value=102.):
+            controller.advance()
+        np.testing.assert_allclose(plot.engine.sweep_cursor._pos[:, 0], 1.3/5.)
+
     def test_time_and_amplitude_rulers_track_view_without_replacing_programs(self):
         plot = self.plot
         plot.widget.resize(1000, 500)

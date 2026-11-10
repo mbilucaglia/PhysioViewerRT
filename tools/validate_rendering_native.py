@@ -2,6 +2,7 @@
 import os
 os.environ['QT_QPA_PLATFORM']='windows'
 import ctypes
+import argparse
 import json
 import sys
 import time
@@ -29,9 +30,12 @@ def memory():
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, default=ROOT/'.test-tmp/rendering-native')
+    args = parser.parse_args()
     app=QApplication([])
     with patch.object(MainWindow,'refresh',lambda self:None): window=MainWindow()
-    output=ROOT/'.test-tmp/rendering-native'; output.mkdir(parents=True,exist_ok=True)
+    output=args.output; output.mkdir(parents=True,exist_ok=True)
     report={'transitions':[],'memory':[],'errors':[]}
     window.raw_controller.status.connect(report['errors'].append)
     draws={k:0 for k in ('EEG','PPG','EDA')}
@@ -128,7 +132,10 @@ def main():
         report['draw_events']=draws
         report['passed']=True
     finally:
-        start=time.perf_counter(); window.close(); app.processEvents()
+        start=time.perf_counter(); window.close()
+        pump(lambda: window._closed)
+        assert window.task_lifecycle.idle and window.topography.shutdown_complete()
+        report['shutdown_complete']=True
         report['close_ms']=(time.perf_counter()-start)*1000.
         (output/'results.json').write_text(json.dumps(report,indent=2))
     print(json.dumps(report,indent=2))

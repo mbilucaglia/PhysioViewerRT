@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "session_id": "3e23222c-3600-4901-9cc5-b042c91a9b03",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-05T16:36:39+01:00",
+  "status": "completed",
+  "summary": "Continue EEG visualization defect investigation in the user-designated local checkout; assess PPG ZLE and SC Haar SWT/Laplace preprocessing candidates.",
+  "intervals": [
+    {
+      "id": "3e23222c-3600-4901-9cc5-b042c91a9b03",
+      "started_at": "2026-11-05T16:26:44+01:00",
+      "ended_at": "2026-11-05T16:36:39+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "description": "Inspect the correct local checkout, preserve local changes, and continue debugging the reported EEG visualization artifact and peripheral preprocessing feasibility.",
+      "evidence": [
+        "Codex turn 2026-11-05",
+        "User specified local checkout path",
+        "Git status inspected at named path"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "Confirmed the named checkout is on main at gold-standard commit 8c5053d and contains pre-existing local edits.",
+    "Identified correlated multichannel EEG extrema collapsing onto shared timestamps as the decimation cause; existing adaptive-extrema patch keeps the actual timestamp union within the budget.",
+    "Added an end-to-end correlated EEG regression through SweepRing; it asserts no GPU line segment exceeds 60 ms in the 20-second synthetic fixture.",
+    "Targeted render and peripheral checks passed: 12 raw preparation, 12 core rendering, 10 incremental sweep, 15 GUI rendering, 11 core peripheral, 4 GUI peripheral tests.",
+    "Full unit suite passed: 246 tests in 17.398 s after redirecting TEMP/TMP to .test-tmp."
+  ],
+  "commits": [],
+  "open_items": [
+    "A live native visual retest is still needed after starting the GUI with this checkout."
+  ],
+  "limitations": [
+    "Initial checks were mistakenly performed in the Codex worktree before confirming and switching to the named checkout; its separate session log records the bounded investigation there.",
+    "The supplied recording timestamp (15:57:52) predates physiolab/raw_render.py modification (16:09:03), so it does not test the adaptive decimation patch.",
+    "No PhysioViewer process/window was open during this investigation; automated GUI tests passed, but live GPU appearance was not observed.",
+    "Existing PPG wavelet/SURE remains the only GUI PPG wavelet choice; ZLE is feasible but not implemented. SC Haar SWT/Laplace is already exposed as the experimental EDA Wavelet option."
+  ]
+}

@@ -8,6 +8,7 @@ from scipy.signal import welch
 from scipy.spatial import Delaunay
 from .eeg_montage import POSITIONS, ALIASES, unproject_positions
 from .spherical_spline import spherical_spline_matrix
+from .eeg_bands import IAF_VALID_RANGE_HZ, derive_iaf_bands, validated_iaf_bands
 
 
 BANDS = {'Delta': (1., 4.), 'Theta': (4., 8.), 'Alpha': (8., 13.),
@@ -27,11 +28,13 @@ def electrode_key(label):
     return ALIASES.get(label, label)
 
 
-def band_limits(band, iaf=None):
+def band_limits(band, iaf=None, use_iaf=True, iaf_bands=None):
     if band == 'Unfiltered':
         return None
-    if band == 'Alpha' and iaf is not None and np.isfinite(iaf) and 6. <= iaf <= 16.:
-        return (float(iaf) - 2., float(iaf) + 2.)
+    if use_iaf and iaf is not None and np.isfinite(iaf) \
+            and IAF_VALID_RANGE_HZ[0] <= iaf <= IAF_VALID_RANGE_HZ[1]:
+        limits = validated_iaf_bands(iaf_bands) or derive_iaf_bands(iaf)
+        return tuple(limits[band])
     return BANDS[band]
 
 
@@ -39,7 +42,7 @@ def band_limits(band, iaf=None):
 class TopographySettings:
     band: str = 'Alpha'
     source: str = 'processed'
-    window: float = 2.
+    window: float = 1.
     overlap: float = .5
     persistence: float = .15
     use_iaf: bool = True
@@ -67,7 +70,8 @@ def interpolation_weights(positions):
     return weights, mask
 
 
-def calculate_topography(chunks, end, settings, scales=1., unit='a.u.', iaf=None):
+def calculate_topography(chunks, end, settings, scales=1., unit='a.u.', iaf=None,
+                          iaf_bands=None):
     """Pure calculation from immutable history blocks, on a background worker.
 
     Band power is Hann-windowed PSD integrated over [low, high). Unfiltered is
@@ -115,49 +119,43 @@ def calculate_topography(chunks, end, settings, scales=1., unit='a.u.', iaf=None
         raise ValueError('Need ≥3 non-collinear EEG electrodes with recognized labels; '
                          'excluded: ' + (', '.join(excluded) or 'none'))
     x = x[:, indices]
-    limits = band_limits(settings.band, iaf if settings.use_iaf else None)
+    limits = band_limits(settings.band, iaf, settings.use_iaf, iaf_bands)
     if limits is None:
         if settings.persistence:
             weights = np.exp((t - t[-1]) / settings.persistence)
             values = weights @ x / weights.sum()
         else:
             values = x[-1]
-        quantity = f'Signed voltage ({unit})'
+        raw_values = values.copy()
     else:
         low, high = limits
+        if high <= low:
+            raise ValueError(f'{settings.band} has no frequency width at the calibrated IAF')
         if high > fs / 2.:
             raise ValueError(f'{settings.band} requires sampling ≥{2*high:g} Hz')
         f, psd = welch(x[window], fs=fs, nperseg=np.count_nonzero(window),
                        window='hann', detrend='constant', axis=0)
-        bins = (f >= low) & (f < high)
-        if np.count_nonzero(bins) < 2:
-            raise ValueError('Window too short for this band; increase Window')
+        bins = (f >= low) & (f < high) & (f > 0.)
+        if not np.any(bins):
+            raise ValueError(f'No resolvable PSD bins in {settings.band} {low:g}–{high:g} Hz')
         values = psd[bins].sum(axis=0) * (f[1] - f[0])
-        quantity = f'{settings.band} {low:g}–{high:g} Hz power ({unit}²)'
+        raw_values = values.copy()
+    lower, upper = float(np.min(values)), float(np.max(values))
+    values = np.full_like(values, .5) if upper <= lower else (values - lower) / (upper - lower)
+    quantity = (f'{settings.band} min–max normalized (0–1)'
+                if limits is not None else 'Voltage min–max normalized (0–1)')
     weights, coverage_mask = interpolation_weights(tuple(positions))
-    if limits is None:
-        average = values.mean()
-        grid = average + weights @ (values-average)
-    elif values.max() > 0:
-        # Spline log power, then restore original units: smooth positive fields
-        # without hard zero clipping or pretending power is a signed potential.
-        log_values = np.log(np.maximum(values, max(values.max()*1e-12, np.finfo(float).tiny)))
-        average = log_values.mean()
-        with np.errstate(over='ignore'):
-            grid = np.exp(average + weights @ (log_values-average))
-    else:
-        grid = np.zeros(len(_GRID_POINTS))
+    average = values.mean()
+    grid = average + weights @ (values-average)
     mask = SCALP_MASK if settings.extrapolate else coverage_mask
     if not np.isfinite(grid[mask]).all():
         raise ValueError('Spherical-spline field is unstable for this electrode coverage')
-    if limits is None:
-        magnitude = max(float(np.max(np.abs(grid[mask]))), float(np.max(np.abs(values))), 1e-12)
-        levels = (-magnitude, magnitude)
-    else:
-        levels = (0., max(float(grid[mask].max()), float(values.max()), 1e-24))
+    grid[mask] = np.clip(grid[mask], 0., 1.)
+    levels = (0., 1.)
     grid[~mask] = np.nan
     extrapolated = mask & ~coverage_mask
     return dict(grid=grid.reshape(GRID_SIZE, GRID_SIZE), values=values, positions=positions,
+                absolute_values=raw_values, normalization='minmax',
                 extrapolated=extrapolated.reshape(GRID_SIZE, GRID_SIZE),
                 labels=labels, excluded=excluded, levels=levels, quantity=quantity,
                 end=float(t[-1]), band=settings.band)

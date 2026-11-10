@@ -8,7 +8,7 @@ from dataclasses import replace
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QTimer, Qt, QDir, Slot
+from PySide6.QtCore import QTimer, Qt, QDir, Slot, QEventLoop
 from PySide6.QtUiTools import QUiLoader
 from pylsl import local_clock
 from PySide6.QtWidgets import (
@@ -153,6 +153,7 @@ class MainWindow(QMainWindow):
         self._shutdown_timer = QTimer(self)
         self._shutdown_timer.setInterval(25)
         self._shutdown_timer.timeout.connect(self._finish_close)
+        self._calibration_dialog = None
         self.performance = PerformanceMonitor()
         self._last_gui_tick = time.monotonic()
         self.raw_controller = PlotController(settings,self.performance,self)
@@ -280,7 +281,7 @@ class MainWindow(QMainWindow):
         live = getattr(view, 'source_configuration', None)
         available, status = self.asr_session.source_availability(
             live if getattr(view, 'active', False) else None)
-        if not available or self.capture is not None or self.asr_session.busy:
+        if not available or self.capture is not None or self.asr_session.busy or self._calibration_dialog is not None:
             self.statusBar().showMessage(status or 'Finish the current recording or training first.')
             return
         minimum = self.settings.asr_training_seconds
@@ -334,7 +335,7 @@ class MainWindow(QMainWindow):
         timer.start()
         self._operation_dialogs.add(progress)
         try:
-            result = progress.exec()
+            result = self._wait_for_calibration_dialog(progress)
         finally:
             self._operation_dialogs.discard(progress)
             fit.cancel()
@@ -551,9 +552,21 @@ class MainWindow(QMainWindow):
              'values':self._required_ui('metricsValuesMove', QToolButton)},
             {'trends':'Metric trends', 'values':'Metric values'})
         self.metric_arrangement.changed.connect(self._restore_metric_panels)
+        for name in ('metricsTrendMove', 'metricsValuesMove'):
+            button = self._required_ui(name, QToolButton)
+            set_action(button, '', 'move')
+            button.setAccessibleName('Move')
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            button.setToolTip('Move this panel.')
         for key, name in (('trends','metricsTrendExpand'), ('values','metricsValuesExpand')):
-            self._required_ui(name, QToolButton).clicked.connect(
+            button = self._required_ui(name, QToolButton)
+            set_panel_expanded(button, False)
+            button.clicked.connect(
                 lambda checked=False,k=key:self.toggle_metric_panel_focus(k))
+        metric_fit = self._required_ui('metricsYFit', QToolButton)
+        set_action(metric_fit, '', 'autoscale')
+        metric_fit.setAccessibleName('Fit vertical range')
+        metric_fit.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self._metric_workspace = AdaptiveRawWorkspace(
             self._required_ui('metricsTabScroll', QScrollArea).viewport(), splitter)
 
@@ -656,9 +669,13 @@ class MainWindow(QMainWindow):
     def _connect_designer_controls(self):
         """Wire the live application to named Designer widgets, not a mockup."""
         self.filter_choices, self.filter_notches = {}, {}
+        self.graphics_status_labels = {}
         self.artifact_choices = {}
         self.source_conversions = {}
         for kind in ('EEG', 'EDA', 'PPG'):
+            status = self._required_ui(f'{kind}GraphicsWarmupStatus', QLabel)
+            status.hide()
+            self.graphics_status_labels[kind] = status
             conversion = SourceConversionControls()
             self.source_conversions[kind] = conversion
             source_layout = self._required_ui(f'{kind}SourceLayout', QVBoxLayout)
@@ -776,10 +793,15 @@ class MainWindow(QMainWindow):
         self.focused_raw_kind = None
         for kind in ('EEG', 'PPG', 'EDA'):
             focus = self._required_ui(f'{kind}Expand', QToolButton)
+            set_panel_expanded(focus, False)
             focus.setToolTip(f'Give {modality_label(kind)} the full plot area; all streams keep acquiring')
             focus.toggled.connect(lambda checked, k=kind: self.set_raw_focus(k, checked))
             self.raw_focus_buttons[kind] = focus
             move = self._required_ui(f'{kind}Move', QToolButton)
+            set_action(move, '', 'move')
+            move.setAccessibleName('Move')
+            move.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            move.setToolTip(f'Move {modality_label(kind)} to another panel position.')
             menu = QMenu(move)
             move.setMenu(menu)
             move.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
@@ -809,6 +831,9 @@ class MainWindow(QMainWindow):
             self.plots[kind] = plot
             self.raw_controller.register_plot(kind, plot)
             gain = self._required_ui(f'{kind}Amplitude', QDoubleSpinBox)
+            gain_label = self._required_ui(f'{kind}AmplitudeLabel', QLabel)
+            gain_label.setText('')
+            gain_label.setMinimumWidth(gain_label.fontMetrics().horizontalAdvance('Gain'))
             gain.hide()  # Keep bounded gain state; adjustment uses − / Fit / + only.
             gain.setDecimals(2)
             # Qt's Windows stylesheet gives NoButtons a zero-width editor.
@@ -826,26 +851,26 @@ class MainWindow(QMainWindow):
                 lambda _, k=kind: self.set_raw_vertical_gain(k))
             self.raw_vertical_gains[kind] = gain
             autoscale = self._required_ui(f'{kind}Autoscale', QToolButton)
+            set_action(autoscale, '', 'autoscale')
+            autoscale.setAccessibleName('Fit amplitude range')
+            autoscale.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
             autoscale.setToolTip('Fit visible raw/filtered extrema; EEG keeps one shared gain')
             autoscale.clicked.connect(lambda _, k=kind: self.autoscale_raw(k))
             self.raw_autoscale_buttons[kind] = autoscale
             center=self._required_ui(f'{kind}Center',QToolButton)
+            set_action(center, '', 'center')
+            center.setAccessibleName('Center')
+            center.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            center.setToolTip(f'Center {modality_label(kind)} around zero.')
             center.clicked.connect(lambda _,k=kind:self.center_raw(k))
             self.raw_center_buttons[kind]=center
             self._required_ui(f'{kind}AmplitudeMinus', QPushButton).clicked.connect(
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, 1/self.settings.gain_step))
             self._required_ui(f'{kind}AmplitudePlus', QPushButton).clicked.connect(
                 lambda _, k=kind: self.adjust_raw_vertical_gain(k, self.settings.gain_step))
-        host = self._required_ui('TOPOPlotPanel', QWidget)
-        self.topography = TopographyView(
-            host, self._required_ui('topographyExtrapolate', QCheckBox),
-            colour_controls={
-                'minus': self._required_ui('topographyColourMinus', QToolButton),
-                'fit': self._required_ui('topographyColourFit', QToolButton),
-                'plus': self._required_ui('topographyColourPlus', QToolButton),
-                'auto': self._required_ui('topographyColourAuto', QCheckBox)},
-            colour_step=self.settings.gain_step)
-        host.layout().insertWidget(0, self.topography, 1)
+        host = self._required_ui('topographyViewHost', QWidget)
+        self.topography = TopographyView(host, colour_step=self.settings.gain_step)
+        host.layout().addWidget(self.topography, 1)
         self.raw_focus_buttons['TOPO'] = self.topography.expand
         self.topography.expand.toggled.connect(lambda checked: self.set_raw_focus('TOPO', checked))
         menu = QMenu(self.topography.move)
@@ -962,6 +987,12 @@ class MainWindow(QMainWindow):
         self._required_ui('metricsYOut', QToolButton).clicked.connect(lambda:self.zoom_metric_y(1.25))
         self._required_ui('metricsYIn', QToolButton).clicked.connect(lambda:self.zoom_metric_y(.8))
         self._required_ui('metricsYFit', QToolButton).clicked.connect(self.fit_metric_y)
+        metric_center = self._required_ui('metricsYCenter', QToolButton)
+        set_action(metric_center, '', 'center')
+        metric_center.setAccessibleName('Center')
+        metric_center.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        metric_center.setToolTip('Center the vertical range on its data.')
+        metric_center.clicked.connect(self.center_metric_y)
 
 
     def update_calibration_action(self, kind):
@@ -974,6 +1005,9 @@ class MainWindow(QMainWindow):
                            'Clear the active calibration; saved files are kept.')[mode])
 
     def _baseline_designer_action(self, kind):
+        if self.capture is not None or self.asr_session.busy or self._calibration_dialog is not None:
+            self.statusBar().showMessage('Finish the current recording or calibration dialog first.')
+            return
         choice = self._required_ui(f'{kind}Mode', QComboBox).currentIndex()
         if choice == 0:
             self.record_calibration(kind)
@@ -1598,6 +1632,10 @@ class MainWindow(QMainWindow):
         self.metric_y_auto.setChecked(False)
         self.metric_controller.fit_y()
 
+    def center_metric_y(self):
+        if self.metric_controller.center_y():
+            self.metric_y_auto.setChecked(False)
+
     def set_metric_time_window(self,*_):
         seconds=self.metric_time_window.currentData()
         if seconds is not None:
@@ -1755,6 +1793,41 @@ class MainWindow(QMainWindow):
     def update_raw_xranges(self):
         self.raw_controller.set_visible(k for k in self.raw_plot_stacks if self.raw_plot_visible(k))
         self.raw_controller.tick()
+        if self.tabs.currentWidget() is self.sources_page and self.raw_controller.mode == 'vispy':
+            selections = {}
+            for kind, selector in self.selectors.items():
+                info = selector.currentData()
+                if info is not None:
+                    selections[kind] = (len(self.channel_selectors[kind].selected_indices()),
+                                        info.nominal_srate())
+            self.raw_controller.warm(selections)
+            self.update_graphics_status(selections)
+        elif self.tabs.currentWidget() is self.sources_page:
+            self.update_graphics_status({})
+
+    def update_graphics_status(self, selections):
+        for kind, label in self.graphics_status_labels.items():
+            count, fs = selections.get(kind, (0, 0))
+            progress = self.raw_controller.warmup_progress(kind, count) if fs > 0 else None
+            if progress is None:
+                label.hide()
+                continue
+            ready, total, failed = progress
+            if ready == total:
+                text = 'Ready'
+                detail = f'Graphics prepared for {total} channels.'
+            elif failed:
+                text = 'On first draw'
+                detail = 'Graphics will initialize when the plot is first drawn.'
+            else:
+                text = f'Warming {ready}/{total}'
+                detail = f'Graphics prepared for {ready} of {total} channels. Play is available.'
+            if label.text() != text or label.toolTip() != detail:
+                label.setText(text)
+                label.setToolTip(detail)
+                label.setAccessibleName(f'{modality_label(kind)}: {detail}')
+            if label.isHidden():
+                label.show()
 
     def tab_changed(self, index):
         if hasattr(self, 'affect_view'):
@@ -1828,16 +1901,22 @@ class MainWindow(QMainWindow):
         self._last_gui_tick=now
         self.refresh_asr_indicator(now)
         self.refresh_peripheral_indicators(now)
-        if not self._closing and QApplication.activePopupWidget() is None:
+        if not self._closing:
             self.poll_receivers()
-            self.update_raw_xranges()
+            # Avoid raw GL redraws/warmup while a menu is interacting, but
+            # continue ingesting data and updating the other visible views.
+            if QApplication.activePopupWidget() is None:
+                self.update_raw_xranges()
             if self.tabs.currentWidget() is self.raw_page:
                 calibrated_iaf = None
+                calibrated_bands = None
                 if self.loaded_eyc is not None:
-                    candidate = (self.loaded_eyc.get('analysis') or {}).get('iaf_hz')
+                    eyc_analysis = self.loaded_eyc.get('analysis') or {}
+                    candidate = eyc_analysis.get('iaf_hz')
                     if candidate is not None and np.isfinite(candidate) and 6. <= candidate <= 16.:
                         calibrated_iaf = float(candidate)
-                self.topography.tick(self.raw_display, calibrated_iaf)
+                        calibrated_bands = eyc_analysis.get('iaf_bands_hz')
+                self.topography.tick(self.raw_display, calibrated_iaf, calibrated_bands)
             if self.tabs.currentWidget() is self.metrics_page and (not self.metric_plot_paused or self.metric_dirty):
                 self.update_metric_xrange()
                 if self.metric_dirty: self.refresh_metric_plot()
@@ -1882,10 +1961,39 @@ class MainWindow(QMainWindow):
         if self.capture is not None:
             self.capture.append(kind, samples, timestamps, channels, fs, time.monotonic())
 
+    def _wait_for_calibration_dialog(self, dialog):
+        """Keep the calibration sequence ordered without disabling the main window."""
+        if self._closing:
+            return QDialog.DialogCode.Rejected
+        if self._calibration_dialog is not None:
+            raise RuntimeError('A calibration dialog is already open')
+        loop = QEventLoop(self)
+        result = None
+
+        def finished(code):
+            nonlocal result
+            result = code
+            loop.quit()
+
+        self._calibration_dialog = dialog
+        self._operation_dialogs.add(dialog)
+        dialog.setWindowModality(Qt.WindowModality.NonModal)
+        dialog.finished.connect(finished)
+        try:
+            dialog.show()
+            if result is None:
+                loop.exec()
+            return result if result is not None else QDialog.DialogCode.Rejected
+        finally:
+            dialog.finished.disconnect(finished)
+            self._calibration_dialog = None
+            self._operation_dialogs.discard(dialog)
+            loop.deleteLater()
+
     def record_calibration(self, kind):
         if self._closing:
             return
-        if self.capture is not None:
+        if self.capture is not None or self._calibration_dialog is not None:
             QMessageBox.warning(self, 'Calibration', 'A calibration is already running.')
             return
         connected = {modality: worker for modality, worker in self.workers.items()
@@ -1922,11 +2030,14 @@ class MainWindow(QMainWindow):
             kind, meta, time.monotonic() + DURATION_SECONDS + 1)
         self._operation_dialogs.add(screen)
         try:
-            result = screen.exec()
+            result = self._wait_for_calibration_dialog(screen)
         finally:
             self._operation_dialogs.discard(screen)
+            screen.deleteLater()
         session = self.capture
         self.capture = None
+        if self._closing:
+            return
         for modality in tuple(self.pending_source_changes):
             self.schedule_source_change(modality)
         if self._closing:
@@ -1946,7 +2057,8 @@ class MainWindow(QMainWindow):
         except OperationCancelled:
             return
         except Exception as exc:
-            QMessageBox.warning(self, 'Calibration analysis failed', str(exc))
+            if not self._closing:
+                QMessageBox.warning(self, 'Calibration analysis failed', str(exc))
             return
         # Activate the completed recording before optional inspection/saving.
         # ASR fitting must not depend on whether the user saves an NPZ file.
@@ -1991,12 +2103,11 @@ class MainWindow(QMainWindow):
         return self._run_calibration_task(task, f'Analyzing {kind} calibration…')
 
     def _run_calibration_task(self, task, text):
-        if self._closing:
+        if self._closing or self._calibration_dialog is not None:
             task.deleteLater()
-            raise OperationCancelled('Application is closing')
+            raise OperationCancelled('Application is closing or a calibration operation is active')
         progress = TaskProgress(text, self)
         progress.setWindowTitle('Calibration analysis')
-        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
         progress.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
         task.completed.connect(progress.receive)
         task.finished.connect(progress.finish_task)
@@ -2004,7 +2115,7 @@ class MainWindow(QMainWindow):
         self._operation_dialogs.add(progress)
         task.start()
         try:
-            progress.exec()
+            self._wait_for_calibration_dialog(progress)
             outcome = progress.outcome
         finally:
             self._operation_dialogs.discard(progress)
@@ -2068,7 +2179,7 @@ class MainWindow(QMainWindow):
             pages.setCurrentWidget(dlg.findChild(QWidget, 'statisticsPage'))
         self._operation_dialogs.add(dlg)
         try:
-            dlg.exec()
+            self._wait_for_calibration_dialog(dlg)
         finally:
             self._operation_dialogs.discard(dlg)
         dlg.deleteLater()
@@ -2100,7 +2211,7 @@ class MainWindow(QMainWindow):
         self._apply_asr_metric_references()
 
     def load_existing(self, kind):
-        if self._closing:
+        if self._closing or self.capture is not None or self._calibration_dialog is not None:
             return
         filename, _ = QFileDialog.getOpenFileName(
             self, f'Open {kind} calibration', '', 'Calibration (*.npz)'
@@ -2121,7 +2232,8 @@ class MainWindow(QMainWindow):
         except OperationCancelled:
             return
         except Exception as exc:
-            QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
+            if not self._closing:
+                QMessageBox.critical(self, f'Cannot load {kind}', str(exc))
 
     def closeEvent(self, event):
         if self._closed:
