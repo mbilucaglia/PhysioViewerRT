@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "session_id": "a8132694-fee1-446f-be48-960e57829a0a",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "f0b09ac4f523b0dc0b39a221f3e4e89526b1f309",
+  "updated_at": "2026-11-26T19:17:11.6302791+01:00",
+  "status": "completed",
+  "summary": "Verifica GitHub e conservazione dei rami locali di lavoro sul rendering.",
+  "intervals": [
+    {
+      "id": "854dce55-a1c1-429a-9771-8ad23e1443dd",
+      "started_at": "2026-11-26T19:15:32.3033429+01:00",
+      "ended_at": "2026-11-26T19:17:11.6302791+01:00",
+      "kind": "agent",
+      "basis": "observed",
+      "description": "Controllo dei registri e pubblicazione dei rami di lavoro",
+      "evidence": [
+        "git worktree list",
+        "git push --atomic origin"
+      ],
+      "source_event_id": null
+    }
+  ],
+  "results": [
+    "Pubblicati i rami organised-work-backup e rendering-validation-sync-2026-11-26."
+  ],
+  "commits": [
+    "bbcbc2b",
+    "2249c2c"
+  ],
+  "open_items": [],
+  "limitations": [
+    "Intervallo dal primo timestamp esplicito osservato. Sincronizzazione Git, senza prove di acquisizione."
+  ]
+}

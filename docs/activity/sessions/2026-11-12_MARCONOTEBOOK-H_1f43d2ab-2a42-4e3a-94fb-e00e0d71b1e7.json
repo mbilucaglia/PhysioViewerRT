@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "session_id": "1f43d2ab-2a42-4e3a-94fb-e00e0d71b1e7",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "main",
+  "head_at_start": "f0b09ac4f523b0dc0b39a221f3e4e89526b1f309",
+  "updated_at": "2026-11-12T14:47:52.3749844+01:00",
+  "status": "completed",
+  "summary": "Diagnosi rifiuto stream COOSPO a frequenza irregolare nel receiver PPG",
+  "intervals": [
+    {
+      "source_event_id": null,
+      "id": "a32c1cf9-64d4-4bb3-87f3-77d428e7604f",
+      "kind": "mixed",
+      "ended_at": "2026-11-12T14:47:52.3749844+01:00",
+      "description": "Analisi receiver, metadati LSL e compatibilita pipeline PPG",
+      "evidence": [
+        "Traceback utente; physiolab/worker.py:130"
+      ],
+      "basis": "observed",
+      "started_at": "2026-11-12T14:46:55.0658948+01:00"
+    }
+  ],
+  "results": [
+    "Diagnosi verificata sul codice e sui metadati LSL live: COOSPO_HW807_HR, HeartRate, 0 Hz, HR bpm; COOSPO_HW807_RR, RR, 0 Hz, RR ms.",
+    "La pipeline PPG richiede forma onda regolare e ricava HR da picchi; HR/RR non sono ingressi PPG compatibili.",
+    "Nessuna modifica al codice applicativo; nessun commit o push."
+  ],
+  "commits": [],
+  "open_items": [
+    "Supporto dedicato a ingressi HR/RR da definire con utente; errore di acquisizione non risolto."
+  ],
+  "limitations": [
+    "Inizio registrato dal primo timestamp osservato; tempo precedente non misurato.",
+    "Test, lint e type checking non eseguiti: sola diagnosi e registro.",
+    "Tentativo iniziale di creazione registro fallito per quoting PowerShell; ripetuto correttamente."
+  ]
+}
