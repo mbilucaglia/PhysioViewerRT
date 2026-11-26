@@ -15,7 +15,7 @@
       "id": "854dce55-a1c1-429a-9771-8ad23e1443dd",
       "started_at": "2026-11-26T19:15:32.3033429+01:00",
       "ended_at": "2026-11-26T19:17:11.6302791+01:00",
-      "kind": "agent",
+      "kind": "automatic",
       "basis": "observed",
       "description": "Controllo dei registri e pubblicazione dei rami di lavoro",
       "evidence": [
@@ -34,6 +34,7 @@
   ],
   "open_items": [],
   "limitations": [
-    "Intervallo dal primo timestamp esplicito osservato. Sincronizzazione Git, senza prove di acquisizione."
+    "Intervallo dal primo timestamp esplicito osservato. Sincronizzazione Git, senza prove di acquisizione.",
+    "Tipo di intervallo uniformato allo schema AGENTS.md per le operazioni automatiche di sincronizzazione."
   ]
 }
