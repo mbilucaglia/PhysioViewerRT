@@ -3,8 +3,10 @@
 Local desktop prototype for real-time LSL biosignal visualization and research neurofeedback (EEG, EDA/GSR and PPG).
 
 The desktop app uses PySide6 and VisPy/OpenGL for live waveforms and metrics,
-with pylsl acquisition and NumPy/SciPy processing. pyqtgraph remains available
-as a compatibility fallback. This repository is not a validated medical device.
+with pylsl acquisition and NumPy/SciPy processing. VisPy is selected
+automatically on desktop sessions; pyqtgraph remains only as an internal fallback
+for offscreen sessions or unavailable OpenGL. This repository is not a validated
+medical device.
 
 ## Run on Windows
 

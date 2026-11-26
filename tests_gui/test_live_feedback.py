@@ -105,9 +105,9 @@ class LiveFeedbackTests(unittest.TestCase):
             wave = np.column_stack((np.sin(2*np.pi*4*times),np.sin(2*np.pi*6*times)))
             w.receive('EEG',100.+wave,3.+wave*.5,['Fp1','Fp2'],None,256.,local_clock()-5.+times)
             self.assertTrue(pump(lambda: 'EEG' in w.raw_display.frames))
-            modes = (0,1) if os.environ.get('QT_QPA_PLATFORM') == 'windows' else (0,)
+            modes = ('pyqtgraph','vispy') if os.environ.get('QT_QPA_PLATFORM') == 'windows' else ('pyqtgraph',)
             for renderer in modes:
-                w.raw_renderer_choice.setCurrentIndex(renderer)
+                w.set_raw_renderer(renderer)
                 w.set_plot_paused('raw',True)
                 for raw_visible, clean_visible, expected in ((True,False,3.),(False,True,3.),(True,True,3.)):
                     w.show_raw.setChecked(raw_visible)

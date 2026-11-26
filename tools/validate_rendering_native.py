@@ -66,7 +66,7 @@ def main():
         window.set_plot_paused('raw',True); pump(settled)
         references={k:window.raw_display.initial_references[k][0].copy() for k in draws}
         for mode in ('vispy','pyqtgraph','vispy'):
-            window.raw_renderer_choice.setCurrentIndex(window.raw_renderer_choice.findData(mode))
+            window.set_raw_renderer(mode)
             for count in (8,32):
                 window.eeg_display_count.setValue(count)
                 for duration in (5,10,30,5,15):
@@ -114,8 +114,8 @@ def main():
             t=np.arange(int(fs))/fs; x=np.ones((len(t),count))*100.
             window.receive(kind,x,x,[f'C{i+1}' for i in range(count)],None,fs,1600.+t)
         assert window.raw_display.visible_history('EEG') is frozen
-        window.raw_renderer_choice.setCurrentIndex(0); pump(settled)
-        window.raw_renderer_choice.setCurrentIndex(1); pump(settled)
+        window.set_raw_renderer('pyqtgraph'); pump(settled)
+        window.set_raw_renderer('vispy'); pump(settled)
         window.set_plot_paused('raw',False)
         pump(lambda:window.raw_vispy_plots['EEG'].latest_sample_time>599.)
         # Clear just this synthetic source and verify fresh generations render.

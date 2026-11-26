@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "session_id": "3c263c23-4993-43c8-9834-f11cd2c80017",
+  "project": "PhysioViewerRT",
+  "machine": "MARCONOTEBOOK-H",
+  "reporting_timezone": "Europe/Rome",
+  "thread_id": null,
+  "branch": "HEAD (detached)",
+  "head_at_start": "8c5053d16f9f6275387391820c5ec47154186d7c",
+  "updated_at": "2026-11-05T14:34:36+00:00",
+  "status": "completed",
+  "summary": "Remove the PyQtGraph option and use VisPy as the supported plot renderer.",
+  "intervals": [
+    {
+      "source_event_id": "3c263c23-4993-43c8-9834-f11cd2c80017",
+      "evidence": [
+        "Codex turn 2026-11-05"
+      ],
+      "description": "Inspect and remove the legacy PyQtGraph rendering option from the committed baseline.",
+      "started_at": "2026-11-05T15:25:38+01:00",
+      "kind": "mixed",
+      "basis": "observed",
+      "id": "3c263c23-4993-43c8-9834-f11cd2c80017",
+      "ended_at": "2026-11-05T15:34:36+01:00"
+    }
+  ],
+  "results": [
+    "Removed the Raw Data and Metrics renderer dropdowns from the Designer UI and removed their signal wiring.",
+    "VisPy remains the automatic desktop renderer. PyQtGraph remains only as an internal offscreen/OpenGL compatibility fallback; no renderer choice is exposed to users.",
+    "Updated the current README/Windows setup guidance, smoke/regression checks, and native validation tools to match automatic renderer selection.",
+    "Verified all seven modified Python files parse, Designer XML parses, git diff --check passes, and no renderer selector references remain in application code/controllers/tools.",
+    "Confirmed simulate_windows.cmd is tracked and present in this gold-standard checkout. It is missing only in the original checkout because of its local uncommitted deletion; that checkout was left untouched."
+  ],
+  "commits": [
+    "8c5053d16f9f6275387391820c5ec47154186d7c"
+  ],
+  "open_items": [],
+  "limitations": [
+    "Unit and GUI tests were not run."
+  ]
+}

@@ -1401,23 +1401,6 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                    <number>6</number>
                   </property>
                   <item>
-                   <widget class="QComboBox" name="rawRendererChoice">
-                    <property name="maximumWidth">
-                     <number>170</number>
-                    </property>
-                    <item>
-                     <property name="text">
-                      <string>pyqtgraph</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>VisPy / OpenGL</string>
-                     </property>
-                    </item>
-                   </widget>
-                  </item>
-                  <item>
                    <widget class="QPushButton" name="rawFollowLive">
                     <property name="toolTip">
                      <string>Return to the newest incoming samples</string>
@@ -2643,23 +2626,6 @@ QPlainTextEdit { background: #ffffff; color: #25234a; border: 1px solid #dfe1ef;
                      <property name="spacing">
                       <number>6</number>
                      </property>
-                     <item>
-                      <widget class="QComboBox" name="metricsRendererChoice">
-                       <property name="maximumWidth">
-                        <number>170</number>
-                       </property>
-                       <item>
-                        <property name="text">
-                         <string>pyqtgraph</string>
-                        </property>
-                       </item>
-                       <item>
-                        <property name="text">
-                         <string>VisPy / OpenGL</string>
-                        </property>
-                       </item>
-                      </widget>
-                     </item>
                      <item>
                       <widget class="QPushButton" name="metricsFollowLive">
                        <property name="toolTip">

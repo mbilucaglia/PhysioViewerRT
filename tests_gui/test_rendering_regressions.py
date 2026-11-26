@@ -79,7 +79,7 @@ class RenderingRegressions(unittest.TestCase):
         with patch.object(MainWindow,'refresh',lambda self:None): w=MainWindow()
         try:
             w.show(); w.tabs.setCurrentWidget(w.raw_page)
-            w.raw_renderer_choice.setCurrentIndex(0)
+            w.set_raw_renderer('pyqtgraph')
             t=np.arange(640)/128.; x=np.sin(t)[:,None]
             w.receive('PPG',x,x,['P'],None,128.,t)
             self.assertTrue(pump(lambda:len(w.curves['PPG'])==2))
@@ -103,12 +103,12 @@ class RenderingRegressions(unittest.TestCase):
             now=time.monotonic(); w.metric_controller.origin=now-3.
             w.metric_state.history['EEG','AWI'].extend([(now-2.,0.),(now-1.,1.),(now,2.)])
             w.refresh_metric_plot(); w.set_plot_paused('metrics',True)
-            for mode in (0,1,0):
-                w.metric_renderer_choice.setCurrentIndex(mode)
+            for mode in ('pyqtgraph','vispy','pyqtgraph'):
+                w.set_metric_renderer(mode)
                 w.metric_time_window.setCurrentIndex(w.metric_time_window.findData(10))
                 self.assertTrue(pump(lambda:not w.metric_dirty))
                 self.assertIn(('EEG','AWI'),w.metric_controller.series)
-                if mode==1:
+                if mode=='vispy':
                     self.assertTrue(np.isfinite(w.vispy_metric_plot._layers['EEG','AWI'][0].ring.last_time))
                 else: self.assertIsNotNone(w.metric_curves['EEG','AWI'].getData()[0])
         finally: w.close(); app.processEvents()
@@ -237,7 +237,7 @@ class RenderingRegressions(unittest.TestCase):
             w.receive('PPG',x,x,['PPG'],None,128.,t)
             self.assertTrue(pump(lambda:'PPG' in w.raw_display.frames))
             w.set_plot_paused('raw',True)
-            w.raw_renderer_choice.setCurrentIndex(0)
+            w.set_raw_renderer('pyqtgraph')
             self.assertTrue(pump(lambda:len(w.curves['PPG'])==2))
             w.raw_time_window.setCurrentIndex(w.raw_time_window.findData(10))
             self.assertTrue(pump(lambda:abs(np.diff(w.plots['PPG'].viewRange()[0])[0]-10)<1e-6))

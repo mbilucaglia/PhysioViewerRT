@@ -142,12 +142,12 @@ class MainWindow(QMainWindow):
             self._required_ui("rawDataTabScroll", QScrollArea).viewport(), self.raw_plot_splitter)
         self.update_metrics_availability()
         # Raw data reduction runs off the GUI thread; painting remains here.
-        # Prefer GPU on normal desktop sessions when the optional VisPy
-        # package is installed. Offscreen CI retains the original backend.
+        # Use VisPy on desktop sessions. The internal PyQtGraph fallback is
+        # retained for offscreen tests and systems where OpenGL cannot start.
         if (os.environ.get('QT_QPA_PLATFORM', '').lower() != 'offscreen'
                 and importlib.util.find_spec('vispy') is not None):
-            self.raw_renderer_choice.setCurrentIndex(1)
-            self.metric_renderer_choice.setCurrentIndex(1)
+            self.set_raw_renderer('vispy')
+            self.set_metric_renderer('vispy')
 
 
         self.statusBar().showMessage('Start an LSL source, then press Refresh LSL.')
@@ -698,11 +698,6 @@ class MainWindow(QMainWindow):
 
         self.show_raw.toggled.connect(self.raw_trace_selection_changed)
         self.show_processed.toggled.connect(self.raw_trace_selection_changed)
-        self.raw_renderer_choice = self._required_ui('rawRendererChoice', QComboBox)
-        self._fill_combo(self.raw_renderer_choice, [
-            ('pyqtgraph (original)', 'pyqtgraph'),
-            ('VisPy / OpenGL', 'vispy')])
-        self.raw_renderer_choice.currentIndexChanged.connect(self.set_raw_renderer)
         self.raw_time_window = self._required_ui('rawSweepDuration', QComboBox)
         self._fill_combo(self.raw_time_window, [
             ('5 s', 5), ('8 s', 8), ('10 s', 10), ('15 s', 15),
@@ -814,11 +809,6 @@ class MainWindow(QMainWindow):
             ('robust IQR (BSL)', 'robust_iqr'),
             ('fixed min-max (BSL)', 'minmax')])
         self.normalization.currentIndexChanged.connect(self.refresh_metrics)
-        self.metric_renderer_choice = self._required_ui('metricsRendererChoice', QComboBox)
-        self._fill_combo(self.metric_renderer_choice, [
-            ('pyqtgraph (original)', 'pyqtgraph'),
-            ('VisPy / OpenGL', 'vispy')])
-        self.metric_renderer_choice.currentIndexChanged.connect(self.set_metric_renderer)
         self.metric_time_window = self._required_ui('metricsSweepDuration', QComboBox)
         self._fill_combo(self.metric_time_window, [
             ('5 s', 5), ('10 s', 10), ('30 s', 30),
@@ -1479,14 +1469,10 @@ class MainWindow(QMainWindow):
     @property
     def metric_point_curves(self): return self.metric_controller.backends['pyqtgraph'].markers
 
-    def set_metric_renderer(self,*_):
-        mode=self.metric_renderer_choice.currentData()
+    def set_metric_renderer(self, mode='vispy'):
         try:
             self.metric_controller.set_backend(mode)
         except Exception as exc:
-            self.metric_renderer_choice.blockSignals(True)
-            self.metric_renderer_choice.setCurrentIndex(0)
-            self.metric_renderer_choice.blockSignals(False)
             QMessageBox.warning(self,'Metrics OpenGL unavailable',str(exc))
             return
         if mode=='vispy' and self.metric_plot_stack.indexOf(self.vispy_metric_plot.widget)<0:
@@ -1571,14 +1557,10 @@ class MainWindow(QMainWindow):
     def append_raw_chunk(self, kind, raw, processed, names, fs, timestamps):
         self.raw_controller.append(kind,raw,processed,names,fs,timestamps)
 
-    def set_raw_renderer(self, *_):
-        mode=self.raw_renderer_choice.currentData()
+    def set_raw_renderer(self, mode='vispy'):
         try:
             self.raw_controller.set_backend(mode)
         except Exception as exc:
-            self.raw_renderer_choice.blockSignals(True)
-            self.raw_renderer_choice.setCurrentIndex(0)
-            self.raw_renderer_choice.blockSignals(False)
             QMessageBox.warning(self,'OpenGL renderer unavailable',str(exc))
             return
         for kind,stack in self.raw_plot_stacks.items():

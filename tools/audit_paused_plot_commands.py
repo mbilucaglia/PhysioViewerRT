@@ -22,7 +22,7 @@ try:
     report['initial_backend']=w.raw_renderer_mode
     report['has_prepared_frame']='PPG' in w.raw_display.frames
     w.set_plot_paused('raw',True)
-    w.raw_renderer_choice.setCurrentIndex(0)
+    w.set_raw_renderer('pyqtgraph')
     deadline=time.monotonic()+.3
     while time.monotonic()<deadline:app.processEvents();time.sleep(.005)
     report['paused_backend_switch']={'CPU_curve_count':len(w.curves['PPG']),

@@ -122,7 +122,7 @@ Unsetting `PHYSIOLAB_PROFILE` disables logging.
 
 ## Application tabs
 
-- **Raw Data**: A vertically scrollable tab with enlarged waveform plots (EEG minimum 350 px high, EDA and PPG 300 px each); the lower plots and controls remain accessible by scrolling rather than being compressed. EEG, EDA/GSR, and PPG waveforms with independently switchable raw (solid) and filtered/processed (dashed) traces. The default view is **5 seconds**, with buffered history for **5 minutes**. Select 5 s / 10 s / 30 s / 1 min / 5 min, use **Zoom + / Zoom −**, or zoom and pan with the mouse to inspect the traces. Mouse-wheel time zoom keeps the newest samples visible in live-follow mode. Deliberately dragging/panning the time axis pauses following; the button changes to **Resume live (paused)** to make that state clear. The time axes of all three panels use a common LSL timestamp origin; trace rendering is downsampled for long windows to protect responsiveness. Incoming raw/filtered samples retain their original LSL timestamps instead of being re-timed on GUI arrival; duplicate or backward timestamps are rejected to prevent traces doubling back. A precise **30 FPS display timer** moves the live viewport between LSL deliveries without modifying recorded sample times. A monotone, jitter-resistant presentation clock advances the axes continuously and smoothly corrects LSL chunk arrival timing; it pauses when the publisher stops. Raw waveform cropping, decimation, and channel normalization now run on a **dedicated latest-only background thread**; Qt draws the prepared curves in the main thread. The GUI does not wait for older queued frames, and plotting is suspended while an axis context menu is open. The renderer scans only chunks overlapping the visible time range (not the full five-minute buffer) and freezes each channel's display scale after acquiring enough initial samples, to prevent vertical jumps. Waveform curves redraw on fresh samples or relevant display changes. Acquisition and metrics continue while the Metrics tab is open.
+- **Raw Data**: A vertically scrollable tab with enlarged waveform plots (EEG minimum 350 px high, EDA and PPG 300 px each); the lower plots and controls remain accessible by scrolling rather than being compressed. EEG, EDA/GSR, and PPG waveforms with independently switchable raw (solid) and filtered/processed (dashed) traces. The default view is **5 seconds**, with buffered history for **5 minutes**. Select 5 s / 10 s / 30 s / 1 min / 5 min, use **Zoom + / Zoom −**, Use **Zoom + / Zoom −** to inspect the traces; mouse-based pan and zoom are not exposed by the current VisPy renderer. The **Live** control returns to the newest incoming samples. The time axes of all three panels use a common LSL timestamp origin; trace rendering is downsampled for long windows to protect responsiveness. Incoming raw/filtered samples retain their original LSL timestamps instead of being re-timed on GUI arrival; duplicate or backward timestamps are rejected to prevent traces doubling back. A precise **30 FPS display timer** moves the live viewport between LSL deliveries without modifying recorded sample times. A monotone, jitter-resistant presentation clock advances the axes continuously and smoothly corrects LSL chunk arrival timing; it pauses when the publisher stops. Raw waveform cropping, decimation, and channel normalization now run on a **dedicated latest-only background thread**; Qt draws the prepared curves in the main thread. The GUI does not wait for older queued frames. The renderer scans only chunks overlapping the visible time range (not the full five-minute buffer) and freezes each channel's display scale after acquiring enough initial samples, to prevent vertical jumps. Waveform curves redraw on fresh samples or relevant display changes. Acquisition and metrics continue while the Metrics tab is open.
 - **Metrics**: A vertically scrollable tab with a taller combined metrics plot (minimum 520 px high); metric readouts are placed below the plot and remain accessible by scrolling. One combined live plot of **AWI**, **BAR**, **SCL**, **HR** and **EI**, displaying **5 seconds by default** while retaining up to **5 minutes of metric history**, with individual plot-visibility checkboxes, a legend and their live values. Unchecking a metric hides only its plot curve, not its computation or numeric readout. A **Curve processing** toolbar offers **None / moving average / EMA / moving median** smoothing with selectable **1, 2, 3, 5 or 10 s** duration; interpolation choices are **None (points), linear, PCHIP (default), cubic spline**, plus a **Measured points** checkbox (on by default). These are display-only operations applied after the selected normalization. Smoothing is causal and gap-aware; interpolation is restricted to already observed points and cannot span missing readings or stream gaps. Plot interpolation at 20 points/s does not increase the physiological sampling rate (EEG metrics are typically 2 Hz). Numerical values, EI calculation and BSL statistics remain unchanged. Duplicate or backward **display timestamps** are ignored (with the latest reading retained on duplicate timestamps) so PCHIP/cubic interpolation cannot interrupt EYC/BSL save and refresh. Saved calibration recordings are unaffected. The Metrics time axis also moves on the independent **30 FPS display timer**, while metric curves and interpolation are only rebuilt when readings or display options change; physiological metrics still update at about 2 Hz. Choose a time window (5 s, 10 s, 30 s, 1 min, 5 min) or use **Zoom + / Zoom −**. Mouse-wheel time zoom preserves automatic live following, keeping the newest samples at the right edge. Drag/pan pauses following to inspect earlier data; **Resume live (paused)** returns to the latest samples. Direct **Load EYC…** and **Load BSL…** buttons on this tab select calibration files and display the current filenames. IAF is shown as an EEG calibration parameter, not as a plot line. The **Original** mode plots mixed physiological units on one y-axis; z-score, robust z-MAD, robust IQR and fixed min-max modes transform each metric using its saved BSL reference. Invalid/insufficient values appear as gaps. EI standardizes current HR and SCL using their fixed **BSL means and standard deviations**, then uses the supplied MATLAB `EI_matrix` formula (`theta = atan2(SCL_z, HR_z)` with HR horizontal; 2.5π quadrant correction for nonnegative SCL_z and nonpositive HR_z); no separate 60-second live EI warm-up is required; EI becomes available once valid, fresh HR and SCL estimates and their BSL reference statistics exist. Subsequent EI display normalization uses the **BSL EI distribution** and follows the selected method like the other metrics. Metrics and Affect selectors are independent; the HR/SCL z-scores inside the EI formula remain fixed. EEG, EDA and PPG metrics retain 1-second windows with 50% overlap; HR uses a longer beat history.
 
 The current non-calibrated EEG default is **IAF 10 Hz**, with alpha power integrated over **8–12 Hz** (IAF ± 2 Hz). Guided EYC/BSL file capture and basic z-score/z-MAD/fixed-min-max normalization are implemented. ASR, PPG wavelets, and EDA artifact correction remain unimplemented.
@@ -152,70 +152,25 @@ All LSL stream types are available in each modality's stream menu. Assign the ap
 
 Not a medical device. Do not use for clinical decisions. Missing automated artifact detection, channel-quality gating, reference selection, inter-stream timestamp alignment, general recording/replay, SCR detection, sophisticated calibration artifact rejection, and closed-loop neurofeedback. The PPG peak detector is heuristic; the AWI and BAR estimates from one second are noisy. Simulated signals validate the software path only, not biological accuracy. Confirm montage, units, sampling rates, and signal quality with real hardware. The application has not undergone an end-to-end hardware/Windows integration test. Packaging as a standalone EXE is not yet provided.
 
-## Experimental GPU Raw Data renderer (VisPy/OpenGL)
+## VisPy/OpenGL plot rendering
 
-An optional A/B comparison of Raw Data visualization is available on branch
-`experiment/vispy-raw-renderer`. It is inspired by the **LineVis**
-OpenGL multi-channel rendering approach of Intheon's StreamViewer
-(https://github.com/intheon/stream_viewer, MIT licensed), but is an
-independent, lightweight renderer. No StreamViewer code is copied.
+Raw Data and Metrics use the shared VisPy/OpenGL plot engine. There is no
+renderer selector in the interface. On a normal desktop the application uses
+VisPy for both tabs; Qt offscreen sessions and systems that cannot initialize
+OpenGL use the retained PyQtGraph compatibility renderer automatically.
 
-On Windows PowerShell, after switching to this branch and with the virtual
-environment already installed:
+The plots preserve the existing signal processing, metric values, calibration,
+and LSL timestamps. Raw Data uses GPU line visuals with fixed channel offsets,
+raw/processed trace toggles, time-window and zoom controls, live follow, and
+amplitude controls. Metrics retains normalized, smoothed and interpolated
+series, gaps, measured-point markers, visibility controls, and live follow.
+Measured metric names are shown by the existing series checkboxes.
 
-```powershell
-.venv\Scripts\python.exe -m pip install -r requirements-vispy.txt
-.\start_windows.cmd
-```
-
-In the **Raw Data** tab, select the new **Waveform renderer** dropdown:
-**pyqtgraph (original)** or **VisPy / OpenGL (experimental)**.
-You can switch while synthetic LSL streams are playing. All processing,
-Metrics, EYC/BSL and acquired timestamps still use the existing pipelines.
-
-The OpenGL prototype batches multiple channels into one GPU line visual
-per modality and trace layer (raw and filtered). It provides fixed channel
-offsets, time-window and zoom buttons, live follow, show/hide raw and
-filtered, and vertical page scrolling. **GPU mode currently omits the
-pyqtgraph axis context menus and mouse-based plot panning.** Return to
-pyqtgraph mode for those features; this is intentional so we can isolate
-renderer performance before investing in alternative axis controls.
-
-VisPy requires usable OpenGL drivers and may not work on all remote desktop
-sessions. If OpenGL initialization fails, the app shows an error and retains
-pyqtgraph. This experiment does not establish that the freeze is fixed.
-Run the synthetic EEG+EDA+PPG workload for at least ten minutes with each
-backend, and compare the optional performance JSONL profiles. Switching
-renderers only affects Raw Data, not the Metrics tab.
-
-## Experimental VisPy/OpenGL Metrics panel
-
-Branch `experiment/vispy-metrics` extends the Raw Data GPU prototype with a
-VisPy renderer for **Metrics**. Install the same optional dependencies:
-
-```powershell
-.venv\Scripts\python.exe -m pip install -r requirements-vispy.txt
-.\start_windows.cmd
-```
-
-On a normal desktop, if VisPy is installed, **both Raw Data and Metrics default
-to VisPy/OpenGL**; each tab has an independent renderer dropdown, so either
-can be returned to the original pyqtgraph implementation. An offscreen test
-session defaults to pyqtgraph.
-
-The new Metrics canvas renders all five physiological series using the same
-existing normalized/smoothed/interpolated arrays. Missing observations retain
-their gaps; measured-point markers, axis labels, y-axis scaling, time-window,
-zoom buttons, metric visibility switches, and live-follow remain supported.
-Metrics OpenGL deliberately omits mouse-driven plot panning in this first
-prototype; switch to pyqtgraph when manual dragging is needed. The series
-legend is presently represented by the existing labeled metric checkboxes
-rather than drawn within the GPU canvas.
-
-Compare the same EEG, EDA and PPG synthetic session for at least ten minutes
-with both tabs on VisPy, then switch Metrics alone back to pyqtgraph and verify
-there are no changes to AWI, BAR, SCL, HR or EI values. These experiments do
-not change calibration, samples, filters, numerical algorithms, or recordings.
+VisPy requires a working OpenGL driver. Remote desktop or software-rendered
+sessions may not provide one; in that case the app reports the initialization
+failure and keeps the compatibility renderer available internally. Mouse-based
+plot panning is not exposed; use the time-window, zoom, and live-follow
+controls.
 
 ## Shared VisPy engine and GPU sweep behavior
 
@@ -242,7 +197,8 @@ raw sample history is limited to five minutes, so at very long sweep
 durations a full previous cycle cannot persist. The short 5–30s settings
 are recommended for real-time viewing and stable two-cycle persistence.
 
-Legacy pyqtgraph remains available as an independent fallback.
+PyQtGraph remains an automatic internal fallback for offscreen sessions or
+when OpenGL is unavailable. There is no renderer selector in the application.
 
 ## Clinical three-tab UI and sweep controls (experimental)
 
@@ -267,11 +223,10 @@ channel, not to physical units or a fixed 100 µV scale.
 Both **Raw Data** and **Metrics** in VisPy use stable left-to-right
 sweeps with the previous cycle retained until the cursor overwrites it.
 Their default duration is 5 s and each tab retains its own time-window
-selector and zoom controls. pyqtgraph remains available for the original
-scrolling display. The plot cursor uses the shared VisPy scene engine,
-and physiological algorithms, timestamps, calibration and recordings
-are unchanged. Continuous gain and thin GPU cursor require the VisPy
-renderer; they do not alter the historical pyqtgraph presentation.
+selector and zoom controls. The plot cursor uses the shared VisPy scene engine,
+and physiological algorithms, timestamps, calibration and recordings are
+unchanged. PyQtGraph is used only as an automatic internal fallback; users do
+not select between renderers.
 
 ## Incremental GPU sweep architecture — Raw Data and Metrics
 
@@ -333,8 +288,9 @@ To edit it on Windows:
 
 Plot placeholders (`EEGPlotHost`, `PPGPlotHost`, `EDAPlotHost`,
 `metricsPlotHost`) are ordinary editable Qt `QFrame` containers.
-At runtime the controller inserts its QStackedWidget containing pyqtgraph
-and the existing VisPy `SceneCanvas.native` into each host. Resizing those
+At runtime the controller inserts its VisPy `SceneCanvas.native` into each
+host. An internal PyQtGraph compatibility widget remains available for fallback.
+Resizing those
 containers in Designer therefore resizes the real waveform panels; the
 single vertical `rawPlotSplitter` can also be dragged during a session.
 
@@ -345,7 +301,7 @@ The application reports the missing widget's name if the contract breaks.
 
 The initial integration retains the existing calibration and processing
 algorithms. Source-selection controls, baseline New/Load/Default entry
-points, renderer switches and plot-only pause controls are connected.
+points, automatic plot backend selection and plot-only pause controls are connected.
 The follow-up clinical-workflow changes (preprocessing preset semantics,
 EEG display count, calibration-gated Metrics, and subtle plot axes)
 are a separate stage; they are **not implied** by visual placeholders.

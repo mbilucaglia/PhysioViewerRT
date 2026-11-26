@@ -80,7 +80,7 @@ class UiConsistencyTests(unittest.TestCase):
         window=self.window
         history=window.metric_state.history
         key=('EEG','AWI')
-        window.metric_renderer_choice.setCurrentIndex(0)
+        window.set_metric_renderer('pyqtgraph')
         origin=window.metric_plot_origin
         window.metric_state.history[key].extend([(origin,0.),(origin+1.,5.),(origin+2.,10.)])
         window.metric_controller.follow_live=False
@@ -96,9 +96,9 @@ class UiConsistencyTests(unittest.TestCase):
         self.assertAlmostEqual(zoomed[1]-zoomed[0],.8*(bounds[1]-bounds[0]))
         self.assertIs(window.metric_state.history,history)
         self.assertIcon(window.findChild(QToolButton,'metricsYFit'),'autoscale')
-        window.metric_renderer_choice.setCurrentIndex(1)
+        window.set_metric_renderer('vispy')
         np.testing.assert_allclose(window.vispy_metric_plot.y_range,zoomed)
-        window.metric_renderer_choice.setCurrentIndex(0)
+        window.set_metric_renderer('pyqtgraph')
         np.testing.assert_allclose(window.metric_plot.viewRange()[1],zoomed)
 
     def test_time_zoom_plus_means_more_detail_in_both_tabs(self):

@@ -567,12 +567,12 @@ class GuiSmokeTests(unittest.TestCase):
         old_metrics = self.window.metric_state.history
         old_receivers = self.window.workers
         with patch('physiolab.plot_controller.VisPyRawPlot', FakeGpuPlot):
-            self.window.raw_renderer_choice.setCurrentIndex(1)
+            self.window.set_raw_renderer('vispy')
             self.assertEqual(self.window.raw_renderer_mode, 'vispy')
             self.assertEqual(len(self.window.raw_vispy_plots), 3)
             for stack in self.window.raw_plot_stacks.values():
                 self.assertEqual(stack.currentIndex(), 1)
-            self.window.raw_renderer_choice.setCurrentIndex(0)
+            self.window.set_raw_renderer('pyqtgraph')
             self.assertEqual(self.window.raw_renderer_mode, 'pyqtgraph')
             for stack in self.window.raw_plot_stacks.values():
                 self.assertEqual(stack.currentIndex(), 0)
@@ -617,7 +617,7 @@ class GuiSmokeTests(unittest.TestCase):
             (current - 1., .2), (current - .5, .4), (current, .6)
         ])
         with patch('physiolab.metric_plot_controller.VisPyMetricPlot', FakeMetricGpu):
-            self.window.metric_renderer_choice.setCurrentIndex(1)
+            self.window.set_metric_renderer('vispy')
             self.assertEqual(self.window.metric_renderer_mode, 'vispy')
             self.assertEqual(self.window.metric_plot_stack.currentIndex(), 1)
             self.window.refresh_metric_plot()
@@ -628,13 +628,13 @@ class GuiSmokeTests(unittest.TestCase):
             self.window.metric_checks[key].setChecked(True)
             self.window.zoom_metric_plot(.5)
             self.assertIsNotNone(gpu.bounds)
-            self.window.metric_renderer_choice.setCurrentIndex(0)
+            self.window.set_metric_renderer('pyqtgraph')
             self.assertEqual(self.window.metric_plot_stack.currentIndex(), 0)
             self.assertIs(self.window.metric_state.history, original_history)
             self.assertAlmostEqual(self.window.metric_state.history[key][-1][1], .6)
 
     def test_mockup_tabs_sources_and_resizable_raw_panels(self):
-        from PySide6.QtWidgets import QSplitter, QDoubleSpinBox
+        from PySide6.QtWidgets import QSplitter, QDoubleSpinBox, QWidget
         self.assertEqual(
             [self.window.tabs.tabText(i) for i in range(self.window.tabs.count())],
             ['Sources', 'Raw Data', 'Metrics', 'Affect']
@@ -645,6 +645,8 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertEqual(self.window.raw_plot_splitter.widget(0).objectName(), 'EEGPlotPanel')
         self.assertEqual(self.window.raw_peripheral_splitter.widget(0).objectName(), 'PPGPlotPanel')
         self.assertEqual(self.window.raw_peripheral_splitter.widget(1).objectName(), 'EDAPlotPanel')
+        self.assertIsNone(self.window.findChild(QWidget, 'rawRendererChoice'))
+        self.assertIsNone(self.window.findChild(QWidget, 'metricsRendererChoice'))
         self.assertEqual(
             self.window.raw_scroll.verticalScrollBarPolicy(),
             __import__('PySide6.QtCore', fromlist=['Qt']).Qt.ScrollBarPolicy.ScrollBarAlwaysOff
